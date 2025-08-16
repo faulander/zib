@@ -11,6 +11,7 @@ from .core.exceptions import (
     ZibException, validation_exception_handler, zib_exception_handler,
     http_exception_handler, general_exception_handler
 )
+from .routes import feeds_router, categories_router
 
 # Initialize logging
 setup_logging()
@@ -54,6 +55,10 @@ app.add_exception_handler(ValidationError, validation_exception_handler)
 app.add_exception_handler(ZibException, zib_exception_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(Exception, general_exception_handler)
+
+# Include API routers
+app.include_router(feeds_router, prefix='/api')
+app.include_router(categories_router, prefix='/api')
 
 
 @app.middleware('http')
