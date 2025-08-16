@@ -1,0 +1,7 @@
+[project]
+name = "zib_backend"
+version = "0.1.0"
+description = "Backend for ZIB RSS Reader"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
