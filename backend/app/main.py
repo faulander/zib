@@ -1,11 +1,16 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 import time
 from contextlib import asynccontextmanager
 
 from .core.config import settings
 from .core.logging import setup_logging, get_logger
+from .core.exceptions import (
+    ZibException, validation_exception_handler, zib_exception_handler,
+    http_exception_handler, general_exception_handler
+)
 
 # Initialize logging
 setup_logging()
@@ -43,6 +48,12 @@ app.add_middleware(
     allow_methods=settings.cors_methods,
     allow_headers=settings.cors_headers,
 )
+
+# Add exception handlers
+app.add_exception_handler(ValidationError, validation_exception_handler)
+app.add_exception_handler(ZibException, zib_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 
 @app.middleware('http')

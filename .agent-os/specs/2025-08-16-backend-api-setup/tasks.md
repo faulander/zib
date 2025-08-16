@@ -22,13 +22,13 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
   - [x] 2.5 Write database connection management and transaction handling
   - [x] 2.6 Verify all database tests pass and constraints work correctly
 
-- [ ] 3. Pydantic Schemas and Validation
-  - [ ] 3.1 Write tests for Pydantic request/response schemas
-  - [ ] 3.2 Create Pydantic models for Feed (create, update, response)
-  - [ ] 3.3 Create Pydantic models for Category (create, update, response)
-  - [ ] 3.4 Implement custom validators for URL format, color codes, and JSON criteria
-  - [ ] 3.5 Create error response schemas and validation error handling
-  - [ ] 3.6 Verify all schema validation tests pass
+- [x] 3. Pydantic Schemas and Validation
+  - [x] 3.1 Write tests for Pydantic request/response schemas
+  - [x] 3.2 Create Pydantic models for Feed (create, update, response)
+  - [x] 3.3 Create Pydantic models for Category (create, update, response)
+  - [x] 3.4 Implement custom validators for URL format, color codes, and JSON criteria
+  - [x] 3.5 Create error response schemas and validation error handling
+  - [x] 3.6 Verify all schema validation tests pass
 
 - [ ] 4. Feed Management API
   - [ ] 4.1 Write comprehensive tests for feed CRUD operations
