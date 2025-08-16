@@ -8,7 +8,12 @@
       "Bash(mv:*)",
       "Bash(cp:*)",
       "Bash(uv run:*)",
-      "Bash(afplay:*)"
+      "Bash(afplay:*)",
+      "Bash(python -m pytest tests/unit/test_models.py -v)",
+      "Bash(python -m pytest tests/unit/test_feed_validator.py -v)",
+      "Bash(python -m pytest tests/unit/test_import_manager.py -v)",
+      "Bash(python:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []

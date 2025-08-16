@@ -2,10 +2,54 @@ import json
 from datetime import datetime
 from peewee import (
     AutoField, CharField, TextField, BooleanField, IntegerField, 
-    DateTimeField, ForeignKeyField
+    DateTimeField, ForeignKeyField, DeferredForeignKey
 )
 from app.core.database import BaseModel
 from app.core.config import settings
+
+
+class ImportJob(BaseModel):
+    '''Import job model for tracking OPML import operations'''
+    
+    id = CharField(primary_key=True)  # Format: 'imp_' + random string
+    user_id = IntegerField()  # Future-proofing for user authentication
+    filename = CharField(max_length=255)
+    file_size = IntegerField()
+    status = CharField(max_length=20, default='pending')  # pending, processing, completed, failed, cancelled
+    duplicate_strategy = CharField(max_length=20, default='skip')  # skip, update, merge, prompt
+    category_parent = DeferredForeignKey('Category', null=True, on_delete='SET NULL')
+    validate_feeds = BooleanField(default=True)
+    
+    # Progress tracking
+    total_steps = IntegerField(default=0)
+    current_step = IntegerField(default=0)
+    current_phase = CharField(max_length=50, null=True)  # parsing, creating_categories, validating_feeds, importing_feeds
+    
+    # Results summary
+    categories_created = IntegerField(default=0)
+    feeds_imported = IntegerField(default=0)
+    feeds_failed = IntegerField(default=0)
+    duplicates_found = IntegerField(default=0)
+    
+    # Timestamps
+    created_at = DateTimeField(default=datetime.now)
+    started_at = DateTimeField(null=True)
+    completed_at = DateTimeField(null=True)
+    
+    # Error information
+    error_message = TextField(null=True)
+    error_details = TextField(null=True)
+    
+    class Meta:
+        table_name = 'import_jobs'
+        indexes = (
+            (('user_id',), False),
+            (('status',), False),
+            (('created_at',), False),
+        )
+    
+    def __str__(self):
+        return f'Import {self.id}: {self.filename} ({self.status})'
 
 
 class Category(BaseModel):
@@ -15,6 +59,7 @@ class Category(BaseModel):
     name = CharField(max_length=100, unique=True)
     description = TextField(null=True)
     color = CharField(max_length=7, null=True)  # Hex color code
+    import_job = ForeignKeyField(ImportJob, null=True, on_delete='SET NULL')  # Track import source
     created_at = DateTimeField(default=datetime.now)
     updated_at = DateTimeField(default=datetime.now)
     
@@ -22,6 +67,7 @@ class Category(BaseModel):
         table_name = 'categories'
         indexes = (
             (('name',), True),  # Unique index on name
+            (('import_job',), False),  # Index for import tracking
         )
     
     def __str__(self):
@@ -49,6 +95,13 @@ class Feed(BaseModel):
     is_active = BooleanField(default=True)
     fetch_interval = IntegerField(default=lambda: settings.default_feed_update_interval)
     last_fetched = DateTimeField(null=True)
+    
+    # Import metadata
+    import_job = ForeignKeyField(ImportJob, null=True, on_delete='SET NULL')  # Track import source
+    opml_title = CharField(max_length=255, null=True)  # Original title from OPML
+    opml_description = TextField(null=True)  # Original description from OPML
+    opml_html_url = CharField(max_length=500, null=True)  # HTML URL from OPML
+    
     created_at = DateTimeField(default=datetime.now)
     updated_at = DateTimeField(default=datetime.now)
     
@@ -58,6 +111,7 @@ class Feed(BaseModel):
             (('url',), True),  # Unique index on URL
             (('category',), False),  # Index on category for faster lookups
             (('is_active',), False),  # Index on active status
+            (('import_job',), False),  # Index for import tracking
         )
     
     def __str__(self):
@@ -143,5 +197,63 @@ class SchemaVersion(BaseModel):
             return False
 
 
+class ImportResult(BaseModel):
+    '''Import result model for detailed results of each imported item'''
+    
+    id = AutoField()
+    import_job = ForeignKeyField(ImportJob, backref='results', on_delete='CASCADE')
+    item_type = CharField(max_length=20)  # category, feed
+    item_name = CharField(max_length=255)
+    item_url = CharField(max_length=500, null=True)  # NULL for categories
+    status = CharField(max_length=30)  # success, failed, duplicate_skipped, duplicate_updated, duplicate_merged
+    error_message = TextField(null=True)
+    error_code = CharField(max_length=50, null=True)
+    
+    # References to created items
+    created_category = DeferredForeignKey('Category', null=True, on_delete='SET NULL')
+    created_feed = DeferredForeignKey('Feed', null=True, on_delete='SET NULL')
+    existing_item_id = IntegerField(null=True)  # For duplicate handling
+    
+    created_at = DateTimeField(default=datetime.now)
+    
+    class Meta:
+        table_name = 'import_results'
+        indexes = (
+            (('import_job',), False),
+            (('status',), False),
+            (('item_type',), False),
+            (('import_job', 'item_type', 'item_name'), False),
+        )
+    
+    def __str__(self):
+        return f'{self.item_type}: {self.item_name} ({self.status})'
+
+
+class ImportFeedValidation(BaseModel):
+    '''Feed validation cache to avoid duplicate validation requests'''
+    
+    id = AutoField()
+    feed_url = CharField(max_length=500, unique=True)
+    is_valid = BooleanField()
+    final_url = CharField(max_length=500, null=True)  # After redirects
+    title = CharField(max_length=255, null=True)
+    description = TextField(null=True)
+    feed_type = CharField(max_length=20, null=True)  # rss, atom, unknown
+    error_message = TextField(null=True)
+    error_code = CharField(max_length=50, null=True)
+    validated_at = DateTimeField(default=datetime.now)
+    expires_at = DateTimeField(null=True)  # Cache expiration
+    
+    class Meta:
+        table_name = 'import_feed_validation'
+        indexes = (
+            (('feed_url',), True),  # Unique index on feed_url
+            (('expires_at',), False),
+        )
+    
+    def __str__(self):
+        return f'Validation: {self.feed_url} ({"valid" if self.is_valid else "invalid"})'
+
+
 # Model registry for easy access
-ALL_MODELS = [Category, Feed, Filter, SchemaVersion]
+ALL_MODELS = [Category, Feed, Filter, SchemaVersion, ImportJob, ImportResult, ImportFeedValidation]
