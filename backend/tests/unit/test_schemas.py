@@ -172,8 +172,8 @@ class TestFeedSchemas:
         assert feed.is_active is True
         assert isinstance(feed.last_fetched, datetime)
     
-    def test_feed_response_with_category(self):
-        '''Test feed response with nested category'''
+    def test_feed_response_basic_structure(self):
+        '''Test feed response basic structure'''
         now = datetime.now()
         data = {
             'id': 1,
@@ -183,19 +183,13 @@ class TestFeedSchemas:
             'is_active': True,
             'fetch_interval': 3600,
             'created_at': now,
-            'updated_at': now,
-            'category': {
-                'id': 1,
-                'name': 'Technology',
-                'color': '#3B82F6',
-                'created_at': now,
-                'updated_at': now
-            }
+            'updated_at': now
         }
         feed = FeedResponse(**data)
         
-        assert feed.category is not None
-        assert feed.category.name == 'Technology'
+        assert feed.id == 1
+        assert feed.category_id == 1
+        assert feed.title == 'Example Feed'
 
 
 class TestFilterSchemas:

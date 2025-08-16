@@ -38,18 +38,18 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
   - [x] 4.5 Add filtering capabilities by category and active status
   - [x] 4.6 Verify all feed API tests pass and endpoints work correctly
 
-- [ ] 5. Category Management API  
-  - [ ] 5.1 Write comprehensive tests for category CRUD operations
-  - [ ] 5.2 Implement CategoryService class for business logic
-  - [ ] 5.3 Create Category API routes with validation and error handling
-  - [ ] 5.4 Implement constraint checking for category deletion (prevent if feeds exist)
-  - [ ] 5.5 Add category-feed relationship management
-  - [ ] 5.6 Verify all category API tests pass and constraints work
+- [x] 5. Category Management API  
+  - [x] 5.1 Write comprehensive tests for category CRUD operations
+  - [x] 5.2 Implement CategoryService class for business logic
+  - [x] 5.3 Create Category API routes with validation and error handling
+  - [x] 5.4 Implement constraint checking for category deletion (prevent if feeds exist)
+  - [x] 5.5 Add category-feed relationship management
+  - [x] 5.6 Verify all category API tests pass and constraints work
 
-- [ ] 6. System Integration and Health Checks
-  - [ ] 6.1 Write tests for system health monitoring and database connectivity
-  - [ ] 6.2 Implement health check endpoint with database status verification
-  - [ ] 6.3 Set up FastAPI automatic documentation with proper descriptions
-  - [ ] 6.4 Configure uvicorn server settings for development and production
-  - [ ] 6.5 Test complete API functionality through FastAPI docs interface
-  - [ ] 6.6 Verify all system integration tests pass and API is fully functional
+- [x] 6. System Integration and Health Checks
+  - [x] 6.1 Write tests for system health monitoring and database connectivity
+  - [x] 6.2 Implement health check endpoint with database status verification
+  - [x] 6.3 Set up FastAPI automatic documentation with proper descriptions
+  - [x] 6.4 Configure uvicorn server settings for development and production
+  - [x] 6.5 Test complete API functionality through FastAPI docs interface
+  - [x] 6.6 Verify all system integration tests pass and API is fully functional

@@ -1,8 +1,10 @@
 from pydantic import BaseModel, Field, field_validator, HttpUrl
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 from .common import BaseSchema
-from .category import CategoryResponse
+
+if TYPE_CHECKING:
+    from .category import CategoryResponse
 
 
 class FeedBase(BaseSchema):
@@ -76,4 +78,3 @@ class FeedResponse(FeedBase):
     last_fetched: Optional[datetime] = Field(None, description='Last fetch timestamp')
     created_at: datetime = Field(..., description='Creation timestamp')
     updated_at: datetime = Field(..., description='Last update timestamp')
-    category: Optional[CategoryResponse] = Field(None, description='Associated category')

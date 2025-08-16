@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Path, Query, status
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
-from app.schemas.common import SuccessResponse
+from app.schemas.common import SuccessResponse, PaginatedResponse
 from app.services.category_service import CategoryService
 from app.core.logging import get_logger
 
@@ -17,10 +17,13 @@ async def create_category(category_data: CategoryCreate):
 
 
 @router.get('/{category_id}', response_model=CategoryResponse)
-async def get_category(category_id: int = Path(..., description='Category ID')):
+async def get_category(
+    category_id: int = Path(..., description='Category ID'),
+    include_feeds: bool = Query(False, description='Include associated feeds')
+):
     '''Get a specific category by ID'''
     logger.info(f'Retrieving category: {category_id}')
-    return CategoryService.get_category_by_id(category_id)
+    return CategoryService.get_category_by_id(category_id, include_feeds=include_feeds)
 
 
 @router.put('/{category_id}', response_model=CategoryResponse)
@@ -44,8 +47,12 @@ async def delete_category(category_id: int = Path(..., description='Category ID'
     )
 
 
-@router.get('/', response_model=list[CategoryResponse])
-async def list_categories():
-    '''List all categories'''
-    logger.info('Listing all categories')
-    return CategoryService.list_categories()
+@router.get('/', response_model=PaginatedResponse)
+async def list_categories(
+    page: int = Query(1, ge=1, description='Page number'),
+    page_size: int = Query(10, ge=1, le=1000, description='Items per page'),
+    include_feeds: bool = Query(False, description='Include associated feeds')
+):
+    '''List categories with pagination'''
+    logger.info(f'Listing categories - page {page}, size {page_size}')
+    return CategoryService.list_categories(page=page, page_size=page_size, include_feeds=include_feeds)

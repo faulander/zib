@@ -1,7 +1,8 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from peewee import DoesNotExist, IntegrityError
 from app.models.base import Category, Feed
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
+from app.schemas.common import PaginatedResponse
 from app.core.exceptions import CategoryException, ValidationException
 from app.core.database import TransactionManager
 from app.core.logging import get_logger
@@ -35,6 +36,8 @@ class CategoryService:
                 logger.info(f'Created category: {category.id} - {category.name}')
                 return CategoryResponse.model_validate(category)
                 
+        except ValidationException:
+            raise
         except IntegrityError as e:
             logger.error(f'Database integrity error creating category: {e}')
             raise ValidationException(
@@ -49,11 +52,21 @@ class CategoryService:
             )
     
     @staticmethod
-    def get_category_by_id(category_id: int) -> CategoryResponse:
+    def get_category_by_id(category_id: int, include_feeds: bool = False) -> CategoryResponse:
         '''Get category by ID'''
         try:
             category = Category.get_by_id(category_id)
-            return CategoryResponse.model_validate(category)
+            
+            # Convert to response format
+            category_data = CategoryResponse.model_validate(category)
+            
+            # Add feeds if requested
+            if include_feeds:
+                feeds = Feed.select().where(Feed.category == category_id)
+                from app.schemas.feed import FeedResponse
+                category_data.feeds = [FeedResponse.model_validate(feed) for feed in feeds]
+            
+            return category_data
             
         except DoesNotExist:
             raise CategoryException(
@@ -162,11 +175,46 @@ class CategoryService:
             )
     
     @staticmethod
-    def list_categories() -> List[CategoryResponse]:
-        '''List all categories'''
+    def list_categories(
+        page: int = 1,
+        page_size: int = 10,
+        include_feeds: bool = False
+    ) -> PaginatedResponse:
+        '''List categories with pagination'''
         try:
-            categories = Category.select().order_by(Category.name)
-            return [CategoryResponse.model_validate(category) for category in categories]
+            # Build base query
+            query = Category.select().order_by(Category.name)
+            
+            # Get total count
+            total = query.count()
+            
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            pages = max(1, (total + page_size - 1) // page_size) if total > 0 else 1
+            
+            # Apply pagination
+            categories = query.offset(offset).limit(page_size)
+            
+            # Convert to response format
+            items = []
+            for category in categories:
+                category_data = CategoryResponse.model_validate(category)
+                
+                # Add feeds if requested
+                if include_feeds:
+                    feeds = Feed.select().where(Feed.category == category.id)
+                    from app.schemas.feed import FeedResponse
+                    category_data.feeds = [FeedResponse.model_validate(feed) for feed in feeds]
+                
+                items.append(category_data.model_dump())
+            
+            return PaginatedResponse(
+                items=items,
+                total=total,
+                page=page,
+                page_size=page_size,
+                pages=pages
+            )
             
         except Exception as e:
             logger.error(f'Error listing categories: {e}')

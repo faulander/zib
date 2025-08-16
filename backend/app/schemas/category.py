@@ -1,7 +1,10 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from .common import BaseSchema
+
+if TYPE_CHECKING:
+    from .feed import FeedResponse
 
 
 class CategoryBase(BaseSchema):
@@ -78,3 +81,4 @@ class CategoryResponse(CategoryBase):
     id: int = Field(..., description='Category ID')
     created_at: datetime = Field(..., description='Creation timestamp')
     updated_at: datetime = Field(..., description='Last update timestamp')
+    feeds: Optional[List['FeedResponse']] = Field(None, description='Associated feeds')
