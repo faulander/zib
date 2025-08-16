@@ -257,3 +257,7 @@ class ImportFeedValidation(BaseModel):
 
 # Model registry for easy access
 ALL_MODELS = [Category, Feed, Filter, SchemaVersion, ImportJob, ImportResult, ImportFeedValidation]
+
+# Import article models to make them available
+from app.models.article import ARTICLE_MODELS
+ALL_MODELS.extend(ARTICLE_MODELS)

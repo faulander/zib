@@ -11,7 +11,7 @@ from .core.exceptions import (
     ZibException, validation_exception_handler, zib_exception_handler,
     http_exception_handler, general_exception_handler
 )
-from .routes import feeds_router, categories_router, opml_router
+from .routes import feeds_router, categories_router, opml_router, articles_router
 from .services.health_service import HealthService
 
 # Initialize logging
@@ -91,6 +91,10 @@ For detailed usage examples, see the individual endpoint documentation below.
             'description': 'Feed category organization operations'
         },
         {
+            'name': 'articles',
+            'description': 'Article reading and management operations'
+        },
+        {
             'name': 'OPML Import',
             'description': 'OPML file import and job management operations'
         }
@@ -116,6 +120,7 @@ app.add_exception_handler(Exception, general_exception_handler)
 app.include_router(feeds_router, prefix='/api')
 app.include_router(categories_router, prefix='/api')
 app.include_router(opml_router)
+app.include_router(articles_router)
 
 
 @app.middleware('http')
@@ -215,6 +220,7 @@ async def root():
         'endpoints': {
             'feeds': '/api/feeds/',
             'categories': '/api/categories/',
+            'articles': '/api/articles/',
             'health': '/health'
         },
         'status': 'operational'
