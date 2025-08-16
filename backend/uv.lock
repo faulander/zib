@@ -645,6 +645,7 @@ name = "zib-backend"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "fastapi" },
     { name = "loguru" },
     { name = "peewee" },
@@ -666,6 +667,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.0.0" },
     { name = "fastapi", specifier = ">=0.104.0" },
     { name = "httpx", marker = "extra == 'test'", specifier = ">=0.25.0" },
     { name = "loguru", specifier = ">=0.7.0" },
