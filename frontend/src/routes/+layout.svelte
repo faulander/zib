@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import Sidebar from '$lib/components/Sidebar.svelte';
@@ -10,6 +11,9 @@
 	let { children } = $props();
 	let initError = $state(null);
 	let isInitialized = $state(false);
+	
+	// Check if we're on the settings page
+	let isSettingsPage = $derived($page.url.pathname.startsWith('/settings'));
 	
 	onMount(async () => {
 		try {
@@ -61,11 +65,13 @@
 		
 		<!-- Main Content Area -->
 		<div class="flex flex-1 overflow-hidden">
-			<!-- Sidebar -->
-			<Sidebar />
+			<!-- Sidebar (only show on non-settings pages) -->
+			{#if !isSettingsPage}
+				<Sidebar />
+			{/if}
 			
 			<!-- Main Content -->
-			<main class="flex-1 overflow-y-auto bg-white dark:bg-gray-800">
+			<main class="flex-1 overflow-y-auto {isSettingsPage ? '' : 'bg-white dark:bg-gray-800'}">
 				{@render children?.()}
 			</main>
 		</div>

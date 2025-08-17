@@ -177,11 +177,17 @@ class ApiClient {
   }
 
   // OPML endpoints
-  async importOpml(opmlFile) {
+  async importOpml(opmlFile, options = {}) {
     const formData = new FormData();
     formData.append('file', opmlFile);
+    formData.append('duplicate_strategy', options.duplicate_strategy || 'skip');
+    formData.append('validate_feeds', options.validate_feeds !== false);
+    formData.append('merge_categories', options.merge_categories !== false);
+    if (options.category_parent_id) {
+      formData.append('category_parent_id', options.category_parent_id);
+    }
     
-    return this.request('/api/opml/import', {
+    return this.request('/api/import/opml', {
       method: 'POST',
       headers: {}, // Remove Content-Type header for FormData
       body: formData
@@ -193,7 +199,19 @@ class ApiClient {
   }
 
   async getImportStatus(jobId) {
-    return this.request(`/api/opml/import/${jobId}/status`);
+    return this.request(`/api/import/jobs/${jobId}`);
+  }
+
+  async getImportJobs(status = null, limit = 50) {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (status) params.append('status', status);
+    return this.request(`/api/import/jobs?${params.toString()}`);
+  }
+
+  async cancelImportJob(jobId) {
+    return this.request(`/api/import/jobs/${jobId}`, {
+      method: 'DELETE'
+    });
   }
 
   // Search
@@ -238,6 +256,14 @@ export const articles = {
   markAllRead: (params) => api.markAllRead(params),
   bulkMarkRead: (articleIds) => api.bulkMarkRead(articleIds),
   search: (query, params) => api.searchArticles(query, params)
+};
+
+export const opml = {
+  import: (file, options) => api.importOpml(file, options),
+  export: () => api.exportOpml(),
+  getImportStatus: (jobId) => api.getImportStatus(jobId),
+  getImportJobs: (status, limit) => api.getImportJobs(status, limit),
+  cancelImportJob: (jobId) => api.cancelImportJob(jobId)
 };
 
 export default api;

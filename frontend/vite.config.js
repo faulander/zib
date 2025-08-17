@@ -5,4 +5,10 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 	],
+	optimizeDeps: {
+		include: ['@lucide/svelte']
+	},
+	ssr: {
+		noExternal: ['@lucide/svelte']
+	}
 });

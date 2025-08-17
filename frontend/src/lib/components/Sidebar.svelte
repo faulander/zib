@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { Settings } from '@lucide/svelte';
 	import { 
 		categoriesStore, 
 		feedsStore, 
@@ -155,7 +156,17 @@
 	</div>
 	
 	<!-- Sidebar Footer -->
-	<div class="p-2 border-t border-gray-200 dark:border-gray-700">
+	<div class="p-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
+		<!-- Settings Link -->
+		<a 
+			href="/settings"
+			class="w-full flex items-center space-x-2 p-1.5 rounded transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+		>
+			<Settings class="w-3 h-3" />
+			<span class="text-xs font-medium">Settings</span>
+		</a>
+		
+		<!-- Status and Refresh -->
 		<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
 			<span>Last: {formatLastUpdated(feeds[0]?.last_fetched)}</span>
 			<button 

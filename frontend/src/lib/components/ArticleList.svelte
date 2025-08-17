@@ -1,32 +1,32 @@
 <script>
 	let { articles, onMarkRead, onToggleStar } = $props();
-	
+
 	function formatDate(dateString) {
 		const date = new Date(dateString);
 		const now = new Date();
 		const diffTime = Math.abs(now - date);
 		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-		
+
 		if (diffDays === 1) return 'Today';
 		if (diffDays === 2) return 'Yesterday';
 		if (diffDays <= 7) return `${diffDays - 1} days ago`;
-		
-		return date.toLocaleDateString('en-US', { 
-			month: 'short', 
+
+		return date.toLocaleDateString('en-US', {
+			month: 'short',
 			day: 'numeric',
 			year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
 		});
 	}
-	
+
 	function formatTime(dateString) {
 		const date = new Date(dateString);
-		return date.toLocaleTimeString('en-US', { 
-			hour: 'numeric', 
+		return date.toLocaleTimeString('en-US', {
+			hour: 'numeric',
 			minute: '2-digit',
-			hour12: true 
+			hour12: true
 		});
 	}
-	
+
 	function handleArticleClick(article) {
 		// For now, just mark as read when clicked
 		if (!article.read_status?.is_read) {
@@ -50,28 +50,28 @@
 {:else}
 <div class="divide-y divide-gray-200 dark:divide-gray-700">
 	{#each articles as article (article.id)}
-		<article 
+		<article
 			class="px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group {article.read_status?.is_read ? 'opacity-60' : ''}"
 			onclick={() => handleArticleClick(article)}
 		>
 			<div class="flex items-center space-x-2">
 				<!-- Read Status Indicator -->
 				<div class="w-1 h-1 {article.read_status?.is_read ? 'bg-transparent' : 'bg-blue-500'} rounded-full flex-shrink-0"></div>
-				
+
 				<!-- Article Title -->
-				<h3 class="text-xs font-normal group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate flex-1 {article.read_status?.is_read ? 'text-gray-500 dark:text-gray-500' : 'text-gray-900 dark:text-white'}">
+				<h3 class="text-xs font-normal text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate flex-1 {article.read_status?.is_read ? 'text-gray-500 dark:text-gray-500' : ''}">
 					{article.title}
 				</h3>
-				
+
 				<!-- Star if starred -->
 				{#if article.read_status?.is_starred}
 					<svg class="w-2.5 h-2.5 text-yellow-500 fill-current flex-shrink-0" viewBox="0 0 24 24">
 						<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
 					</svg>
 				{/if}
-				
+
 				<!-- Feed and Date Info -->
-				<div class="flex items-center space-x-1 text-xs flex-shrink-0 {article.read_status?.is_read ? 'text-gray-400 dark:text-gray-600' : 'text-gray-400 dark:text-gray-500'}">
+				<div class="flex items-center space-x-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
 					<span class="truncate max-w-20 text-xs">
 						{article.feed?.title || 'Unknown'}
 					</span>
@@ -80,7 +80,7 @@
 						{formatTime(article.published_date)}
 					</span>
 				</div>
-				
+
 				<!-- Article Actions -->
 				<div class="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
 					<!-- Mark Read/Unread -->
@@ -99,7 +99,7 @@
 							</svg>
 						{/if}
 					</button>
-					
+
 					<!-- Star/Unstar -->
 					<button
 						onclick={(e) => { e.stopPropagation(); onToggleStar(article); }}
