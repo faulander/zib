@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import ArticleList from '$lib/components/ArticleList.svelte';
-	import { articlesStore, isLoading, isLoadingMore, hasMoreArticles, selectedCategory, selectedFeed, apiActions } from '$lib/stores/api.js';
+	import { articlesStore, isLoading, isLoadingMore, hasMoreArticles, selectedCategory, selectedFeed, selectedFilter, apiActions } from '$lib/stores/api.js';
 	
 	// Use real articles from API with Svelte 5 runes
 	let articles = $derived($articlesStore);
@@ -10,9 +10,10 @@
 	let moreAvailable = $derived($hasMoreArticles);
 	let currentCategory = $derived($selectedCategory);
 	let currentFeed = $derived($selectedFeed);
+	let currentFilter = $derived($selectedFilter);
 	
 	// Dynamic header title
-	let headerTitle = $derived(() => {
+	let headerTitle = $derived.by(() => {
 		if (currentFeed) {
 			return `All ${currentFeed.title} Articles`;
 		} else if (currentCategory) {
@@ -23,6 +24,13 @@
 	});
 	
 	let scrollContainer;
+
+	// Filter handlers
+	function setFilter(filter) {
+		selectedFilter.set(filter);
+		// Reload articles with new filter
+		apiActions.loadArticles();
+	}
 	
 	async function handleMarkRead(article) {
 		try {
@@ -79,13 +87,22 @@
 			<div class="flex items-center space-x-2">
 				<!-- View Options -->
 				<div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-					<button class="px-3 py-1 text-sm font-medium bg-white dark:bg-gray-600 text-gray-900 dark:text-white rounded shadow-sm">
+					<button 
+						onclick={() => setFilter('all')}
+						class="px-3 py-1 text-sm font-medium rounded transition-colors {currentFilter === 'all' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}"
+					>
 						All
 					</button>
-					<button class="px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+					<button 
+						onclick={() => setFilter('unread')}
+						class="px-3 py-1 text-sm font-medium rounded transition-colors {currentFilter === 'unread' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}"
+					>
 						Unread
 					</button>
-					<button class="px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+					<button 
+						onclick={() => setFilter('starred')}
+						class="px-3 py-1 text-sm font-medium rounded transition-colors {currentFilter === 'starred' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}"
+					>
 						Starred
 					</button>
 				</div>

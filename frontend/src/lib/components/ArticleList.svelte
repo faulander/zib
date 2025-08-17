@@ -59,7 +59,7 @@
 				<div class="w-1 h-1 {article.read_status?.is_read ? 'bg-transparent' : 'bg-blue-500'} rounded-full flex-shrink-0"></div>
 				
 				<!-- Article Title -->
-				<h3 class="text-xs font-normal text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate flex-1 {article.read_status?.is_read ? 'text-gray-500 dark:text-gray-500' : ''}">
+				<h3 class="text-xs font-normal group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate flex-1 {article.read_status?.is_read ? 'text-gray-500 dark:text-gray-500' : 'text-gray-900 dark:text-white'}">
 					{article.title}
 				</h3>
 				
@@ -71,7 +71,7 @@
 				{/if}
 				
 				<!-- Feed and Date Info -->
-				<div class="flex items-center space-x-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+				<div class="flex items-center space-x-1 text-xs flex-shrink-0 {article.read_status?.is_read ? 'text-gray-400 dark:text-gray-600' : 'text-gray-400 dark:text-gray-500'}">
 					<span class="truncate max-w-20 text-xs">
 						{article.feed?.title || 'Unknown'}
 					</span>

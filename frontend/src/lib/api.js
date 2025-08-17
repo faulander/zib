@@ -149,16 +149,16 @@ class ApiClient {
   }
 
   async markArticleRead(articleId, isRead = true) {
-    return this.request(`/api/articles/${articleId}/read`, {
-      method: 'PUT',
-      body: JSON.stringify({ is_read: isRead })
+    const endpoint = isRead ? 'mark-read' : 'mark-unread';
+    return this.request(`/api/articles/${articleId}/${endpoint}`, {
+      method: 'POST'
     });
   }
 
   async starArticle(articleId, isStarred = true) {
-    return this.request(`/api/articles/${articleId}/star`, {
-      method: 'PUT',
-      body: JSON.stringify({ is_starred: isStarred })
+    const endpoint = isStarred ? 'star' : 'unstar';
+    return this.request(`/api/articles/${articleId}/${endpoint}`, {
+      method: 'POST'
     });
   }
 
@@ -166,6 +166,13 @@ class ApiClient {
     return this.request('/api/articles/mark-all-read', {
       method: 'POST',
       body: JSON.stringify(params)
+    });
+  }
+
+  async bulkMarkRead(articleIds) {
+    return this.request('/api/articles/bulk/mark-read', {
+      method: 'POST',
+      body: JSON.stringify({ article_ids: articleIds })
     });
   }
 
@@ -229,6 +236,7 @@ export const articles = {
   markRead: (id, isRead) => api.markArticleRead(id, isRead),
   star: (id, isStarred) => api.starArticle(id, isStarred),
   markAllRead: (params) => api.markAllRead(params),
+  bulkMarkRead: (articleIds) => api.bulkMarkRead(articleIds),
   search: (query, params) => api.searchArticles(query, params)
 };
 

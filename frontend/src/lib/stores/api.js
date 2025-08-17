@@ -210,10 +210,8 @@ export const apiActions = {
       
       // Add filters
       const currentFilter = get(selectedFilter);
-      if (currentFilter === 'unread') {
-        queryParams.is_read = false;
-      } else if (currentFilter === 'starred') {
-        queryParams.is_starred = true;
+      if (currentFilter !== 'all') {
+        queryParams.read_status = currentFilter;
       }
       
       const currentFeed = get(selectedFeed);
@@ -286,10 +284,8 @@ export const apiActions = {
       
       // Add filters
       const currentFilter = get(selectedFilter);
-      if (currentFilter === 'unread') {
-        queryParams.is_read = false;
-      } else if (currentFilter === 'starred') {
-        queryParams.is_starred = true;
+      if (currentFilter !== 'all') {
+        queryParams.read_status = currentFilter;
       }
       
       const currentFeed = get(selectedFeed);
@@ -338,20 +334,104 @@ export const apiActions = {
 
   async markArticleRead(articleId, isRead = true) {
     try {
+      const currentFilter = get(selectedFilter);
+      
+      // Check if article should be removed from current view
+      const shouldRemove = (currentFilter === 'unread' && isRead) || 
+                          (currentFilter === 'starred' && isRead && !get(articlesStore).find(a => a.id === articleId)?.read_status?.is_starred);
+      
+      if (shouldRemove) {
+        // Remove article from current view
+        articlesStore.update(current => current.filter(article => article.id !== articleId));
+      } else {
+        // Update article state in current view
+        articlesStore.update(current => 
+          current.map(article => 
+            article.id === articleId 
+              ? { 
+                  ...article, 
+                  read_status: { 
+                    ...article.read_status, 
+                    is_read: isRead,
+                    read_at: isRead ? new Date().toISOString() : null
+                  }
+                }
+              : article
+          )
+        );
+      }
+      
+      // Then make API call
       await articles.markRead(articleId, isRead);
       
-      // Update local state
-      articlesStore.update(current => 
-        current.map(article => 
-          article.id === articleId 
-            ? { ...article, is_read: isRead }
-            : article
-        )
-      );
-      
-      // Reload feeds to update unread counts
-      await this.loadFeeds();
+      // Update unread counts locally without API calls to preserve scroll position
+      if (isRead) {
+        // Find the article to get its feed and category info
+        const article = get(articlesStore).find(a => a.id === articleId);
+        if (article) {
+          unreadCounts.update(counts => {
+            const newCounts = { ...counts };
+            
+            // Decrease feed count
+            if (article.feed?.id && newCounts.feeds[article.feed.id] > 0) {
+              newCounts.feeds[article.feed.id]--;
+            }
+            
+            // Decrease category count
+            if (article.feed?.category?.id && newCounts.categories[article.feed.category.id] > 0) {
+              newCounts.categories[article.feed.category.id]--;
+            }
+            
+            return newCounts;
+          });
+        }
+      } else {
+        // Increase counts when marking as unread
+        const article = get(articlesStore).find(a => a.id === articleId);
+        if (article) {
+          unreadCounts.update(counts => {
+            const newCounts = { ...counts };
+            
+            // Increase feed count
+            if (article.feed?.id) {
+              newCounts.feeds[article.feed.id] = (newCounts.feeds[article.feed.id] || 0) + 1;
+            }
+            
+            // Increase category count
+            if (article.feed?.category?.id) {
+              newCounts.categories[article.feed.category.id] = (newCounts.categories[article.feed.category.id] || 0) + 1;
+            }
+            
+            return newCounts;
+          });
+        }
+      }
     } catch (err) {
+      // Revert local state on error
+      const currentFilter = get(selectedFilter);
+      const shouldRemove = (currentFilter === 'unread' && isRead);
+      
+      if (shouldRemove) {
+        // Re-add the article if it was removed
+        // We need to reload the articles to get the proper data back
+        await this.loadArticles();
+      } else {
+        // Revert the article state change
+        articlesStore.update(current => 
+          current.map(article => 
+            article.id === articleId 
+              ? { 
+                  ...article, 
+                  read_status: { 
+                    ...article.read_status, 
+                    is_read: !isRead,
+                    read_at: !isRead ? new Date().toISOString() : null
+                  }
+                }
+              : article
+          )
+        );
+      }
       error.set(`Failed to mark article: ${err.message}`);
       throw err;
     }
@@ -359,17 +439,60 @@ export const apiActions = {
 
   async starArticle(articleId, isStarred = true) {
     try {
-      await articles.star(articleId, isStarred);
+      const currentFilter = get(selectedFilter);
       
-      // Update local state
-      articlesStore.update(current => 
-        current.map(article => 
-          article.id === articleId 
-            ? { ...article, is_starred: isStarred }
-            : article
-        )
-      );
+      // Check if article should be removed from starred view when unstarred
+      const shouldRemove = (currentFilter === 'starred' && !isStarred);
+      
+      if (shouldRemove) {
+        // Remove article from current view
+        articlesStore.update(current => current.filter(article => article.id !== articleId));
+      } else {
+        // Update article state in current view
+        articlesStore.update(current => 
+          current.map(article => 
+            article.id === articleId 
+              ? { 
+                  ...article, 
+                  read_status: { 
+                    ...article.read_status, 
+                    is_starred: isStarred,
+                    starred_at: isStarred ? new Date().toISOString() : null
+                  }
+                }
+              : article
+          )
+        );
+      }
+      
+      // Then make API call
+      await articles.star(articleId, isStarred);
     } catch (err) {
+      // Revert local state on error
+      const currentFilter = get(selectedFilter);
+      const shouldRemove = (currentFilter === 'starred' && !isStarred);
+      
+      if (shouldRemove) {
+        // Re-add the article if it was removed
+        // We need to reload the articles to get the proper data back
+        await this.loadArticles();
+      } else {
+        // Revert the article state change
+        articlesStore.update(current => 
+          current.map(article => 
+            article.id === articleId 
+              ? { 
+                  ...article, 
+                  read_status: { 
+                    ...article.read_status, 
+                    is_starred: !isStarred,
+                    starred_at: !isStarred ? new Date().toISOString() : null
+                  }
+                }
+              : article
+          )
+        );
+      }
       error.set(`Failed to star article: ${err.message}`);
       throw err;
     }
