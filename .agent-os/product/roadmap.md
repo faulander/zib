@@ -2,28 +2,50 @@
 
 > Last Updated: 2025-08-16
 > Version: 1.0.0
-> Status: Planning
+> Status: In Development
 
-## Phase 1: Core RSS Reader (2 weeks)
+## Phase 0: Already Completed
 
-**Goal:** Build a functional RSS reader with essential features
-**Success Criteria:** Users can import feeds, read articles, and filter content
+The following backend infrastructure has been implemented:
+
+- [x] **Backend API setup with FastAPI and SQLite** - Complete project structure
+- [x] **Feed management (add, edit, delete feeds)** - Full CRUD operations for RSS feeds
+- [x] **OPML import functionality** - Parse and import OPML files with job tracking
+- [x] **RSS feed parser and updater** - Comprehensive feed fetching with async HTTP, parsing, article extraction
+- [x] **Article system** - Complete article model with content sanitization, deduplication, read status
+- [x] **Feed categories/folders** - Organize feeds into groups with color coding
+- [x] **Mark as read/unread functionality** - Full read status tracking with starring
+- [x] **Advanced filtering system** - Filter by feed, category, read status, search, tags, author, date
+- [x] **Article API endpoints** - Complete REST API for article management and reading
+
+## Phase 1: Frontend Implementation (1-2 weeks) - IN PROGRESS
+
+**Goal:** Build a functional web interface for the RSS reader
+**Success Criteria:** Users can browse feeds, read articles, and manage their reading through a web UI
 
 ### Must-Have Features
 
-- [ ] Backend API setup with FastAPI and SQLite - Set up project structure `M`
-- [ ] Feed management (add, edit, delete feeds) - CRUD operations for RSS feeds `M`
-- [ ] OPML import functionality - Parse and import OPML files `S`
-- [ ] OPML export functionality - Generate OPML from user's feeds `S`
-- [ ] RSS feed parser and updater - Fetch and parse RSS/Atom feeds `L`
-- [ ] Basic filtering system - Keyword and source-based filtering `M`
-- [ ] Split-pane UI (categories left, entries right) - Core interface layout `M`
+- [x] **SvelteKit frontend setup** - Complete with Vite, TailwindCSS 3.x, and proper configuration `M`
+- [ ] Authentication system - Login/session management for API access `M`
+- [x] **Split-pane UI (feeds left, articles right)** - Core interface layout implemented `M`
+- [x] **Feed browser** - Sidebar with categories and feeds navigation `M`
+- [x] **Article list view** - Article cards with read status, starring, and metadata `L`
+- [ ] Article reader - Display individual articles with read status controls `M`
+- [ ] Basic filtering interface - Search, category selection, read status filters `M`
 
 ### Should-Have Features
 
-- [ ] Feed categories/folders - Organize feeds into groups `S`
-- [ ] Mark as read/unread functionality - Track reading status `S`
-- [ ] Mobile-responsive design - Ensure usability on all devices `M`
+- [x] **Dark/Light theme toggle** - Working theme switching with system preference detection `S`
+- [x] **Mobile-responsive design** - TailwindCSS responsive design implemented `M`
+- [ ] Keyboard shortcuts - Navigate without mouse `S`
+
+### Frontend Components Completed
+
+- [x] **Header Component** - Search bar, theme toggle, branding
+- [x] **Sidebar Component** - Category navigation with unread counts
+- [x] **ArticleList Component** - Article cards with read/star controls
+- [x] **Main Layout** - Split-pane design with proper dark theme
+- [x] **TailwindCSS Configuration** - v3.x setup working properly
 
 ### Dependencies
 

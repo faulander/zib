@@ -13,7 +13,9 @@
       "Bash(python -m pytest tests/unit/test_feed_validator.py -v)",
       "Bash(python -m pytest tests/unit/test_import_manager.py -v)",
       "Bash(python:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "WebFetch(domain:tailwindcss.com)",
+      "WebFetch(domain:v3.tailwindcss.com)"
     ],
     "deny": [],
     "ask": []
