@@ -1,10 +1,15 @@
 <script>
+	import { onMount } from 'svelte';
 	import ArticleList from '$lib/components/ArticleList.svelte';
-	import { articlesStore, isLoading, apiActions } from '$lib/stores/api.js';
+	import { articlesStore, isLoading, isLoadingMore, hasMoreArticles, apiActions } from '$lib/stores/api.js';
 	
-	// Use real articles from API
-	$: articles = $articlesStore;
-	$: loading = $isLoading;
+	// Use real articles from API with Svelte 5 runes
+	let articles = $derived($articlesStore);
+	let loading = $derived($isLoading);
+	let loadingMore = $derived($isLoadingMore);
+	let moreAvailable = $derived($hasMoreArticles);
+	
+	let scrollContainer;
 	
 	async function handleMarkRead(article) {
 		try {
@@ -31,6 +36,31 @@
 			console.error('Failed to mark all as read:', err);
 		}
 	}
+
+	// Infinite scroll logic
+	function handleScroll() {
+		if (!scrollContainer || loadingMore || !moreAvailable) return;
+		
+		const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+		const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+		
+		// Load more when scrolled 80% down
+		if (scrollPercentage > 0.8) {
+			apiActions.loadMoreArticles().catch(err => {
+				console.error('Failed to load more articles:', err);
+			});
+		}
+	}
+
+	onMount(() => {
+		// Set up scroll listener
+		if (scrollContainer) {
+			scrollContainer.addEventListener('scroll', handleScroll);
+			return () => {
+				scrollContainer.removeEventListener('scroll', handleScroll);
+			};
+		}
+	});
 </script>
 
 <div class="h-full flex flex-col">
@@ -66,7 +96,7 @@
 	</div>
 	
 	<!-- Article List -->
-	<div class="flex-1 overflow-y-auto">
+	<div class="flex-1 overflow-y-auto" bind:this={scrollContainer}>
 		{#if loading}
 			<div class="flex items-center justify-center h-64">
 				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -77,6 +107,18 @@
 				onMarkRead={handleMarkRead}
 				onToggleStar={handleToggleStar}
 			/>
+			
+			<!-- Loading More Indicator -->
+			{#if loadingMore}
+				<div class="flex items-center justify-center py-4">
+					<div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+					<span class="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading more articles...</span>
+				</div>
+			{:else if !moreAvailable && articles.length > 0}
+				<div class="flex items-center justify-center py-4">
+					<span class="text-sm text-gray-500 dark:text-gray-400">No more articles to load</span>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>
