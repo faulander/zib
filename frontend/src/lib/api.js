@@ -44,7 +44,8 @@ class ApiClient {
 
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
-        return await response.json();
+        const data = await response.json();
+        return data;
       }
       
       return await response.text();
@@ -103,8 +104,12 @@ class ApiClient {
   }
 
   // Categories endpoints
-  async getCategories() {
-    return this.request('/api/categories');
+  async getCategories(params = {}) {
+    // Use the trailing slash to avoid redirects
+    const searchParams = new URLSearchParams(params);
+    const queryString = searchParams.toString();
+    const endpoint = queryString ? `/api/categories/?${queryString}` : '/api/categories/';
+    return this.request(endpoint);
   }
 
   async createCategory(categoryData) {
@@ -242,7 +247,7 @@ export const feeds = {
 };
 
 export const categories = {
-  getAll: () => api.getCategories(),
+  getAll: (params) => api.getCategories(params),
   create: (data) => api.createCategory(data),
   update: (id, data) => api.updateCategory(id, data),
   delete: (id) => api.deleteCategory(id)

@@ -20,7 +20,7 @@ class PaginatedResponse(BaseModel):
     items: List[Dict[str, Any]] = Field(..., description='List of items for current page')
     total: int = Field(..., ge=0, description='Total number of items')
     page: int = Field(..., ge=1, description='Current page number')
-    page_size: int = Field(..., ge=1, le=100, description='Number of items per page')
+    page_size: int = Field(..., ge=1, le=1000, description='Number of items per page')
     pages: int = Field(..., ge=1, description='Total number of pages')
 
 

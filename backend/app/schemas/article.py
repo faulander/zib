@@ -66,15 +66,17 @@ class ArticleResponse(BaseModel):
 
 
 class ArticleListResponse(BaseModel):
-    '''Article list response with pagination'''
+    '''Article list response with cursor pagination'''
     articles: List[ArticleResponse]
     pagination: dict
+    has_more: bool = False
+    next_cursor: Optional[int] = None
 
 
 class ArticleQueryParams(BaseModel):
     '''Query parameters for article list endpoint'''
-    page: int = Field(default=1, ge=1, description='Page number')
-    per_page: int = Field(default=50, ge=1, le=200, description='Items per page')
+    limit: int = Field(default=50, ge=1, le=200, description='Number of articles to return')
+    since_id: Optional[int] = Field(default=None, description='Return articles older than this ID (for cursor pagination)')
     feed_id: Optional[int] = Field(default=None, description='Filter by feed ID')
     category_id: Optional[int] = Field(default=None, description='Filter by category ID')
     read_status: ReadStatusFilter = Field(default=ReadStatusFilter.all, description='Filter by read status')

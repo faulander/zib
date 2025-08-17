@@ -29,9 +29,9 @@ export const searchQuery = writable('');
 export const showUnreadOnly = writable(false);
 export const selectedFilter = writable('all'); // 'all', 'unread', 'starred'
 
-// Pagination
-export const currentPage = writable(1);
-export const articlesPerPage = writable(50);
+// Cursor pagination
+export const articlesLimit = writable(50);
+export const nextCursor = writable(null);
 
 // Derived stores
 export const filteredFeeds = derived(
@@ -54,10 +54,8 @@ export const apiActions = {
       isLoading.set(true);
       error.set(null);
       const data = await feeds.getAll();
-      // Handle different response formats
-      if (data.items) {
-        feedsStore.set(data.items);
-      } else if (Array.isArray(data)) {
+      // Backend now returns arrays directly (no pagination)
+      if (Array.isArray(data)) {
         feedsStore.set(data);
       } else {
         feedsStore.set([]);
@@ -103,8 +101,8 @@ export const apiActions = {
       const result = await response.json();
       
       // Reload feeds and articles to get updated counts
-      await this.loadFeeds();
-      await this.loadArticles();
+      await apiActions.loadFeeds();
+      await apiActions.loadArticles();
       
       return result;
     } catch (err) {
@@ -131,8 +129,8 @@ export const apiActions = {
       const result = await response.json();
       
       // Reload feeds and articles to get updated counts
-      await this.loadFeeds();
-      await this.loadArticles();
+      await apiActions.loadFeeds();
+      await apiActions.loadArticles();
       
       return result;
     } catch (err) {
@@ -163,10 +161,8 @@ export const apiActions = {
       isLoading.set(true);
       error.set(null);
       const data = await categories.getAll();
-      // Handle different response formats
-      if (data.items) {
-        categoriesStore.set(data.items);
-      } else if (Array.isArray(data)) {
+      // Backend now returns arrays directly (no pagination)
+      if (Array.isArray(data)) {
         categoriesStore.set(data);
       } else {
         categoriesStore.set([]);
@@ -202,8 +198,8 @@ export const apiActions = {
       isLoading.set(true);
       error.set(null);
       
-      // Reset pagination when loading fresh articles
-      currentPage.set(1);
+      // Reset cursor when loading fresh articles
+      nextCursor.set(null);
       
       // Build query parameters
       const queryParams = { ...params };
@@ -229,30 +225,31 @@ export const apiActions = {
         queryParams.search = currentSearch;
       }
       
-      // Add pagination
-      queryParams.page = get(currentPage);
-      queryParams.limit = get(articlesPerPage);
+      // Add cursor pagination
+      queryParams.limit = get(articlesLimit);
       
       const data = await articles.getAll(queryParams);
-      // Handle different response formats
+      // Handle cursor-based response
       if (data.articles) {
         articlesStore.set(data.articles);
         totalArticleCount.set(data.pagination?.total || data.articles.length);
-        // Check if there are more articles to load
-        const totalPages = Math.ceil((data.pagination?.total || 0) / get(articlesPerPage));
-        hasMoreArticles.set(get(currentPage) < totalPages);
+        hasMoreArticles.set(data.has_more || false);
+        nextCursor.set(data.next_cursor);
       } else if (data.items) {
         articlesStore.set(data.items);
         totalArticleCount.set(data.total || data.items.length);
         hasMoreArticles.set(false);
+        nextCursor.set(null);
       } else if (Array.isArray(data)) {
         articlesStore.set(data);
         totalArticleCount.set(data.length);
         hasMoreArticles.set(false);
+        nextCursor.set(null);
       } else {
         articlesStore.set([]);
         totalArticleCount.set(0);
         hasMoreArticles.set(false);
+        nextCursor.set(null);
       }
       return data;
     } catch (err) {
@@ -272,12 +269,13 @@ export const apiActions = {
         return;
       }
       
+      const currentCursor = get(nextCursor);
+      if (!currentCursor) {
+        return; // No cursor available
+      }
+      
       isLoadingMore.set(true);
       error.set(null);
-      
-      // Increment page
-      const nextPage = get(currentPage) + 1;
-      currentPage.set(nextPage);
       
       // Build query parameters (same as loadArticles)
       const queryParams = {};
@@ -303,29 +301,38 @@ export const apiActions = {
         queryParams.search = currentSearch;
       }
       
-      // Add pagination
-      queryParams.page = nextPage;
-      queryParams.limit = get(articlesPerPage);
+      // Add cursor pagination
+      queryParams.limit = get(articlesLimit);
+      queryParams.since_id = currentCursor;
       
       const data = await articles.getAll(queryParams);
       
-      // Append new articles to existing ones
+      // Append new articles to existing ones (with deduplication)
       if (data.articles && Array.isArray(data.articles)) {
-        articlesStore.update(currentArticles => [...currentArticles, ...data.articles]);
+        articlesStore.update(currentArticles => {
+          // Get existing article IDs for deduplication
+          const existingIds = new Set(currentArticles.map(a => a.id));
+          
+          // Filter out duplicates from new articles
+          const newArticles = data.articles.filter(article => !existingIds.has(article.id));
+          
+          console.log(`[LoadMore] Appending ${newArticles.length} new articles (${data.articles.length - newArticles.length} duplicates filtered)`);
+          
+          return [...currentArticles, ...newArticles];
+        });
         
-        // Check if there are more articles to load
-        const totalPages = Math.ceil((data.pagination?.total || 0) / get(articlesPerPage));
-        hasMoreArticles.set(nextPage < totalPages);
+        // Update cursor state
+        hasMoreArticles.set(data.has_more || false);
+        nextCursor.set(data.next_cursor);
       } else {
         hasMoreArticles.set(false);
+        nextCursor.set(null);
       }
       
       return data;
     } catch (err) {
       error.set(`Failed to load more articles: ${err.message}`);
       console.error('Failed to load more articles:', err);
-      // Revert page increment on error
-      currentPage.update(page => page - 1);
       throw err;
     } finally {
       isLoadingMore.set(false);

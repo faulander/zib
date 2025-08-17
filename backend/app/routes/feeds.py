@@ -48,19 +48,15 @@ async def delete_feed(feed_id: int = Path(..., description='Feed ID')):
     )
 
 
-@router.get('/', response_model=PaginatedResponse)
+@router.get('/')
 async def list_feeds(
-    page: int = Query(1, ge=1, description='Page number'),
-    page_size: int = Query(10, ge=1, le=100, description='Items per page'),
     category_id: Optional[int] = Query(None, description='Filter by category ID'),
     is_active: Optional[bool] = Query(None, description='Filter by active status'),
     include_category: bool = Query(False, description='Include category information')
 ):
-    '''List feeds with pagination and filtering'''
-    logger.info(f'Listing feeds: page={page}, page_size={page_size}')
-    return FeedService.list_feeds(
-        page=page,
-        page_size=page_size,
+    '''List all feeds with filtering'''
+    logger.info('Listing all feeds')
+    return FeedService.list_all_feeds(
         category_id=category_id,
         is_active=is_active,
         include_category=include_category

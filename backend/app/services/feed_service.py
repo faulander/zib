@@ -165,13 +165,21 @@ class FeedService:
                     )
                 
                 feed_url = feed.url
-                feed.delete_instance()
+                feed_title = feed.title
                 
-                logger.info(f'Deleted feed: {feed_id} - {feed_url}')
+                # Count articles that will be deleted (for logging)
+                from app.models.article import Article
+                article_count = Article.select().where(Article.feed == feed_id).count()
+                
+                feed.delete_instance()  # This will cascade delete all articles due to foreign key constraint
+                
+                logger.info(f'Deleted feed: {feed_id} - {feed_url} with {article_count} articles')
                 return {
-                    'message': f'Feed {feed_id} deleted successfully',
+                    'message': f'Feed "{feed_title}" and {article_count} articles deleted successfully',
                     'feed_id': feed_id,
-                    'url': feed_url
+                    'url': feed_url,
+                    'title': feed_title,
+                    'article_count': article_count
                 }
                 
         except FeedException:
@@ -183,6 +191,48 @@ class FeedService:
                 {'feed_id': feed_id, 'error': str(e)}
             )
     
+    @staticmethod
+    def list_all_feeds(
+        category_id: Optional[int] = None,
+        is_active: Optional[bool] = None,
+        include_category: bool = False
+    ) -> List[Dict[str, Any]]:
+        '''List all feeds without pagination'''
+        try:
+            # Build query
+            if include_category:
+                from peewee import JOIN
+                query = (Feed
+                        .select(Feed, Category)
+                        .join(Category, JOIN.LEFT_OUTER, on=(Feed.category == Category.id)))
+            else:
+                query = Feed.select()
+            
+            # Apply filters
+            if category_id is not None:
+                query = query.where(Feed.category == category_id)
+            
+            if is_active is not None:
+                query = query.where(Feed.is_active == is_active)
+            
+            # Order by title
+            query = query.order_by(Feed.title)
+            
+            # Convert to response format
+            items = []
+            for feed in query:
+                feed_data = FeedResponse.model_validate(feed)
+                items.append(feed_data.model_dump())
+            
+            return items
+            
+        except Exception as e:
+            logger.error(f'Error listing feeds: {e}')
+            raise FeedException(
+                'Failed to retrieve feeds',
+                {'error': str(e)}
+            )
+
     @staticmethod
     def list_feeds(
         page: int = 1,

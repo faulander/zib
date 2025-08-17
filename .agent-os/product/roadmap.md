@@ -55,12 +55,11 @@ The following backend infrastructure has been implemented:
 
 ## Phase 2: Enhanced User Experience (1 week)
 
-**Goal:** Polish the reading experience with theming and navigation
+**Goal:** Polish the reading experience with navigation and advanced UI features
 **Success Criteria:** Smooth, customizable reading experience across devices
 
 ### Must-Have Features
 
-- [ ] Dark/Light theme toggle - Implement theme switching `S`
 - [ ] Keyboard shortcuts - Navigate without mouse `S`
 - [ ] Infinite scroll or pagination - Handle large article lists `M`
 - [ ] Article preview pane - Quick article viewing `M`

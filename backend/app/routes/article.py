@@ -25,6 +25,22 @@ def build_article_query(user: User, params: ArticleQueryParams):
         .join(Category, JOIN.LEFT_OUTER, on=(Feed.category == Category.id))
     )
     
+    # Apply cursor-based pagination filter
+    if params.since_id:
+        # For cursor pagination, we want articles that come after since_id in the sort order
+        # Since we sort by published_date DESC, then id DESC, we want articles with:
+        # - published_date < since_article.published_date, OR
+        # - published_date = since_article.published_date AND id < since_id
+        try:
+            since_article = Article.get_by_id(params.since_id)
+            query = query.where(
+                (Article.published_date < since_article.published_date) |
+                ((Article.published_date == since_article.published_date) & (Article.id < params.since_id))
+            )
+        except Article.DoesNotExist:
+            # If since_id article doesn't exist, fall back to simple id comparison
+            query = query.where(Article.id < params.since_id)
+    
     # Apply filters
     if params.feed_id:
         query = query.where(Feed.id == params.feed_id)
@@ -88,9 +104,9 @@ def build_article_query(user: User, params: ArticleQueryParams):
         sort_field = Article.published_date
     
     if params.order.value == 'asc':
-        query = query.order_by(sort_field.asc())
+        query = query.order_by(sort_field.asc(), Article.id.asc())
     else:
-        query = query.order_by(sort_field.desc())
+        query = query.order_by(sort_field.desc(), Article.id.desc())
     
     return query
 
@@ -159,46 +175,139 @@ async def get_articles(
     params: ArticleQueryParams = Depends(),
     current_user: User = Depends(get_current_user)
 ):
-    '''Get articles with filtering, pagination, and search'''
+    '''Get articles with cursor-based pagination, filtering, and search'''
     
     try:
         # Build query
         query = build_article_query(current_user, params)
         
-        # Get total count for pagination
+        # Get total count (for legacy pagination info)
         total_query = query.clone()
+        if params.since_id:
+            # Remove cursor filter for total count
+            total_query = build_article_query(current_user, ArticleQueryParams(
+                limit=params.limit,
+                feed_id=params.feed_id,
+                category_id=params.category_id,
+                read_status=params.read_status,
+                search=params.search,
+                tags=params.tags,
+                author=params.author,
+                date_from=params.date_from,
+                date_to=params.date_to,
+                sort=params.sort,
+                order=params.order
+            ))
         total = total_query.count()
         
-        # Apply pagination
-        offset = (params.page - 1) * params.per_page
-        paginated_query = query.offset(offset).limit(params.per_page)
+        # Execute query with limit + 1 to check if there are more articles
+        limit_plus_one = params.limit + 1
+        articles_data = list(query.limit(limit_plus_one))
         
-        # Execute query
-        articles_data = list(paginated_query)
+        # Check if there are more articles
+        has_more = len(articles_data) > params.limit
+        if has_more:
+            articles_data = articles_data[:params.limit]  # Remove the extra article
         
         # Serialize articles
         articles = [serialize_article(article, current_user) for article in articles_data]
         
-        # Build pagination info
-        total_pages = (total + params.per_page - 1) // params.per_page
+        # Get next cursor (ID of the last article)
+        next_cursor = None
+        if has_more and articles:
+            next_cursor = articles[-1].id
+        
+        # Build legacy pagination info (for backward compatibility)
         pagination = {
-            'page': params.page,
-            'per_page': params.per_page,
+            'limit': params.limit,
+            'since_id': params.since_id,
             'total': total,
-            'pages': total_pages,
-            'has_next': params.page < total_pages,
-            'has_prev': params.page > 1
+            'returned': len(articles)
         }
         
         return ArticleListResponse(
             articles=articles,
-            pagination=pagination
+            pagination=pagination,
+            has_more=has_more,
+            next_cursor=next_cursor
         )
         
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error fetching articles: {str(e)}"
+        )
+
+
+@router.post("/bulk/mark-read", response_model=BulkOperationResponse)
+async def bulk_mark_read(
+    request: BulkMarkReadRequest,
+    current_user: User = Depends(get_current_user)
+):
+    '''Bulk mark articles as read'''
+    
+    try:
+        # Verify all articles exist
+        articles = list(Article.select().where(Article.id.in_(request.article_ids)))
+        
+        if len(articles) != len(request.article_ids):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="One or more articles not found"
+            )
+        
+        # Mark all as read
+        updated_count = 0
+        for article in articles:
+            ReadStatus.mark_read(current_user, article, True)
+            updated_count += 1
+        
+        return BulkOperationResponse(
+            message=f"Marked {updated_count} articles as read",
+            updated_count=updated_count
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error bulk marking articles as read: {str(e)}"
+        )
+
+
+@router.post("/bulk/mark-read-by-feed/{feed_id}", response_model=BulkOperationResponse)
+async def bulk_mark_read_by_feed(
+    feed_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    '''Bulk mark all articles in a feed as read'''
+    
+    try:
+        # Get all articles in the feed
+        articles = list(Article.select().where(Article.feed_id == feed_id))
+        
+        if not articles:
+            return BulkOperationResponse(
+                message="No articles found in feed",
+                updated_count=0
+            )
+        
+        # Mark all as read
+        updated_count = 0
+        for article in articles:
+            ReadStatus.mark_read(current_user, article, True)
+            updated_count += 1
+        
+        return BulkOperationResponse(
+            message="Marked all articles in feed as read",
+            updated_count=updated_count
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error bulk marking feed articles as read: {str(e)}"
         )
 
 
@@ -331,77 +440,6 @@ async def unstar_article(
             detail=f"Error unstarring article: {str(e)}"
         )
 
-
-@router.post("/bulk/mark-read", response_model=BulkOperationResponse)
-async def bulk_mark_read(
-    request: BulkMarkReadRequest,
-    current_user: User = Depends(get_current_user)
-):
-    '''Bulk mark articles as read'''
-    
-    try:
-        # Verify all articles exist
-        articles = list(Article.select().where(Article.id.in_(request.article_ids)))
-        
-        if len(articles) != len(request.article_ids):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="One or more articles not found"
-            )
-        
-        # Mark all as read
-        updated_count = 0
-        for article in articles:
-            ReadStatus.mark_read(current_user, article, True)
-            updated_count += 1
-        
-        return BulkOperationResponse(
-            message=f"Marked {updated_count} articles as read",
-            updated_count=updated_count
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error bulk marking articles as read: {str(e)}"
-        )
-
-
-@router.post("/bulk/mark-read-by-feed/{feed_id}", response_model=BulkOperationResponse)
-async def bulk_mark_read_by_feed(
-    feed_id: int,
-    current_user: User = Depends(get_current_user)
-):
-    '''Bulk mark all articles in a feed as read'''
-    
-    try:
-        # Get all articles in the feed
-        articles = list(Article.select().where(Article.feed_id == feed_id))
-        
-        if not articles:
-            return BulkOperationResponse(
-                message="No articles found in feed",
-                updated_count=0
-            )
-        
-        # Mark all as read
-        updated_count = 0
-        for article in articles:
-            ReadStatus.mark_read(current_user, article, True)
-            updated_count += 1
-        
-        return BulkOperationResponse(
-            message="Marked all articles in feed as read",
-            updated_count=updated_count
-        )
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error bulk marking feed articles as read: {str(e)}"
-        )
 
 
 @router.get("/stats", response_model=ArticleStatsResponse)

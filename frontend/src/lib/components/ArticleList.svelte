@@ -1,5 +1,11 @@
 <script>
+	import { onMount, onDestroy } from 'svelte';
+	import { scrollTracker } from '../services/scrollTracker.js';
+	
 	let { articles, onMarkRead, onToggleStar } = $props();
+	
+	// Track article elements for scroll detection
+	let articleElements = new Map(); // Map of article.id -> element
 
 	function formatDate(dateString) {
 		const date = new Date(dateString);
@@ -33,6 +39,57 @@
 			onMarkRead(article);
 		}
 	}
+	
+	// Start tracking an article element for scroll detection
+	function trackArticle(element, article) {
+		if (!element || !article) return;
+		
+		articleElements.set(article.id, element);
+		scrollTracker.trackArticle(element, article);
+	}
+	
+	// Stop tracking an article element
+	function untrackArticle(article) {
+		if (!article) return;
+		
+		const element = articleElements.get(article.id);
+		if (element) {
+			scrollTracker.untrackArticle(element);
+			articleElements.delete(article.id);
+		}
+	}
+	
+	// Svelte action to track article elements
+	function trackElement(element, params) {
+		const { article } = params;
+		
+		// Start tracking when element is mounted
+		trackArticle(element, article);
+		
+		return {
+			update(newParams) {
+				// If article changes, untrack old and track new
+				const { article: newArticle } = newParams;
+				if (newArticle.id !== article.id) {
+					untrackArticle(article);
+					trackArticle(element, newArticle);
+				}
+			},
+			destroy() {
+				// Stop tracking when element is destroyed
+				untrackArticle(article);
+			}
+		};
+	}
+	
+	// Clean up tracking when component is destroyed
+	onDestroy(() => {
+		// Clean up all tracked articles
+		for (const [articleId, element] of articleElements) {
+			scrollTracker.untrackArticle(element);
+		}
+		articleElements.clear();
+	});
 </script>
 
 {#if articles.length === 0}
@@ -53,6 +110,7 @@
 		<article
 			class="px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group {article.read_status?.is_read ? 'opacity-60' : ''}"
 			onclick={() => handleArticleClick(article)}
+			use:trackElement={{ article }}
 		>
 			<div class="flex items-center space-x-2">
 				<!-- Read Status Indicator -->

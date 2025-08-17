@@ -145,22 +145,30 @@ class CategoryService:
                         {'category_id': category_id}
                     )
                 
-                # Check if category has feeds
-                feed_count = Feed.select().where(Feed.category == category_id).count()
-                if feed_count > 0:
-                    raise ValidationException(
-                        f'Cannot delete category with {feed_count} associated feeds',
-                        {'category_id': category_id, 'feed_count': feed_count}
-                    )
+                # Get feeds that will be deleted with this category
+                feeds = Feed.select().where(Feed.category == category_id)
+                feed_count = feeds.count()
+                
+                # Delete all feeds in this category (articles will cascade delete automatically)
+                deleted_feeds = []
+                for feed in feeds:
+                    deleted_feeds.append({
+                        'id': feed.id,
+                        'title': feed.title,
+                        'url': feed.url
+                    })
+                    feed.delete_instance()  # This will cascade delete articles due to foreign key constraint
                 
                 category_name = category.name
                 category.delete_instance()
                 
-                logger.info(f'Deleted category: {category_id} - {category_name}')
+                logger.info(f'Deleted category: {category_id} - {category_name} with {feed_count} feeds')
                 return {
-                    'message': f'Category "{category_name}" deleted successfully',
+                    'message': f'Category "{category_name}" and {feed_count} feeds deleted successfully',
                     'category_id': category_id,
-                    'name': category_name
+                    'name': category_name,
+                    'deleted_feeds': deleted_feeds,
+                    'feed_count': feed_count
                 }
                 
         except ValidationException:
@@ -174,6 +182,35 @@ class CategoryService:
                 {'category_id': category_id, 'error': str(e)}
             )
     
+    @staticmethod
+    def list_all_categories(include_feeds: bool = False) -> List[Dict[str, Any]]:
+        '''List all categories without pagination'''
+        try:
+            # Build base query
+            query = Category.select().order_by(Category.name)
+            
+            # Convert to response format
+            items = []
+            for category in query:
+                category_data = CategoryResponse.model_validate(category)
+                
+                # Add feeds if requested
+                if include_feeds:
+                    feeds = Feed.select().where(Feed.category == category.id)
+                    from app.schemas.feed import FeedResponse
+                    category_data.feeds = [FeedResponse.model_validate(feed) for feed in feeds]
+                
+                items.append(category_data.model_dump())
+            
+            return items
+            
+        except Exception as e:
+            logger.error(f'Error listing categories: {e}')
+            raise CategoryException(
+                'Failed to retrieve categories',
+                {'error': str(e)}
+            )
+
     @staticmethod
     def list_categories(
         page: int = 1,

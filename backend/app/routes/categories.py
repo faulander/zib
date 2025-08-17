@@ -47,12 +47,10 @@ async def delete_category(category_id: int = Path(..., description='Category ID'
     )
 
 
-@router.get('/', response_model=PaginatedResponse)
+@router.get('/')
 async def list_categories(
-    page: int = Query(1, ge=1, description='Page number'),
-    page_size: int = Query(10, ge=1, le=1000, description='Items per page'),
     include_feeds: bool = Query(False, description='Include associated feeds')
 ):
-    '''List categories with pagination'''
-    logger.info(f'Listing categories - page {page}, size {page_size}')
-    return CategoryService.list_categories(page=page, page_size=page_size, include_feeds=include_feeds)
+    '''List all categories'''
+    logger.info('Listing all categories')
+    return CategoryService.list_all_categories(include_feeds=include_feeds)

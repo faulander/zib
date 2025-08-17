@@ -1,8 +1,9 @@
 <script>
 	import { onMount } from 'svelte';
 	import { feedsStore, categoriesStore, apiActions, isLoading, error } from '$lib/stores/api.js';
-	import { opml } from '$lib/api.js';
-	import { Plus, Trash2, Download, Upload, RefreshCw, Settings, Rss, FolderOpen, FileText } from '@lucide/svelte';
+	import { settings } from '$lib/stores/settings.js';
+	import { opml, api } from '$lib/api.js';
+	import { Plus, Trash2, Download, Upload, RefreshCw, Settings, Rss, FolderOpen, FileText, ChevronDown, ChevronRight } from '@lucide/svelte';
 	
 	// Use Svelte 5 runes
 	let feeds = $derived($feedsStore);
@@ -10,11 +11,35 @@
 	let loading = $derived($isLoading);
 	let apiError = $derived($error);
 	
+	// Settings - use reactive state for binding
+	let autoRefreshFeeds = $state(false);
+	let showUnreadCountInTitle = $state(false);
+	let markReadScrollBatchSize = $state(5);
+	let markReadScrollDelay = $state(1000);
+	
+	// Subscribe to settings changes and update local state
+	$effect(() => {
+		const currentSettings = $settings;
+		autoRefreshFeeds = currentSettings.autoRefreshFeeds;
+		showUnreadCountInTitle = currentSettings.showUnreadCountInTitle;
+		markReadScrollBatchSize = currentSettings.markReadScrollBatchSize;
+		markReadScrollDelay = currentSettings.markReadScrollDelay;
+	});
+	
+	
 	// Settings navigation
-	let selectedSection = $state('feeds');
+	let selectedSection = $state('categories');
+	
+	// Expandable categories state
+	let expandedCategories = $state(new Set());
+	
+	// Delete confirmation modal state
+	let showDeleteModal = $state(false);
+	let deleteTarget = $state(null); // { type: 'category'|'feed', item: object }
 	
 	// Form states
 	let showAddFeed = $state(false);
+	let showAddFeedForCategory = $state(null); // ID of category to show add feed form for
 	let showAddCategory = $state(false);
 	let newFeedUrl = $state('');
 	let newFeedTitle = $state('');
@@ -31,41 +56,112 @@
 	
 	// Settings sections
 	const settingsSections = [
-		{ id: 'feeds', name: 'Feed Management', icon: Rss },
-		{ id: 'categories', name: 'Categories', icon: FolderOpen },
+		{ id: 'categories', name: 'Feeds & Categories', icon: FolderOpen },
+		{ id: 'general', name: 'General Settings', icon: Settings },
 		{ id: 'import-export', name: 'Import/Export', icon: FileText }
 	];
 	
+	// Category expansion functions
+	function toggleCategory(categoryId) {
+		if (expandedCategories.has(categoryId)) {
+			expandedCategories.delete(categoryId);
+		} else {
+			expandedCategories.add(categoryId);
+		}
+		expandedCategories = new Set(expandedCategories);
+	}
+	
 	// Feed management functions
-	async function handleAddFeed() {
+	async function handleAddFeed(categoryId = null) {
 		if (!newFeedUrl.trim()) return;
 		
 		try {
 			const feedData = {
 				url: newFeedUrl.trim(),
 				title: newFeedTitle.trim() || undefined,
-				category_id: newFeedCategoryId ? parseInt(newFeedCategoryId) : undefined
+				category_id: categoryId || (newFeedCategoryId ? parseInt(newFeedCategoryId) : undefined)
 			};
 			
-			await apiActions.addFeed(feedData);
+			const newFeed = await apiActions.addFeed(feedData);
+			
+			// Immediately refresh the newly created feed to fetch articles
+			if (newFeed && newFeed.id) {
+				try {
+					await apiActions.refreshFeed(newFeed.id);
+				} catch (refreshErr) {
+					console.error('Failed to refresh new feed:', refreshErr);
+					// Don't throw - the feed was created successfully, refresh just failed
+				}
+			}
 			
 			// Reset form
 			newFeedUrl = '';
 			newFeedTitle = '';
 			newFeedCategoryId = '';
 			showAddFeed = false;
+			showAddFeedForCategory = null;
 		} catch (err) {
 			console.error('Failed to add feed:', err);
 		}
 	}
 	
-	async function handleDeleteFeed(feedId) {
-		if (!confirm('Are you sure you want to delete this feed?')) return;
+	// Delete confirmation functions
+	function confirmDeleteCategory(category) {
+		const categoryFeeds = feeds.filter(f => f.category_id === category.id);
+		deleteTarget = { 
+			type: 'category', 
+			item: category, 
+			feedCount: categoryFeeds.length,
+			feeds: categoryFeeds
+		};
+		showDeleteModal = true;
+	}
+	
+	function confirmDeleteFeed(feed) {
+		deleteTarget = { 
+			type: 'feed', 
+			item: feed 
+		};
+		showDeleteModal = true;
+	}
+	
+	async function handleConfirmDelete() {
+		if (!deleteTarget) return;
 		
 		try {
-			await apiActions.deleteFeed(feedId);
+			if (deleteTarget.type === 'category') {
+				// Delete category and all its feeds
+				await api.request(`/api/categories/${deleteTarget.item.id}`, {
+					method: 'DELETE'
+				});
+				// Reload data
+				await apiActions.loadCategories();
+				await apiActions.loadFeeds();
+			} else if (deleteTarget.type === 'feed') {
+				// Delete single feed
+				await api.request(`/api/feeds/${deleteTarget.item.id}`, {
+					method: 'DELETE'
+				});
+				// Reload data
+				await apiActions.loadFeeds();
+			}
 		} catch (err) {
-			console.error('Failed to delete feed:', err);
+			console.error(`Failed to delete ${deleteTarget.type}:`, err);
+		} finally {
+			showDeleteModal = false;
+			deleteTarget = null;
+		}
+	}
+	
+	function cancelDelete() {
+		showDeleteModal = false;
+		deleteTarget = null;
+	}
+	
+	async function handleDeleteFeed(feedId) {
+		const feed = feeds.find(f => f.id === feedId);
+		if (feed) {
+			confirmDeleteFeed(feed);
 		}
 	}
 	
@@ -236,213 +332,303 @@
 		{/if}
 
 		<!-- Content Area -->
-		<div class="p-6">{#if selectedSection === 'feeds'}
-
-		<!-- Feed Management Section -->
+		<div class="p-6">
+		
+		{#if selectedSection === 'categories'}
+		<!-- Feeds & Categories Section -->
 		<section class="space-y-4">
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex space-x-2">
-				<button
-					onclick={() => showAddFeed = !showAddFeed}
-					class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-				>
-					<Plus class="h-4 w-4 mr-1" />
-					Add Feed
-				</button>
-				<button
-					onclick={handleRefreshAllFeeds}
-					disabled={isRefreshing || loading}
-					class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-				>
-					<RefreshCw class="h-4 w-4 mr-1 {isRefreshing ? 'animate-spin' : ''}" />
-					Refresh All
-				</button>
-				</div>
-			</div>
-
-		<!-- Add Feed Form -->
-		{#if showAddFeed}
-			<div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
-				<h3 class="text-lg font-medium text-gray-900 dark:text-white">Add New Feed</h3>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<div>
-						<label for="feed-url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Feed URL *
-						</label>
-						<input
-							id="feed-url"
-							type="url"
-							bind:value={newFeedUrl}
-							placeholder="https://example.com/feed.xml"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-						/>
-					</div>
-					<div>
-						<label for="feed-title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Title (optional)
-						</label>
-						<input
-							id="feed-title"
-							type="text"
-							bind:value={newFeedTitle}
-							placeholder="Feed title"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-						/>
-					</div>
-					<div>
-						<label for="feed-category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Category (optional)
-						</label>
-						<select
-							id="feed-category"
-							bind:value={newFeedCategoryId}
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-						>
-							<option value="">No category</option>
-							{#each categories as category}
-								<option value={category.id}>{category.name}</option>
-							{/each}
-						</select>
-					</div>
-				</div>
-				<div class="flex justify-end space-x-2">
 					<button
-						onclick={() => showAddFeed = false}
-						class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+						onclick={() => showAddCategory = !showAddCategory}
+						class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
 					>
-						Cancel
-					</button>
-					<button
-						onclick={handleAddFeed}
-						disabled={!newFeedUrl.trim() || loading}
-						class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-					>
-						Add Feed
-					</button>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Feeds List -->
-		<div class="space-y-2">
-			{#each feeds as feed}
-				<div class="flex items-center justify-between p-4 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-					<div class="flex-1">
-						<h3 class="font-medium text-gray-900 dark:text-white">{feed.title}</h3>
-						<p class="text-sm text-gray-600 dark:text-gray-400">{feed.url}</p>
-						{#if feed.category}
-							<span class="inline-block mt-1 px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
-								{feed.category.name}
-							</span>
-						{/if}
-					</div>
-					<div class="flex items-center space-x-2">
-						<button
-							onclick={() => handleRefreshFeed(feed.id)}
-							disabled={loading}
-							class="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50"
-							title="Refresh feed"
-						>
-							<RefreshCw class="h-4 w-4" />
-						</button>
-						<button
-							onclick={() => handleDeleteFeed(feed.id)}
-							disabled={loading}
-							class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50"
-							title="Delete feed"
-						>
-							<Trash2 class="h-4 w-4" />
-						</button>
-					</div>
-				</div>
-			{/each}
-		</div>
-	</section>
-
-{:else if selectedSection === 'categories'}
-	<!-- Category Management Section -->
-	<section class="space-y-4">
-		<div class="flex items-center justify-between mb-4">
-			<div class="flex space-x-2">
-				<button
-					onclick={() => showAddCategory = !showAddCategory}
-					class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-				>
-					<Plus class="h-4 w-4 mr-1" />
-					Add Category
-				</button>
-			</div>
-		</div>
-
-		<!-- Add Category Form -->
-		{#if showAddCategory}
-			<div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
-				<h3 class="text-lg font-medium text-gray-900 dark:text-white">Add New Category</h3>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<div>
-						<label for="category-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Name *
-						</label>
-						<input
-							id="category-name"
-							type="text"
-							bind:value={newCategoryName}
-							placeholder="Category name"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-						/>
-					</div>
-					<div>
-						<label for="category-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Description (optional)
-						</label>
-						<input
-							id="category-description"
-							type="text"
-							bind:value={newCategoryDescription}
-							placeholder="Category description"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-						/>
-					</div>
-				</div>
-				<div class="flex justify-end space-x-2">
-					<button
-						onclick={() => showAddCategory = false}
-						class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
-					>
-						Cancel
-					</button>
-					<button
-						onclick={handleAddCategory}
-						disabled={!newCategoryName.trim() || loading}
-						class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50"
-					>
+						<Plus class="h-4 w-4 mr-1" />
 						Add Category
 					</button>
+					<button
+						onclick={handleRefreshAllFeeds}
+						disabled={isRefreshing || loading}
+						class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+					>
+						<RefreshCw class="h-4 w-4 mr-1 {isRefreshing ? 'animate-spin' : ''}" />
+						Refresh All Feeds
+					</button>
 				</div>
 			</div>
-		{/if}
 
-		<!-- Categories List -->
-		<div class="space-y-2">
-			{#each categories as category}
-				<div class="flex items-center justify-between p-4 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-					<div class="flex-1">
-						<h3 class="font-medium text-gray-900 dark:text-white">{category.name}</h3>
-						{#if category.description}
-							<p class="text-sm text-gray-600 dark:text-gray-400">{category.description}</p>
-						{/if}
+			<!-- Add Category Form -->
+			{#if showAddCategory}
+				<div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
+					<h3 class="text-lg font-medium text-gray-900 dark:text-white">Add New Category</h3>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div>
+							<label for="category-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Name *
+							</label>
+							<input
+								id="category-name"
+								type="text"
+								bind:value={newCategoryName}
+								placeholder="Category name"
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+							/>
+						</div>
+						<div>
+							<label for="category-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Description (optional)
+							</label>
+							<input
+								id="category-description"
+								type="text"
+								bind:value={newCategoryDescription}
+								placeholder="Category description"
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+							/>
+						</div>
 					</div>
-					<div class="flex items-center space-x-2">
-						<span class="text-sm text-gray-500 dark:text-gray-400">
-							{feeds.filter(f => f.category?.id === category.id).length} feeds
-						</span>
+					<div class="flex justify-end space-x-2">
+						<button
+							onclick={() => showAddCategory = false}
+							class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+						>
+							Cancel
+						</button>
+						<button
+							onclick={handleAddCategory}
+							disabled={!newCategoryName.trim() || loading}
+							class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50"
+						>
+							Add Category
+						</button>
 					</div>
 				</div>
-			{/each}
-		</div>
-	</section>
+			{/if}
 
-{:else if selectedSection === 'import-export'}
+			<!-- Expandable Categories List -->
+			<div class="space-y-2">
+				{#each categories as category}
+					{@const categoryFeeds = feeds.filter(f => f.category_id === category.id)}
+					{@const isExpanded = expandedCategories.has(category.id)}
+					
+					<div class="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+						<!-- Category Header -->
+						<div 
+							class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg"
+							onclick={() => toggleCategory(category.id)}
+						>
+							<div class="flex items-center space-x-3">
+								<button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+									{#if isExpanded}
+										<ChevronDown class="h-4 w-4" />
+									{:else}
+										<ChevronRight class="h-4 w-4" />
+									{/if}
+								</button>
+								<div>
+									<h3 class="font-medium text-gray-900 dark:text-white">{category.name}</h3>
+									{#if category.description}
+										<p class="text-sm text-gray-600 dark:text-gray-400">{category.description}</p>
+									{/if}
+								</div>
+							</div>
+							<div class="flex items-center space-x-4">
+								<span class="text-sm text-gray-500 dark:text-gray-400">
+									{categoryFeeds.length} feeds
+								</span>
+								<div class="flex items-center space-x-2">
+									<button
+										onclick={(e) => {
+											e.stopPropagation();
+											
+											// Make sure category is expanded
+											if (!expandedCategories.has(category.id)) {
+												expandedCategories.add(category.id);
+												expandedCategories = new Set(expandedCategories);
+											}
+											
+											showAddFeedForCategory = category.id;
+										}}
+										class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+										title="Add feed to this category"
+									>
+										<Plus class="h-4 w-4" />
+									</button>
+									<button
+										onclick={(e) => {
+											e.stopPropagation();
+											confirmDeleteCategory(category);
+										}}
+										class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+										title="Delete category"
+									>
+										<Trash2 class="h-4 w-4" />
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<!-- Expanded Category Content -->
+						{#if isExpanded}
+							<div class="border-t border-gray-200 dark:border-gray-600">
+								<!-- Add Feed Form for this Category -->
+								{#if showAddFeedForCategory === category.id}
+									<div class="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-600">
+										<h4 class="text-md font-medium text-gray-900 dark:text-white mb-3">Add Feed to {category.name}</h4>
+										<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+											<div>
+												<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+													Feed URL *
+												</label>
+												<input
+													type="url"
+													bind:value={newFeedUrl}
+													placeholder="https://example.com/feed.xml"
+													class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+												/>
+											</div>
+											<div>
+												<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+													Title (optional)
+												</label>
+												<input
+													type="text"
+													bind:value={newFeedTitle}
+													placeholder="Feed title"
+													class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+												/>
+											</div>
+										</div>
+										<div class="flex justify-end space-x-2 mt-4">
+											<button
+												onclick={() => showAddFeedForCategory = null}
+												class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+											>
+												Cancel
+											</button>
+											<button
+												onclick={() => handleAddFeed(category.id)}
+												disabled={!newFeedUrl.trim() || loading}
+												class="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+											>
+												Add Feed
+											</button>
+										</div>
+									</div>
+								{/if}
+
+								<!-- Feeds in this Category -->
+								{#if categoryFeeds.length > 0}
+									<div class="p-4 space-y-2">
+										{#each categoryFeeds as feed}
+											<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+												<div class="flex-1">
+													<h4 class="font-medium text-gray-900 dark:text-white text-sm">{feed.title}</h4>
+													<p class="text-xs text-gray-600 dark:text-gray-400">{feed.url}</p>
+												</div>
+												<div class="flex items-center space-x-1">
+													<button
+														onclick={() => handleRefreshFeed(feed.id)}
+														disabled={loading}
+														class="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50"
+														title="Refresh feed"
+													>
+														<RefreshCw class="h-3 w-3" />
+													</button>
+													<button
+														onclick={() => handleDeleteFeed(feed.id)}
+														disabled={loading}
+														class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50"
+														title="Delete feed"
+													>
+														<Trash2 class="h-3 w-3" />
+													</button>
+												</div>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+										No feeds in this category yet.
+									</div>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</section>
+
+		{:else if selectedSection === 'general'}
+		<!-- General Settings Section -->
+		<section class="space-y-4">
+			<div class="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+				<h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Application Settings</h3>
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<div>
+							<label class="text-sm font-medium text-gray-900 dark:text-white">Auto-refresh feeds</label>
+							<p class="text-xs text-gray-600 dark:text-gray-400">Automatically refresh all feeds periodically</p>
+						</div>
+						<input 
+							type="checkbox" 
+							bind:checked={autoRefreshFeeds}
+							onchange={() => settings.setSetting('autoRefreshFeeds', autoRefreshFeeds)}
+							class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+						/>
+					</div>
+					<div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+						<h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Mark as Read on Scroll</h4>
+						<p class="text-xs text-gray-600 dark:text-gray-400 mb-4">Articles are automatically marked as read when scrolling past them. Configure the behavior below.</p>
+						<div class="space-y-3">
+							<div class="flex items-center justify-between">
+								<div>
+									<label class="text-sm font-medium text-gray-900 dark:text-white">Batch size</label>
+									<p class="text-xs text-gray-600 dark:text-gray-400">Number of articles to batch before marking as read</p>
+								</div>
+								<input 
+									type="number" 
+									min="1" 
+									max="20"
+									bind:value={markReadScrollBatchSize}
+									onchange={() => settings.setSetting('markReadScrollBatchSize', markReadScrollBatchSize)}
+									class="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
+								/>
+							</div>
+							<div class="flex items-center justify-between">
+								<div>
+									<label class="text-sm font-medium text-gray-900 dark:text-white">Scroll delay (ms)</label>
+									<p class="text-xs text-gray-600 dark:text-gray-400">Delay after article leaves viewport before adding to batch</p>
+								</div>
+								<input 
+									type="number" 
+									min="500" 
+									max="5000"
+									step="100"
+									bind:value={markReadScrollDelay}
+									onchange={() => settings.setSetting('markReadScrollDelay', markReadScrollDelay)}
+									class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
+								/>
+							</div>
+						</div>
+					</div>
+					<div class="flex items-center justify-between">
+						<div>
+							<label class="text-sm font-medium text-gray-900 dark:text-white">Show unread count in title</label>
+							<p class="text-xs text-gray-600 dark:text-gray-400">Display unread article count in browser tab title</p>
+						</div>
+						<input 
+							type="checkbox" 
+							bind:checked={showUnreadCountInTitle}
+							onchange={() => settings.setSetting('showUnreadCountInTitle', showUnreadCountInTitle)}
+							class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+						/>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		{:else if selectedSection === 'import-export'}
 	<!-- OPML Import/Export Section -->
 	<section class="space-y-4">
 		
@@ -533,3 +719,70 @@
 		</div>
 	</main>
 </div>
+
+<!-- Delete Confirmation Modal -->
+{#if showDeleteModal && deleteTarget}
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+		<div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+			<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+				{#if deleteTarget.type === 'category'}
+					Delete Category
+				{:else}
+					Delete Feed
+				{/if}
+			</h3>
+			
+			<div class="mb-4">
+				{#if deleteTarget.type === 'category'}
+					<p class="text-gray-700 dark:text-gray-300">
+						Are you sure you want to delete the category <strong>"{deleteTarget.item.name}"</strong>?
+					</p>
+					{#if deleteTarget.feedCount > 0}
+						<div class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+							<p class="text-red-800 dark:text-red-200 text-sm font-medium">
+								⚠️ This will also delete {deleteTarget.feedCount} feed{deleteTarget.feedCount === 1 ? '' : 's'} and all their articles:
+							</p>
+							<ul class="mt-2 text-red-700 dark:text-red-300 text-sm list-disc list-inside">
+								{#each deleteTarget.feeds as feed}
+									<li>{feed.title || feed.url}</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				{:else}
+					<p class="text-gray-700 dark:text-gray-300">
+						Are you sure you want to delete the feed <strong>"{deleteTarget.item.title}"</strong>?
+					</p>
+					<div class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+						<p class="text-red-800 dark:text-red-200 text-sm">
+							⚠️ This will also delete all articles from this feed.
+						</p>
+					</div>
+				{/if}
+				
+				<p class="text-gray-600 dark:text-gray-400 text-sm mt-3">
+					This action cannot be undone.
+				</p>
+			</div>
+
+			<div class="flex justify-end space-x-3">
+				<button
+					onclick={cancelDelete}
+					class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+				>
+					Cancel
+				</button>
+				<button
+					onclick={handleConfirmDelete}
+					class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+				>
+					{#if deleteTarget.type === 'category'}
+						Delete Category & {deleteTarget.feedCount} Feed{deleteTarget.feedCount === 1 ? '' : 's'}
+					{:else}
+						Delete Feed
+					{/if}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
