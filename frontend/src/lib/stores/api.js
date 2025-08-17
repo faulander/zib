@@ -523,6 +523,39 @@ export const apiActions = {
     }
   },
 
+  async markCategoryAsRead(categoryId) {
+    try {
+      error.set(null);
+      
+      // Mark all articles in the category as read using the specific endpoint
+      await articles.markCategoryAsRead(categoryId);
+      
+      // Update local unread counts for this category
+      unreadCounts.update(counts => {
+        const newCounts = { ...counts };
+        newCounts.categories[categoryId] = 0;
+        
+        // Also reset counts for all feeds in this category
+        const currentFeeds = get(feedsStore);
+        const categoryFeeds = currentFeeds.filter(feed => feed.category_id === categoryId);
+        categoryFeeds.forEach(feed => {
+          newCounts.feeds[feed.id] = 0;
+        });
+        
+        return newCounts;
+      });
+      
+      // If currently viewing this category, reload articles
+      const currentCategory = get(selectedCategory);
+      if (currentCategory && currentCategory.id === categoryId) {
+        await this.loadArticles();
+      }
+    } catch (err) {
+      error.set(`Failed to mark category as read: ${err.message}`);
+      throw err;
+    }
+  },
+
   // Load unread counts for categories and feeds
   async loadUnreadCounts() {
     try {

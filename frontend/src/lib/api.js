@@ -181,6 +181,12 @@ class ApiClient {
     });
   }
 
+  async markCategoryAsRead(categoryId) {
+    return this.request(`/api/articles/bulk/mark-read-by-category/${categoryId}`, {
+      method: 'POST'
+    });
+  }
+
   // OPML endpoints
   async importOpml(opmlFile, options = {}) {
     const formData = new FormData();
@@ -260,6 +266,7 @@ export const articles = {
   star: (id, isStarred) => api.starArticle(id, isStarred),
   markAllRead: (params) => api.markAllRead(params),
   bulkMarkRead: (articleIds) => api.bulkMarkRead(articleIds),
+  markCategoryAsRead: (categoryId) => api.markCategoryAsRead(categoryId),
   search: (query, params) => api.searchArticles(query, params)
 };
 

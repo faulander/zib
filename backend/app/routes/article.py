@@ -311,6 +311,46 @@ async def bulk_mark_read_by_feed(
         )
 
 
+@router.post("/bulk/mark-read-by-category/{category_id}", response_model=BulkOperationResponse)
+async def bulk_mark_read_by_category(
+    category_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    '''Bulk mark all articles in a category as read'''
+    
+    try:
+        # Get all articles in feeds that belong to this category
+        articles = list(
+            Article
+            .select()
+            .join(Feed, JOIN.INNER)
+            .where(Feed.category_id == category_id)
+        )
+        
+        if not articles:
+            return BulkOperationResponse(
+                message="No articles found in category",
+                updated_count=0
+            )
+        
+        # Mark all as read
+        updated_count = 0
+        for article in articles:
+            ReadStatus.mark_read(current_user, article, True)
+            updated_count += 1
+        
+        return BulkOperationResponse(
+            message="Marked all articles in category as read",
+            updated_count=updated_count
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error bulk marking category articles as read: {str(e)}"
+        )
+
+
 @router.get("/{article_id}", response_model=ArticleResponse)
 async def get_article_by_id(
     article_id: int,

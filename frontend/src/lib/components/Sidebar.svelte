@@ -1,6 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
-	import { Settings } from '@lucide/svelte';
+	import { Settings, CheckCircle } from '@lucide/svelte';
 	import { 
 		categoriesStore, 
 		feedsStore, 
@@ -12,6 +12,7 @@
 	
 	// Local state for UI
 	let showAllArticles = $state(true);
+	let hoveredCategory = $state(null);
 	
 	// Use stores with Svelte 5 runes
 	let categories = $derived($categoriesStore);
@@ -88,6 +89,15 @@
 		if (diffHours < 24) return `${diffHours}h ago`;
 		return `${diffDays}d ago`;
 	}
+	
+	// Mark all articles in a category as read
+	async function markCategoryAsRead(categoryId) {
+		try {
+			await apiActions.markCategoryAsRead(categoryId);
+		} catch (err) {
+			console.error('Failed to mark category as read:', err);
+		}
+	}
 </script>
 
 <aside class="w-80 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
@@ -117,21 +127,36 @@
 		{#each categories as category}
 			<div class="space-y-1">
 				<!-- Category Header -->
-				<button
-					onclick={() => selectCategoryHandler(category)}
-					class="w-full flex items-center justify-between p-1.5 rounded transition-colors {$selectedCategory?.id === category.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
-				>
-					<div class="flex items-center space-x-1.5">
+				<div class="flex items-center space-x-0.5">
+					<button
+						onclick={() => selectCategoryHandler(category)}
+						class="flex-1 flex items-center justify-between p-1.5 rounded transition-colors {$selectedCategory?.id === category.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+					>
+						<div class="flex items-center space-x-1.5">
+							<div 
+								class="w-1.5 h-1.5 rounded-full" 
+								style="background-color: {category.color || '#6B7280'}"
+							></div>
+							<span class="text-xs font-medium">{category.name}</span>
+						</div>
 						<div 
-							class="w-1.5 h-1.5 rounded-full" 
-							style="background-color: {category.color || '#6B7280'}"
-						></div>
-						<span class="text-xs font-medium">{category.name}</span>
-					</div>
-					<span class="text-xs bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded-full">
-						{counts.categories[category.id] || 0}
-					</span>
-				</button>
+							class="text-xs bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded-full cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition-colors"
+							onmouseenter={() => hoveredCategory = category.id}
+							onmouseleave={() => hoveredCategory = null}
+							onclick={(e) => {
+								e.stopPropagation();
+								markCategoryAsRead(category.id);
+							}}
+							title="Mark all articles in this category as read"
+						>
+							{#if hoveredCategory === category.id && (counts.categories[category.id] || 0) > 0}
+								<CheckCircle class="w-3 h-3" />
+							{:else}
+								{counts.categories[category.id] || 0}
+							{/if}
+						</div>
+					</button>
+				</div>
 				
 				<!-- Category Feeds -->
 				{#if $selectedCategory?.id === category.id}
