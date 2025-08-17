@@ -82,3 +82,84 @@ async def get_feeds_by_category(category_id: int = Path(..., description='Catego
     '''Get all feeds in a specific category'''
     logger.info(f'Getting feeds by category: {category_id}')
     return FeedService.get_feeds_by_category(category_id)
+
+
+@router.post('/{feed_id}/refresh', response_model=SuccessResponse)
+async def refresh_feed(feed_id: int = Path(..., description='Feed ID')):
+    '''Manually refresh a specific feed to fetch new articles'''
+    logger.info(f'Manually refreshing feed: {feed_id}')
+    from app.services.feed_fetcher import feed_fetcher
+    from app.models.base import Feed
+    
+    try:
+        # Get the feed
+        feed = Feed.get_by_id(feed_id)
+        
+        # Update the feed
+        result = await feed_fetcher.update_feed(feed, force=True)
+        
+        if result.success:
+            return SuccessResponse(
+                message=f'Feed refreshed successfully',
+                data={
+                    'feed_id': feed_id,
+                    'articles_added': result.articles_added,
+                    'articles_updated': result.articles_updated,
+                    'processing_time': result.processing_time
+                }
+            )
+        else:
+            return SuccessResponse(
+                message=f'Feed refresh failed: {result.error_message}',
+                data={'feed_id': feed_id, 'error': result.error_message}
+            )
+            
+    except Exception as e:
+        logger.error(f'Error refreshing feed {feed_id}: {e}')
+        return SuccessResponse(
+            message=f'Feed refresh failed: {str(e)}',
+            data={'feed_id': feed_id, 'error': str(e)}
+        )
+
+
+@router.post('/refresh-all', response_model=SuccessResponse)
+async def refresh_all_feeds():
+    '''Refresh all active feeds to fetch new articles'''
+    logger.info('Manually refreshing all feeds')
+    from app.services.feed_fetcher import feed_fetcher
+    from app.models.base import Feed
+    
+    try:
+        # Get all active feeds
+        feeds = list(Feed.select().where(Feed.is_active == True))
+        
+        if not feeds:
+            return SuccessResponse(
+                message='No active feeds to refresh',
+                data={'total_feeds': 0}
+            )
+        
+        # Update all feeds
+        results = await feed_fetcher.update_multiple_feeds(feeds, force=True, max_concurrent=5)
+        
+        # Calculate summary
+        successful = sum(1 for r in results if r.success)
+        failed = len(results) - successful
+        total_articles_added = sum(r.articles_added for r in results if r.success)
+        
+        return SuccessResponse(
+            message=f'Refreshed {len(feeds)} feeds',
+            data={
+                'total_feeds': len(feeds),
+                'successful': successful,
+                'failed': failed,
+                'articles_added': total_articles_added
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f'Error refreshing all feeds: {e}')
+        return SuccessResponse(
+            message=f'Feed refresh failed: {str(e)}',
+            data={'error': str(e)}
+        )

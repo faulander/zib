@@ -1,66 +1,35 @@
 <script>
 	import ArticleList from '$lib/components/ArticleList.svelte';
+	import { articlesStore, isLoading, apiActions } from '$lib/stores/api.js';
 	
-	// Mock articles data for now
-	let articles = $state([
-		{
-			id: 1,
-			title: 'Revolutionary AI Breakthrough Changes Everything',
-			summary: 'Scientists at MIT have developed a new artificial intelligence system that can understand and generate human-like text with unprecedented accuracy...',
-			author: 'Dr. Sarah Johnson',
-			publishedDate: '2025-08-16T10:30:00Z',
-			readAt: null,
-			starred: false,
-			estimatedReadingTime: 5,
-			feed: { title: 'TechCrunch', color: '#3B82F6' },
-			tags: ['AI', 'Technology', 'Science']
-		},
-		{
-			id: 2,
-			title: 'Climate Summit Reaches Historic Agreement',
-			summary: 'World leaders have reached a consensus on new climate policies that will significantly reduce global carbon emissions...',
-			author: 'Michael Chen',
-			publishedDate: '2025-08-16T09:15:00Z',
-			readAt: '2025-08-16T11:00:00Z',
-			starred: true,
-			estimatedReadingTime: 8,
-			feed: { title: 'BBC News', color: '#EF4444' },
-			tags: ['Climate', 'Politics', 'Environment']
-		},
-		{
-			id: 3,
-			title: 'New Quantum Computer Achieves 1000-Qubit Milestone',
-			summary: 'IBM announces their latest quantum computer has successfully demonstrated stable operation with over 1000 qubits...',
-			author: 'Dr. Lisa Park',
-			publishedDate: '2025-08-16T08:45:00Z',
-			readAt: null,
-			starred: false,
-			estimatedReadingTime: 6,
-			feed: { title: 'Nature', color: '#10B981' },
-			tags: ['Quantum', 'Computing', 'Research']
-		},
-		{
-			id: 4,
-			title: 'Breakthrough in Fusion Energy Announced',
-			summary: 'Researchers have achieved a net energy gain in nuclear fusion for the third consecutive experiment...',
-			author: 'Robert Williams',
-			publishedDate: '2025-08-16T07:20:00Z',
-			readAt: null,
-			starred: false,
-			estimatedReadingTime: 7,
-			feed: { title: 'Science Daily', color: '#8B5CF6' },
-			tags: ['Energy', 'Physics', 'Innovation']
+	// Use real articles from API
+	$: articles = $articlesStore;
+	$: loading = $isLoading;
+	
+	async function handleMarkRead(article) {
+		try {
+			const newReadStatus = !article.read_status?.is_read;
+			await apiActions.markArticleRead(article.id, newReadStatus);
+		} catch (err) {
+			console.error('Failed to mark article as read:', err);
 		}
-	]);
-	
-	let loading = $state(false);
-	
-	function handleMarkRead(article) {
-		article.readAt = article.readAt ? null : new Date().toISOString();
 	}
 	
-	function handleToggleStar(article) {
-		article.starred = !article.starred;
+	async function handleToggleStar(article) {
+		try {
+			const newStarStatus = !article.read_status?.is_starred;
+			await apiActions.starArticle(article.id, newStarStatus);
+		} catch (err) {
+			console.error('Failed to star article:', err);
+		}
+	}
+	
+	async function handleMarkAllRead() {
+		try {
+			await apiActions.markAllRead();
+		} catch (err) {
+			console.error('Failed to mark all as read:', err);
+		}
 	}
 </script>
 
@@ -71,7 +40,7 @@
 			<div>
 				<h1 class="text-2xl font-bold text-gray-900 dark:text-white">All Articles</h1>
 				<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-					{articles.filter(a => !a.readAt).length} unread of {articles.length} total
+					{articles.filter(a => !a.read_status?.is_read).length} unread of {articles.length} total
 				</p>
 			</div>
 			<div class="flex items-center space-x-2">
@@ -89,7 +58,10 @@
 				</div>
 				
 				<!-- Mark All Read -->
-				<button class="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors">
+				<button 
+					onclick={handleMarkAllRead}
+					class="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors"
+				>
 					Mark All Read
 				</button>
 			</div>
