@@ -17,7 +17,8 @@
       "WebFetch(domain:tailwindcss.com)",
       "WebFetch(domain:v3.tailwindcss.com)",
       "Bash(curl:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

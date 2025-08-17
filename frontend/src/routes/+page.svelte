@@ -39,9 +39,6 @@
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold text-gray-900 dark:text-white">All Articles</h1>
-				<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-					{articles.filter(a => !a.read_status?.is_read).length} unread of {articles.length} total
-				</p>
 			</div>
 			<div class="flex items-center space-x-2">
 				<!-- View Options -->
