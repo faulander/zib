@@ -29,7 +29,15 @@ class MigrationManager:
     '''Manages database migrations'''
     
     def __init__(self, migrations_dir: str = 'migrations'):
-        self.migrations_dir = Path(migrations_dir)
+        # Handle both relative and absolute paths
+        if Path(migrations_dir).is_absolute():
+            self.migrations_dir = Path(migrations_dir)
+        else:
+            # Look for migrations dir relative to project root
+            current_file = Path(__file__).resolve()
+            backend_root = current_file.parent.parent.parent  # Go up from app/core/
+            self.migrations_dir = backend_root / migrations_dir
+        
         self.migrations_dir.mkdir(exist_ok=True)
         
     def get_migration_files(self) -> List[Path]:
@@ -241,4 +249,16 @@ class MigrationManager:
 
 
 # Global migration manager instance
-migration_manager = MigrationManager()
+migration_manager = MigrationManager('migrations')
+
+
+if __name__ == '__main__':
+    '''Run migrations when module is executed directly'''
+    print("Running database migrations...")
+    if migration_manager.migrate():
+        print("✅ Migrations completed successfully!")
+        status = migration_manager.get_migration_status()
+        print(f"Current database version: {status['current_version']}")
+        print(f"Applied migrations: {len([m for m in status.get('available_migrations', []) if m['applied']])}")
+    else:
+        print("❌ Migrations failed! Check the logs for details.")

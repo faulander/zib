@@ -15,7 +15,7 @@ class OPMLImportSchemaMigration(Migration):
         
         # Create import_jobs table
         db.execute_sql('''
-            CREATE TABLE import_jobs (
+            CREATE TABLE IF NOT EXISTS import_jobs (
                 id TEXT PRIMARY KEY,
                 user_id INTEGER NOT NULL,
                 filename TEXT NOT NULL,
@@ -42,7 +42,7 @@ class OPMLImportSchemaMigration(Migration):
         
         # Create import_results table
         db.execute_sql('''
-            CREATE TABLE import_results (
+            CREATE TABLE IF NOT EXISTS import_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 import_job_id TEXT NOT NULL,
                 item_type TEXT NOT NULL,
@@ -63,7 +63,7 @@ class OPMLImportSchemaMigration(Migration):
         
         # Create import_feed_validation table
         db.execute_sql('''
-            CREATE TABLE import_feed_validation (
+            CREATE TABLE IF NOT EXISTS import_feed_validation (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 feed_url TEXT NOT NULL UNIQUE,
                 is_valid BOOLEAN NOT NULL,
@@ -79,16 +79,16 @@ class OPMLImportSchemaMigration(Migration):
         ''')
         
         # Create indexes for import system tables
-        db.execute_sql('CREATE INDEX idx_import_jobs_user_id ON import_jobs (user_id)')
-        db.execute_sql('CREATE INDEX idx_import_jobs_status ON import_jobs (status)')
-        db.execute_sql('CREATE INDEX idx_import_jobs_created_at ON import_jobs (created_at)')
+        db.execute_sql('CREATE INDEX IF NOT EXISTS idx_import_jobs_user_id ON import_jobs (user_id)')
+        db.execute_sql('CREATE INDEX IF NOT EXISTS idx_import_jobs_status ON import_jobs (status)')
+        db.execute_sql('CREATE INDEX IF NOT EXISTS idx_import_jobs_created_at ON import_jobs (created_at)')
         
-        db.execute_sql('CREATE INDEX idx_import_results_job_id ON import_results (import_job_id)')
-        db.execute_sql('CREATE INDEX idx_import_results_status ON import_results (status)')
-        db.execute_sql('CREATE INDEX idx_import_results_item_type ON import_results (item_type)')
+        db.execute_sql('CREATE INDEX IF NOT EXISTS idx_import_results_job_id ON import_results (import_job_id)')
+        db.execute_sql('CREATE INDEX IF NOT EXISTS idx_import_results_status ON import_results (status)')
+        db.execute_sql('CREATE INDEX IF NOT EXISTS idx_import_results_item_type ON import_results (item_type)')
         
-        db.execute_sql('CREATE INDEX idx_import_feed_validation_url ON import_feed_validation (feed_url)')
-        db.execute_sql('CREATE INDEX idx_import_feed_validation_expires ON import_feed_validation (expires_at)')
+        db.execute_sql('CREATE INDEX IF NOT EXISTS idx_import_feed_validation_url ON import_feed_validation (feed_url)')
+        db.execute_sql('CREATE INDEX IF NOT EXISTS idx_import_feed_validation_expires ON import_feed_validation (expires_at)')
         
         # Add import tracking columns to existing tables if they exist
         # Check if tables exist first
@@ -105,7 +105,7 @@ class OPMLImportSchemaMigration(Migration):
                 db.execute_sql('SELECT import_job_id FROM categories LIMIT 1')
             except:
                 db.execute_sql('ALTER TABLE categories ADD COLUMN import_job_id TEXT')
-                db.execute_sql('CREATE INDEX idx_categories_import_job ON categories (import_job_id)')
+                db.execute_sql('CREATE INDEX IF NOT EXISTS idx_categories_import_job ON categories (import_job_id)')
             
             try:
                 db.execute_sql('SELECT import_job_id FROM feeds LIMIT 1')
@@ -114,11 +114,11 @@ class OPMLImportSchemaMigration(Migration):
                 db.execute_sql('ALTER TABLE feeds ADD COLUMN opml_title TEXT')
                 db.execute_sql('ALTER TABLE feeds ADD COLUMN opml_description TEXT')
                 db.execute_sql('ALTER TABLE feeds ADD COLUMN opml_html_url TEXT')
-                db.execute_sql('CREATE INDEX idx_feeds_import_job ON feeds (import_job_id)')
+                db.execute_sql('CREATE INDEX IF NOT EXISTS idx_feeds_import_job ON feeds (import_job_id)')
         
         # Create unique constraint on import results to prevent duplicates
         db.execute_sql('''
-            CREATE UNIQUE INDEX idx_import_results_unique 
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_import_results_unique 
             ON import_results (import_job_id, item_type, item_name, COALESCE(item_url, ''))
         ''')
     

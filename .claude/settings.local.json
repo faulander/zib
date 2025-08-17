@@ -15,7 +15,8 @@
       "Bash(python:*)",
       "Bash(sqlite3:*)",
       "WebFetch(domain:tailwindcss.com)",
-      "WebFetch(domain:v3.tailwindcss.com)"
+      "WebFetch(domain:v3.tailwindcss.com)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

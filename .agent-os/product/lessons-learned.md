@@ -23,6 +23,13 @@
 - Verify existing tables, columns, and relationships before modifications
 - Query the database directly to understand current data structure
 
+### Migration System
+- **NEVER manually create or delete database tables** - This breaks production deployments
+- Always use the proper migration system (`uv run python -m app.core.migrations`) 
+- The system must work automatically without user intervention in production
+- Debug migration issues by fixing the migration files, not by manual table operations
+- If tables are missing, the issue is in the migration system that needs to be fixed
+
 ## Frontend Development
 
 ### Svelte 5 Syntax

@@ -100,6 +100,13 @@ pids/
 *.sqlite
 *.sqlite3
 
+# Zib RSS Reader specific
+zib.db
+zib.db-*
+*.db-journal
+*.db-wal
+*.db-shm
+
 # Docker
 .dockerignore
 Dockerfile.prod

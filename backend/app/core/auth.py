@@ -10,45 +10,23 @@ security = HTTPBearer(auto_error=False)
 
 def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> User:
     '''
-    Get current authenticated user from token
+    Get current user for single-user system
     
-    This is a simplified implementation for testing purposes.
-    In a real application, you would:
-    1. Validate the JWT token
-    2. Extract user ID from token
-    3. Load user from database
-    4. Handle token expiration, etc.
+    This system is designed for single-user use, so we always return
+    the default user without requiring authentication.
     '''
     
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # For testing purposes, we'll use a simple token check
-    # In real implementation, decode and validate JWT token
-    token = credentials.credentials
-    
-    if not token or token != "test-token":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # For testing, return a default user or create one if it doesn't exist
+    # Single-user system: always return the default user
     try:
-        # Try to get existing test user
-        user = User.get(User.username == 'testuser')
+        # Try to get existing default user
+        user = User.get(User.username == 'default')
         return user
     except User.DoesNotExist:
-        # Create test user for testing purposes
+        # Create default user for single-user system
         user = User.create(
-            username='testuser',
-            email='test@example.com',
-            password_hash='hashed_password'
+            username='default',
+            email='user@localhost',
+            password_hash='no_password_needed'
         )
         return user
 

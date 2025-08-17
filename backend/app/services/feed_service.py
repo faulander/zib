@@ -66,9 +66,10 @@ class FeedService:
         '''Get feed by ID'''
         try:
             if include_category:
+                from peewee import JOIN
                 feed = (Feed
                        .select(Feed, Category)
-                       .join(Category, on=(Feed.category == Category.id), join_type='LEFT OUTER')
+                       .join(Category, JOIN.LEFT_OUTER, on=(Feed.category == Category.id))
                        .where(Feed.id == feed_id)
                        .get())
             else:
@@ -194,9 +195,10 @@ class FeedService:
         try:
             # Build query
             if include_category:
+                from peewee import JOIN
                 query = (Feed
                         .select(Feed, Category)
-                        .join(Category, on=(Feed.category == Category.id), join_type='LEFT OUTER'))
+                        .join(Category, JOIN.LEFT_OUTER, on=(Feed.category == Category.id)))
             else:
                 query = Feed.select()
             
