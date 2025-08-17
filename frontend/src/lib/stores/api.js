@@ -1,0 +1,486 @@
+/**
+ * API data stores for the Zib RSS Reader
+ */
+
+import { writable, derived, get } from 'svelte/store';
+import { api, feeds, categories, articles } from '../api.js';
+
+const API_BASE = 'http://localhost:8000/api';
+
+// Loading states
+export const isLoading = writable(false);
+export const isLoadingMore = writable(false);
+export const error = writable(null);
+
+// Data stores
+export const feedsStore = writable([]);
+export const categoriesStore = writable([]);
+export const articlesStore = writable([]);
+export const totalArticleCount = writable(0);
+export const hasMoreArticles = writable(true);
+
+// Current selections
+export const selectedFeed = writable(null);
+export const selectedCategory = writable(null);
+export const selectedArticle = writable(null);
+
+// Filters
+export const searchQuery = writable('');
+export const showUnreadOnly = writable(false);
+export const selectedFilter = writable('all'); // 'all', 'unread', 'starred'
+
+// Pagination
+export const currentPage = writable(1);
+export const articlesPerPage = writable(50);
+
+// Derived stores
+export const filteredFeeds = derived(
+  [feedsStore, selectedCategory],
+  ([$feeds, $selectedCategory]) => {
+    if (!Array.isArray($feeds)) return [];
+    if (!$selectedCategory) return $feeds;
+    return $feeds.filter(feed => feed.category_id === $selectedCategory.id);
+  }
+);
+
+// Store for unread counts - will be populated by API calls
+export const unreadCounts = writable({ feeds: {}, categories: {} });
+
+// API Actions
+export const apiActions = {
+  // Feeds
+  async loadFeeds() {
+    try {
+      isLoading.set(true);
+      error.set(null);
+      const data = await feeds.getAll();
+      // Handle different response formats
+      if (data.items) {
+        feedsStore.set(data.items);
+      } else if (Array.isArray(data)) {
+        feedsStore.set(data);
+      } else {
+        feedsStore.set([]);
+      }
+      return data;
+    } catch (err) {
+      error.set(`Failed to load feeds: ${err.message}`);
+      console.error('Failed to load feeds:', err);
+      throw err;
+    } finally {
+      isLoading.set(false);
+    }
+  },
+
+  async addFeed(feedData) {
+    try {
+      isLoading.set(true);
+      error.set(null);
+      const newFeed = await feeds.create(feedData);
+      feedsStore.update(current => [...current, newFeed]);
+      return newFeed;
+    } catch (err) {
+      error.set(`Failed to add feed: ${err.message}`);
+      throw err;
+    } finally {
+      isLoading.set(false);
+    }
+  },
+
+  async refreshFeed(feedId) {
+    try {
+      isLoading.set(true);
+      error.set(null);
+      const response = await fetch(`${API_BASE}/feeds/${feedId}/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      // Reload feeds and articles to get updated counts
+      await this.loadFeeds();
+      await this.loadArticles();
+      
+      return result;
+    } catch (err) {
+      error.set(`Failed to refresh feed: ${err.message}`);
+      throw err;
+    } finally {
+      isLoading.set(false);
+    }
+  },
+
+  async refreshAllFeeds() {
+    try {
+      isLoading.set(true);
+      error.set(null);
+      const response = await fetch(`${API_BASE}/feeds/refresh-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      // Reload feeds and articles to get updated counts
+      await this.loadFeeds();
+      await this.loadArticles();
+      
+      return result;
+    } catch (err) {
+      error.set(`Failed to refresh all feeds: ${err.message}`);
+      throw err;
+    } finally {
+      isLoading.set(false);
+    }
+  },
+
+  async deleteFeed(feedId) {
+    try {
+      isLoading.set(true);
+      error.set(null);
+      await feeds.delete(feedId);
+      feedsStore.update(current => current.filter(f => f.id !== feedId));
+    } catch (err) {
+      error.set(`Failed to delete feed: ${err.message}`);
+      throw err;
+    } finally {
+      isLoading.set(false);
+    }
+  },
+
+  // Categories
+  async loadCategories() {
+    try {
+      isLoading.set(true);
+      error.set(null);
+      const data = await categories.getAll();
+      // Handle different response formats
+      if (data.items) {
+        categoriesStore.set(data.items);
+      } else if (Array.isArray(data)) {
+        categoriesStore.set(data);
+      } else {
+        categoriesStore.set([]);
+      }
+      return data;
+    } catch (err) {
+      error.set(`Failed to load categories: ${err.message}`);
+      console.error('Failed to load categories:', err);
+      throw err;
+    } finally {
+      isLoading.set(false);
+    }
+  },
+
+  async addCategory(categoryData) {
+    try {
+      isLoading.set(true);
+      error.set(null);
+      const newCategory = await categories.create(categoryData);
+      categoriesStore.update(current => [...current, newCategory]);
+      return newCategory;
+    } catch (err) {
+      error.set(`Failed to add category: ${err.message}`);
+      throw err;
+    } finally {
+      isLoading.set(false);
+    }
+  },
+
+  // Articles
+  async loadArticles(params = {}) {
+    try {
+      isLoading.set(true);
+      error.set(null);
+      
+      // Reset pagination when loading fresh articles
+      currentPage.set(1);
+      
+      // Build query parameters
+      const queryParams = { ...params };
+      
+      // Add filters
+      const currentFilter = get(selectedFilter);
+      if (currentFilter === 'unread') {
+        queryParams.is_read = false;
+      } else if (currentFilter === 'starred') {
+        queryParams.is_starred = true;
+      }
+      
+      const currentFeed = get(selectedFeed);
+      if (currentFeed) {
+        queryParams.feed_id = currentFeed.id;
+      }
+      
+      const currentCategory = get(selectedCategory);
+      if (currentCategory) {
+        queryParams.category_id = currentCategory.id;
+      }
+      
+      const currentSearch = get(searchQuery);
+      if (currentSearch) {
+        queryParams.search = currentSearch;
+      }
+      
+      // Add pagination
+      queryParams.page = get(currentPage);
+      queryParams.limit = get(articlesPerPage);
+      
+      const data = await articles.getAll(queryParams);
+      // Handle different response formats
+      if (data.articles) {
+        articlesStore.set(data.articles);
+        totalArticleCount.set(data.pagination?.total || data.articles.length);
+        // Check if there are more articles to load
+        const totalPages = Math.ceil((data.pagination?.total || 0) / get(articlesPerPage));
+        hasMoreArticles.set(get(currentPage) < totalPages);
+      } else if (data.items) {
+        articlesStore.set(data.items);
+        totalArticleCount.set(data.total || data.items.length);
+        hasMoreArticles.set(false);
+      } else if (Array.isArray(data)) {
+        articlesStore.set(data);
+        totalArticleCount.set(data.length);
+        hasMoreArticles.set(false);
+      } else {
+        articlesStore.set([]);
+        totalArticleCount.set(0);
+        hasMoreArticles.set(false);
+      }
+      return data;
+    } catch (err) {
+      error.set(`Failed to load articles: ${err.message}`);
+      console.error('Failed to load articles:', err);
+      throw err;
+    } finally {
+      isLoading.set(false);
+    }
+  },
+
+  // Load more articles for infinite scrolling
+  async loadMoreArticles() {
+    try {
+      // Don't load if already loading or no more articles
+      if (get(isLoadingMore) || !get(hasMoreArticles)) {
+        return;
+      }
+      
+      isLoadingMore.set(true);
+      error.set(null);
+      
+      // Increment page
+      const nextPage = get(currentPage) + 1;
+      currentPage.set(nextPage);
+      
+      // Build query parameters (same as loadArticles)
+      const queryParams = {};
+      
+      // Add filters
+      const currentFilter = get(selectedFilter);
+      if (currentFilter === 'unread') {
+        queryParams.is_read = false;
+      } else if (currentFilter === 'starred') {
+        queryParams.is_starred = true;
+      }
+      
+      const currentFeed = get(selectedFeed);
+      if (currentFeed) {
+        queryParams.feed_id = currentFeed.id;
+      }
+      
+      const currentCategory = get(selectedCategory);
+      if (currentCategory) {
+        queryParams.category_id = currentCategory.id;
+      }
+      
+      const currentSearch = get(searchQuery);
+      if (currentSearch) {
+        queryParams.search = currentSearch;
+      }
+      
+      // Add pagination
+      queryParams.page = nextPage;
+      queryParams.limit = get(articlesPerPage);
+      
+      const data = await articles.getAll(queryParams);
+      
+      // Append new articles to existing ones
+      if (data.articles && Array.isArray(data.articles)) {
+        articlesStore.update(currentArticles => [...currentArticles, ...data.articles]);
+        
+        // Check if there are more articles to load
+        const totalPages = Math.ceil((data.pagination?.total || 0) / get(articlesPerPage));
+        hasMoreArticles.set(nextPage < totalPages);
+      } else {
+        hasMoreArticles.set(false);
+      }
+      
+      return data;
+    } catch (err) {
+      error.set(`Failed to load more articles: ${err.message}`);
+      console.error('Failed to load more articles:', err);
+      // Revert page increment on error
+      currentPage.update(page => page - 1);
+      throw err;
+    } finally {
+      isLoadingMore.set(false);
+    }
+  },
+
+  async markArticleRead(articleId, isRead = true) {
+    try {
+      await articles.markRead(articleId, isRead);
+      
+      // Update local state
+      articlesStore.update(current => 
+        current.map(article => 
+          article.id === articleId 
+            ? { ...article, is_read: isRead }
+            : article
+        )
+      );
+      
+      // Reload feeds to update unread counts
+      await this.loadFeeds();
+    } catch (err) {
+      error.set(`Failed to mark article: ${err.message}`);
+      throw err;
+    }
+  },
+
+  async starArticle(articleId, isStarred = true) {
+    try {
+      await articles.star(articleId, isStarred);
+      
+      // Update local state
+      articlesStore.update(current => 
+        current.map(article => 
+          article.id === articleId 
+            ? { ...article, is_starred: isStarred }
+            : article
+        )
+      );
+    } catch (err) {
+      error.set(`Failed to star article: ${err.message}`);
+      throw err;
+    }
+  },
+
+  async markAllRead(params = {}) {
+    try {
+      isLoading.set(true);
+      error.set(null);
+      
+      await articles.markAllRead(params);
+      
+      // Reload data
+      await this.loadArticles();
+      await this.loadFeeds();
+    } catch (err) {
+      error.set(`Failed to mark all read: ${err.message}`);
+      throw err;
+    } finally {
+      isLoading.set(false);
+    }
+  },
+
+  // Load unread counts for categories and feeds
+  async loadUnreadCounts() {
+    try {
+      const counts = { feeds: {}, categories: {} };
+      
+      // Get current categories and feeds
+      const categories = get(categoriesStore);
+      const feeds = get(feedsStore);
+      
+      if (!Array.isArray(categories) || !Array.isArray(feeds)) {
+        console.log('Categories or feeds not loaded yet, skipping count loading');
+        return;
+      }
+      
+      console.log(`Loading counts for ${categories.length} categories and ${feeds.length} feeds`);
+      
+      // For each category, get unread count
+      const categoryPromises = categories.map(async (category) => {
+        try {
+          const response = await fetch(`${API_BASE}/articles?category_id=${category.id}&read_status=unread&per_page=1`);
+          if (response.ok) {
+            const data = await response.json();
+            const count = data.pagination?.total || 0;
+            counts.categories[category.id] = count;
+            console.log(`Category ${category.name} (${category.id}): ${count} unread articles`);
+          } else {
+            counts.categories[category.id] = 0;
+          }
+        } catch (err) {
+          console.error(`Failed to get count for category ${category.id}:`, err);
+          counts.categories[category.id] = 0;
+        }
+      });
+      
+      // For each feed, get unread count  
+      const feedPromises = feeds.map(async (feed) => {
+        try {
+          const response = await fetch(`${API_BASE}/articles?feed_id=${feed.id}&read_status=unread&per_page=1`);
+          if (response.ok) {
+            const data = await response.json();
+            const count = data.pagination?.total || 0;
+            counts.feeds[feed.id] = count;
+          } else {
+            counts.feeds[feed.id] = 0;
+          }
+        } catch (err) {
+          console.error(`Failed to get count for feed ${feed.id}:`, err);
+          counts.feeds[feed.id] = 0;
+        }
+      });
+      
+      // Wait for all requests to complete
+      await Promise.all([...categoryPromises, ...feedPromises]);
+      
+      console.log('Final counts:', counts);
+      unreadCounts.set(counts);
+      return counts;
+    } catch (err) {
+      console.error('Failed to load unread counts:', err);
+      throw err;
+    }
+  },
+
+  // Health check
+  async checkHealth() {
+    try {
+      const health = await api.getHealth();
+      return health;
+    } catch (err) {
+      error.set(`Backend connection failed: ${err.message}`);
+      throw err;
+    }
+  }
+};
+
+// Initialize data
+export async function initializeApp() {
+  try {
+    await apiActions.checkHealth();
+    await Promise.all([
+      apiActions.loadCategories(),
+      apiActions.loadFeeds()
+    ]);
+    await apiActions.loadArticles();
+    // Load unread counts after we have categories and feeds
+    await apiActions.loadUnreadCounts();
+  } catch (err) {
+    console.error('Failed to initialize app:', err);
+    // App will continue with empty/mock data
+  }
+}

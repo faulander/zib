@@ -42,6 +42,15 @@
 - `derived.by` is the preferred pattern for computed values
 - This provides better performance and cleaner syntax
 
+### Icons
+- **Use Lucide Svelte for all icons** - Already installed and ready to use
+- Import icons directly: `import { IconName } from '@lucide/svelte'`
+- Package: `@lucide/svelte` (for Svelte 5), not `lucide-svelte` (Svelte 4)
+- Icons are tree-shakable inline SVG components
+- Customizable props: `size`, `color`, `strokeWidth`, `absoluteStrokeWidth`
+- Default values: `size=24`, `color="currentColor"`, `strokeWidth=2`
+- Replace custom SVG icons with Lucide components for consistency
+
 ## Code Patterns
 
 ### State Management

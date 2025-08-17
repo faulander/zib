@@ -1,13 +1,26 @@
 <script>
 	import { onMount } from 'svelte';
 	import ArticleList from '$lib/components/ArticleList.svelte';
-	import { articlesStore, isLoading, isLoadingMore, hasMoreArticles, apiActions } from '$lib/stores/api.js';
+	import { articlesStore, isLoading, isLoadingMore, hasMoreArticles, selectedCategory, selectedFeed, apiActions } from '$lib/stores/api.js';
 	
 	// Use real articles from API with Svelte 5 runes
 	let articles = $derived($articlesStore);
 	let loading = $derived($isLoading);
 	let loadingMore = $derived($isLoadingMore);
 	let moreAvailable = $derived($hasMoreArticles);
+	let currentCategory = $derived($selectedCategory);
+	let currentFeed = $derived($selectedFeed);
+	
+	// Dynamic header title
+	let headerTitle = $derived(() => {
+		if (currentFeed) {
+			return `All ${currentFeed.title} Articles`;
+		} else if (currentCategory) {
+			return `All ${currentCategory.name} Articles`;
+		} else {
+			return 'All Articles';
+		}
+	});
 	
 	let scrollContainer;
 	
@@ -29,13 +42,6 @@
 		}
 	}
 	
-	async function handleMarkAllRead() {
-		try {
-			await apiActions.markAllRead();
-		} catch (err) {
-			console.error('Failed to mark all as read:', err);
-		}
-	}
 
 	// Infinite scroll logic
 	function handleScroll() {
@@ -68,7 +74,7 @@
 	<div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4 bg-white dark:bg-gray-800">
 		<div class="flex items-center justify-between">
 			<div>
-				<h1 class="text-2xl font-bold text-gray-900 dark:text-white">All Articles</h1>
+				<h1 class="text-2xl font-bold text-gray-900 dark:text-white">{headerTitle}</h1>
 			</div>
 			<div class="flex items-center space-x-2">
 				<!-- View Options -->
@@ -83,14 +89,6 @@
 						Starred
 					</button>
 				</div>
-				
-				<!-- Mark All Read -->
-				<button 
-					onclick={handleMarkAllRead}
-					class="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors"
-				>
-					Mark All Read
-				</button>
 			</div>
 		</div>
 	</div>
