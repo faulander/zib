@@ -20,7 +20,7 @@
 	let isSettingsPage = $derived($page.url.pathname.startsWith('/settings'));
 	
 	// Dynamic title based on unread count and settings
-	let pageTitle = $derived(() => {
+	let pageTitle = $derived.by(() => {
 		const baseTitle = 'Zib RSS Reader';
 		if ($settings.showUnreadCountInTitle && unreadCount > 0) {
 			return `(${unreadCount}) ${baseTitle}`;

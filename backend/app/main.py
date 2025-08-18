@@ -29,7 +29,12 @@ async def lifespan(app: FastAPI):
     logger.info(f'Database URL: {settings.database_url}')
     
     # Start auto-refresh service
-    await auto_refresh_service.start()
+    try:
+        logger.info('Starting auto-refresh service...')
+        await auto_refresh_service.start()
+        logger.info(f'Auto-refresh service started. Running: {auto_refresh_service.running}, Tasks: {len(auto_refresh_service.refresh_tasks)}')
+    except Exception as e:
+        logger.error(f'Failed to start auto-refresh service: {e}')
     
     yield
     

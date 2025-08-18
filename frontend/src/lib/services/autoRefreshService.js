@@ -73,8 +73,12 @@ class AutoRefreshService {
       await apiActions.loadFeeds();
       await apiActions.loadCategories();
       
-      // Trigger article reload in the main view
-      // This will be handled by the main app when it detects feed changes
+      // Reload unread counts to update sidebar numbers
+      await apiActions.loadUnreadCounts();
+      
+      // Refresh articles in the current view
+      await apiActions.loadArticles();
+      
       this.lastRefreshTime = new Date();
       
       console.log('Frontend auto-refresh completed');

@@ -50,7 +50,8 @@ class AutoRefreshService:
     async def _start_user_refresh_tasks(self):
         '''Start refresh tasks for all users with auto-refresh enabled'''
         try:
-            db.connect()
+            if db.is_closed():
+                db.connect()
             users = list(User.select().where(User.auto_refresh_feeds == True))
             
             for user in users:
@@ -101,7 +102,8 @@ class AutoRefreshService:
             from app.services.feed_fetcher import feed_fetcher
             
             # Get all active feeds
-            db.connect()
+            if db.is_closed():
+                db.connect()
             feeds = list(Feed.select().where(Feed.is_active == True))
             
             if not feeds:
