@@ -127,35 +127,30 @@
 		{#each categories as category}
 			<div class="space-y-1">
 				<!-- Category Header -->
-				<div class="flex items-center space-x-0.5">
+				<div class="flex items-center space-x-1">
 					<button
 						onclick={() => selectCategoryHandler(category)}
-						class="flex-1 flex items-center justify-between p-1.5 rounded transition-colors {$selectedCategory?.id === category.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+						class="flex-1 flex items-center space-x-1.5 p-1.5 rounded transition-colors {$selectedCategory?.id === category.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 					>
-						<div class="flex items-center space-x-1.5">
-							<div 
-								class="w-1.5 h-1.5 rounded-full" 
-								style="background-color: {category.color || '#6B7280'}"
-							></div>
-							<span class="text-xs font-medium">{category.name}</span>
-						</div>
 						<div 
-							class="text-xs bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded-full cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition-colors"
-							onmouseenter={() => hoveredCategory = category.id}
-							onmouseleave={() => hoveredCategory = null}
-							onclick={(e) => {
-								e.stopPropagation();
-								markCategoryAsRead(category.id);
-							}}
-							title="Mark all articles in this category as read"
-						>
-							{#if hoveredCategory === category.id && (counts.categories[category.id] || 0) > 0}
-								<CheckCircle class="w-3 h-3" />
-							{:else}
-								{counts.categories[category.id] || 0}
-							{/if}
-						</div>
+							class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
+							style="background-color: {category.color || '#6B7280'}"
+						></div>
+						<span class="text-xs font-medium truncate">{category.name}</span>
 					</button>
+					<div 
+						class="text-xs bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded-full cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition-colors flex-shrink-0"
+						onmouseenter={() => hoveredCategory = category.id}
+						onmouseleave={() => hoveredCategory = null}
+						onclick={() => markCategoryAsRead(category.id)}
+						title="Mark all articles in this category as read"
+					>
+						{#if hoveredCategory === category.id && (counts.categories[category.id] || 0) > 0}
+							<CheckCircle class="w-3 h-3" />
+						{:else}
+							{counts.categories[category.id] || 0}
+						{/if}
+					</div>
 				</div>
 				
 				<!-- Category Feeds -->

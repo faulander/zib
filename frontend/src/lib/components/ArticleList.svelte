@@ -1,8 +1,13 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
 	import { scrollTracker } from '../services/scrollTracker.js';
+	import ArticleModal from './ArticleModal.svelte';
 	
 	let { articles, onMarkRead, onToggleStar } = $props();
+	
+	// Modal state
+	let isModalOpen = $state(false);
+	let selectedArticle = $state(null);
 	
 	// Track article elements for scroll detection
 	let articleElements = new Map(); // Map of article.id -> element
@@ -34,10 +39,19 @@
 	}
 
 	function handleArticleClick(article) {
-		// For now, just mark as read when clicked
+		// Open article in modal
+		selectedArticle = article;
+		isModalOpen = true;
+		
+		// Mark as read when opened (if not already read)
 		if (!article.read_status?.is_read) {
 			onMarkRead(article);
 		}
+	}
+	
+	function closeModal() {
+		isModalOpen = false;
+		selectedArticle = null;
 	}
 	
 	// Start tracking an article element for scroll detection
@@ -108,7 +122,7 @@
 <div class="divide-y divide-gray-200 dark:divide-gray-700">
 	{#each articles as article (article.id)}
 		<article
-			class="px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group {article.read_status?.is_read ? 'opacity-60' : ''}"
+			class="px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group {article.read_status?.is_read ? 'opacity-50 bg-gray-25 dark:bg-gray-800/30' : ''}"
 			onclick={() => handleArticleClick(article)}
 			use:trackElement={{ article }}
 		>
@@ -117,7 +131,7 @@
 				<div class="w-1 h-1 {article.read_status?.is_read ? 'bg-transparent' : 'bg-blue-500'} rounded-full flex-shrink-0"></div>
 
 				<!-- Article Title -->
-				<h3 class="text-xs font-normal text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate flex-1 {article.read_status?.is_read ? 'text-gray-500 dark:text-gray-500' : ''}">
+				<h3 class="text-xs font-normal text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate flex-1 {article.read_status?.is_read ? 'text-gray-500 dark:text-gray-500 line-through' : ''}">
 					{article.title}
 				</h3>
 
@@ -180,6 +194,15 @@
 	{/each}
 </div>
 {/if}
+
+<!-- Article Modal -->
+<ArticleModal 
+	isOpen={isModalOpen} 
+	article={selectedArticle} 
+	onClose={closeModal}
+	{onMarkRead}
+	{onToggleStar}
+/>
 
 <style>
 	.line-clamp-2 {

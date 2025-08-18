@@ -228,6 +228,10 @@ export const apiActions = {
       // Add cursor pagination
       queryParams.limit = get(articlesLimit);
       
+      // Explicitly set sorting parameters for newest articles first
+      queryParams.sort = 'published_date';
+      queryParams.order = 'desc';
+      
       const data = await articles.getAll(queryParams);
       // Handle cursor-based response
       if (data.articles) {
@@ -305,6 +309,10 @@ export const apiActions = {
       queryParams.limit = get(articlesLimit);
       queryParams.since_id = currentCursor;
       
+      // Explicitly set sorting parameters for newest articles first
+      queryParams.sort = 'published_date';
+      queryParams.order = 'desc';
+      
       const data = await articles.getAll(queryParams);
       
       // Append new articles to existing ones (with deduplication)
@@ -344,14 +352,14 @@ export const apiActions = {
       const currentFilter = get(selectedFilter);
       
       // Check if article should be removed from current view
-      const shouldRemove = (currentFilter === 'unread' && isRead) || 
-                          (currentFilter === 'starred' && isRead && !get(articlesStore).find(a => a.id === articleId)?.read_status?.is_starred);
+      // Don't remove from unread filter to prevent UI jumping
+      const shouldRemove = (currentFilter === 'starred' && isRead && !get(articlesStore).find(a => a.id === articleId)?.read_status?.is_starred);
       
       if (shouldRemove) {
-        // Remove article from current view
+        // Remove article from current view (only for starred filter)
         articlesStore.update(current => current.filter(article => article.id !== articleId));
       } else {
-        // Update article state in current view
+        // Update article state in current view (keep in place for unread filter)
         articlesStore.update(current => 
           current.map(article => 
             article.id === articleId 
@@ -416,7 +424,7 @@ export const apiActions = {
     } catch (err) {
       // Revert local state on error
       const currentFilter = get(selectedFilter);
-      const shouldRemove = (currentFilter === 'unread' && isRead);
+      const shouldRemove = (currentFilter === 'starred' && isRead && !get(articlesStore).find(a => a.id === articleId)?.read_status?.is_starred);
       
       if (shouldRemove) {
         // Re-add the article if it was removed
@@ -575,7 +583,7 @@ export const apiActions = {
       // For each category, get unread count
       const categoryPromises = categories.map(async (category) => {
         try {
-          const response = await fetch(`${API_BASE}/articles?category_id=${category.id}&read_status=unread&per_page=1`);
+          const response = await fetch(`${API_BASE}/articles?category_id=${category.id}&read_status=unread&limit=1`);
           if (response.ok) {
             const data = await response.json();
             const count = data.pagination?.total || 0;
@@ -593,7 +601,7 @@ export const apiActions = {
       // For each feed, get unread count  
       const feedPromises = feeds.map(async (feed) => {
         try {
-          const response = await fetch(`${API_BASE}/articles?feed_id=${feed.id}&read_status=unread&per_page=1`);
+          const response = await fetch(`${API_BASE}/articles?feed_id=${feed.id}&read_status=unread&limit=1`);
           if (response.ok) {
             const data = await response.json();
             const count = data.pagination?.total || 0;
