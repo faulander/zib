@@ -29,6 +29,7 @@
 	},
 	"dependencies": {
 		"@lucide/svelte": "^0.539.0",
-		"dompurify": "^3.2.6"
+		"dompurify": "^3.2.6",
+		"playwright": "^1.54.2"
 	}
 }

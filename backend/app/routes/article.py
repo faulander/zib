@@ -161,6 +161,7 @@ def serialize_article(article: Article, user: User) -> ArticleResponse:
         author=article.author,
         published_date=article.published_date,
         tags=article.get_tag_list(),
+        image_url=article.image_url,
         created_at=article.created_at,
         updated_at=article.updated_at,
         feed=feed_info,

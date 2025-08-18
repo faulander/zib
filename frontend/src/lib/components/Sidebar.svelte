@@ -9,6 +9,9 @@
 		unreadCounts,
 		apiActions 
 	} from '../stores/api.js';
+	import { closeSidebar } from '../stores/sidebar.js';
+	
+	let { isMobile = false, onClose = closeSidebar } = $props();
 	
 	// Local state for UI
 	let showAllArticles = $state(true);
@@ -33,6 +36,11 @@
 		
 		// Load fresh articles for this category (resets infinite scroll)
 		apiActions.loadArticles();
+		
+		// Close sidebar on mobile after selection
+		if (isMobile) {
+			onClose();
+		}
 	}
 	
 	function toggleCategoryExpansion(categoryId) {
@@ -56,6 +64,11 @@
 		
 		// Load fresh articles for this feed (resets infinite scroll)
 		apiActions.loadArticles();
+		
+		// Close sidebar on mobile after selection
+		if (isMobile) {
+			onClose();
+		}
 	}
 	
 	function showAll() {
@@ -65,6 +78,11 @@
 		
 		// Load fresh articles (resets infinite scroll)
 		apiActions.loadArticles();
+		
+		// Close sidebar on mobile after selection
+		if (isMobile) {
+			onClose();
+		}
 	}
 	
 	async function refreshFeeds() {
@@ -126,7 +144,7 @@
 	}
 </script>
 
-<aside class="w-80 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+<aside class="w-80 h-full bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col {isMobile ? 'shadow-2xl' : ''}">
 	<!-- Sidebar Header -->
 	<div class="p-2 border-b border-gray-200 dark:border-gray-700">
 		<h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Feeds</h2>
@@ -134,7 +152,7 @@
 		<!-- All Articles -->
 		<button
 			onclick={showAll}
-			class="w-full flex items-center justify-between p-1.5 rounded transition-colors {showAllArticles ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+			class="w-full flex items-center justify-between p-1.5 rounded transition-colors {showAllArticles ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 		>
 			<div class="flex items-center space-x-1.5">
 				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,14 +187,14 @@
 					<!-- Category name button -->
 					<button
 						onclick={() => selectCategoryHandler(category)}
-						class="flex-1 flex items-center space-x-1.5 p-1.5 rounded transition-colors {$selectedCategory?.id === category.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+						class="flex-1 flex items-center space-x-1.5 p-1.5 rounded transition-colors {$selectedCategory?.id === category.id ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 					>
 						<span class="text-xs font-medium truncate">{category.name}</span>
 					</button>
 					
 					<!-- Unread count / Mark as read button -->
 					<div 
-						class="text-xs bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded-full cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition-colors flex-shrink-0"
+						class="text-xs px-1 py-0.5 rounded-full cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition-colors flex-shrink-0 {$selectedCategory?.id === category.id ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}"
 						onmouseenter={() => hoveredCategory = category.id}
 						onmouseleave={() => hoveredCategory = null}
 						onclick={() => markCategoryAsRead(category.id)}
@@ -196,12 +214,12 @@
 						{#each getCategoryFeeds(category.id) as feed}
 							<button
 								onclick={() => selectFeedHandler(feed)}
-								class="w-full flex items-center justify-between p-1 rounded text-left transition-colors {$selectedFeed?.id === feed.id ? 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+								class="w-full flex items-center justify-between p-1 rounded text-left transition-colors {$selectedFeed?.id === feed.id ? 'bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 							>
 								<div class="flex-1 min-w-0">
 									<p class="text-xs font-normal truncate">{feed.title}</p>
 								</div>
-								<span class="text-xs bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded-full ml-1">
+								<span class="text-xs px-1 py-0.5 rounded-full ml-1 {$selectedFeed?.id === feed.id ? 'bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}">
 									{counts.feeds[feed.id] || 0}
 								</span>
 							</button>

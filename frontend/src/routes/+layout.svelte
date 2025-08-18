@@ -10,11 +10,17 @@
 	import { autoRefreshService } from '$lib/services/autoRefreshService.js';
 	import { settings } from '$lib/stores/settings.js';
 	import { articles } from '$lib/api.js';
+	import { isMobile, isSidebarOpen, toggleSidebar, closeSidebar, checkMobile } from '$lib/stores/sidebar.js';
 	
 	let { children } = $props();
 	let initError = $state(null);
 	let isInitialized = $state(false);
 	let unreadCount = $state(0);
+	let unreadCountInterval;
+	
+	// Use stores for mobile and sidebar state
+	let mobileState = $derived($isMobile);
+	let sidebarState = $derived($isSidebarOpen);
 	
 	// Check if we're on the settings page
 	let isSettingsPage = $derived($page.url.pathname.startsWith('/settings'));
@@ -38,15 +44,63 @@
 		}
 	}
 	
+	
+	// Close sidebar when clicking outside on mobile
+	function handleOutsideClick(event) {
+		if (mobileState && sidebarState) {
+			const sidebar = event.target.closest('aside');
+			const hamburger = event.target.closest('.hamburger-menu');
+			if (!sidebar && !hamburger) {
+				closeSidebar();
+			}
+		}
+	}
+	
+	// Touch handling for swipe gestures
+	let touchStartX = 0;
+	let touchEndX = 0;
+	
+	function handleTouchStart(e) {
+		if (mobileState) {
+			touchStartX = e.touches[0].clientX;
+		}
+	}
+	
+	function handleTouchEnd(e) {
+		if (mobileState) {
+			touchEndX = e.changedTouches[0].clientX;
+			handleSwipe();
+		}
+	}
+	
+	function handleSwipe() {
+		const swipeDistance = touchEndX - touchStartX;
+		const swipeThreshold = 75; // Minimum swipe distance
+		
+		if (Math.abs(swipeDistance) > swipeThreshold) {
+			if (swipeDistance > 0 && touchStartX < 50) {
+				// Swipe right from left edge - open sidebar
+				$isSidebarOpen = true;
+			} else if (swipeDistance < 0 && sidebarState) {
+				// Swipe left - close sidebar
+				closeSidebar();
+			}
+		}
+	}
+	
 	onMount(async () => {
 		try {
+			// Check if mobile on mount
+			checkMobile();
+			window.addEventListener('resize', checkMobile);
+			
 			await initializeApp();
 			// Start auto-refresh service after app initialization
 			await autoRefreshService.start();
 			// Initial unread count update
 			await updateUnreadCount();
 			// Update unread count every 30 seconds
-			const unreadCountInterval = setInterval(updateUnreadCount, 30000);
+			unreadCountInterval = setInterval(updateUnreadCount, 30000);
 			isInitialized = true;
 		} catch (err) {
 			initError = err.message;
@@ -56,6 +110,10 @@
 
 	onDestroy(() => {
 		autoRefreshService.stop();
+		if (unreadCountInterval) {
+			clearInterval(unreadCountInterval);
+		}
+		window.removeEventListener('resize', checkMobile);
 	});
 </script>
 
@@ -97,10 +155,22 @@
 		<Header />
 		
 		<!-- Main Content Area -->
-		<div class="flex flex-1 overflow-hidden">
-			<!-- Sidebar (only show on non-settings pages) -->
+		<div 
+			class="flex flex-1 overflow-hidden relative" 
+			onclick={handleOutsideClick}
+			ontouchstart={handleTouchStart}
+			ontouchend={handleTouchEnd}
+		>
+			<!-- Sidebar (responsive) -->
 			{#if !isSettingsPage}
-				<Sidebar />
+				<div class="{mobileState ? 'fixed inset-y-0 left-0 z-40 transition-transform duration-300 transform ' + (sidebarState ? 'translate-x-0' : '-translate-x-full') : 'relative'}">
+					<Sidebar isMobile={mobileState} onClose={closeSidebar} />
+				</div>
+				
+				<!-- Mobile Overlay -->
+				{#if mobileState && sidebarState}
+					<div class="fixed inset-0 z-30 bg-black bg-opacity-50 md:hidden" onclick={closeSidebar}></div>
+				{/if}
 			{/if}
 			
 			<!-- Main Content -->

@@ -54,6 +54,7 @@ class ArticleResponse(BaseModel):
     author: Optional[str] = None
     published_date: Optional[datetime] = None
     tags: List[str] = []
+    image_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     feed: FeedInfo

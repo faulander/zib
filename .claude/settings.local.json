@@ -23,7 +23,12 @@
       "Bash(git add:*)",
       "Bash(open http://localhost:3000/settings)",
       "Bash(open http://localhost:3000)",
-      "Bash(npx playwright test:*)"
+      "Bash(npx playwright test:*)",
+      "Bash(lsof:*)",
+      "Bash(node:*)",
+      "Bash(npm run check:*)",
+      "Bash(npm run build:*)",
+      "Bash(open http://localhost:5173)"
     ],
     "deny": [],
     "ask": []

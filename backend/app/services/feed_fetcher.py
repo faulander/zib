@@ -295,6 +295,11 @@ class FeedFetcher:
                     'author': self._extract_author(entry),
                     'published_parsed': getattr(entry, 'published_parsed', None),
                     'tags': self._extract_tags(entry),
+                    # Include media fields for image extraction
+                    'media_content': getattr(entry, 'media_content', None),
+                    'media_thumbnail': getattr(entry, 'media_thumbnail', None),
+                    'enclosures': getattr(entry, 'enclosures', None),
+                    'links': getattr(entry, 'links', None),
                 }
                 
                 # Extract content (prefer content over description)

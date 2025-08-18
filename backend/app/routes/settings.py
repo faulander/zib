@@ -19,6 +19,7 @@ class UserSettingsRequest(BaseModel):
     auto_refresh_feeds: bool = Field(default=False)
     auto_refresh_interval_minutes: int = Field(default=30, ge=5, le=1440)  # 5 min to 24 hours
     show_timestamps_in_list: bool = Field(default=True)
+    preferred_view_mode: str = Field(default='list')
 
 
 class UserSettingsResponse(BaseModel):
@@ -30,6 +31,7 @@ class UserSettingsResponse(BaseModel):
     auto_refresh_feeds: bool
     auto_refresh_interval_minutes: int
     show_timestamps_in_list: bool
+    preferred_view_mode: str
 
 
 @router.get('', response_model=UserSettingsResponse)
@@ -44,7 +46,8 @@ async def get_user_settings(
         short_article_threshold=current_user.short_article_threshold,
         auto_refresh_feeds=current_user.auto_refresh_feeds,
         auto_refresh_interval_minutes=current_user.auto_refresh_interval_minutes,
-        show_timestamps_in_list=current_user.show_timestamps_in_list
+        show_timestamps_in_list=current_user.show_timestamps_in_list,
+        preferred_view_mode=current_user.preferred_view_mode
     )
 
 
@@ -64,6 +67,7 @@ async def update_user_settings(
             current_user.auto_refresh_feeds = settings_data.auto_refresh_feeds
             current_user.auto_refresh_interval_minutes = settings_data.auto_refresh_interval_minutes
             current_user.show_timestamps_in_list = settings_data.show_timestamps_in_list
+            current_user.preferred_view_mode = settings_data.preferred_view_mode
             current_user.save()
             
             # Update auto-refresh service with new settings
@@ -76,7 +80,8 @@ async def update_user_settings(
                 short_article_threshold=current_user.short_article_threshold,
                 auto_refresh_feeds=current_user.auto_refresh_feeds,
                 auto_refresh_interval_minutes=current_user.auto_refresh_interval_minutes,
-                show_timestamps_in_list=current_user.show_timestamps_in_list
+                show_timestamps_in_list=current_user.show_timestamps_in_list,
+                preferred_view_mode=current_user.preferred_view_mode
             )
             
     except Exception as e:

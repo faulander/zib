@@ -26,6 +26,7 @@ class Article(BaseModel):
     author = CharField(max_length=200, null=True)
     published_date = DateTimeField(null=True)  # When article was published
     tags = CharField(max_length=1000, null=True)  # Comma-separated tags
+    image_url = CharField(max_length=1000, null=True)  # Article thumbnail/image URL
     
     # System metadata
     created_at = DateTimeField(default=datetime.now)
@@ -128,6 +129,48 @@ class Article(BaseModel):
             pass
     
     @classmethod
+    def _extract_image_url(cls, entry: dict) -> Optional[str]:
+        '''Extract image URL from feed entry'''
+        # Check for media:content or media:thumbnail (in dict format)
+        media_content = entry.get('media_content')
+        if media_content:
+            for media in media_content:
+                if media.get('type', '').startswith('image/'):
+                    return media.get('url')
+        
+        media_thumbnail = entry.get('media_thumbnail')
+        if media_thumbnail and isinstance(media_thumbnail, list):
+            return media_thumbnail[0].get('url')
+        
+        # Check for enclosures (common in podcasts but sometimes used for images)
+        enclosures = entry.get('enclosures')
+        if enclosures:
+            for enclosure in enclosures:
+                if enclosure.get('type', '').startswith('image/'):
+                    return enclosure.get('href') or enclosure.get('url')
+        
+        # Check for image in links (some feeds use this)
+        links = entry.get('links')
+        if links:
+            for link in links:
+                if link.get('type', '').startswith('image/'):
+                    return link.get('href')
+                # Also check for rel="enclosure" with image type
+                if link.get('rel') == 'enclosure' and link.get('type', '').startswith('image/'):
+                    return link.get('href')
+        
+        # Try to extract from content HTML (first img tag)
+        content = entry.get('content') or entry.get('description') or entry.get('summary')
+        if content:
+            import re
+            # Look for img tag with src attribute
+            img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', str(content), re.IGNORECASE)
+            if img_match:
+                return img_match.group(1)
+        
+        return None
+    
+    @classmethod
     def find_duplicate(cls, feed: Feed, url: str, guid: str) -> Optional['Article']:
         '''Find duplicate article by URL or GUID within the same feed'''
         try:
@@ -157,6 +200,7 @@ class Article(BaseModel):
             'guid': entry.get('id') or entry.get('guid') or entry.get('link'),
             'author': entry.get('author'),
             'tags': ','.join(entry.get('tags', [])) if entry.get('tags') else None,
+            'image_url': cls._extract_image_url(entry),
         }
         
         # Parse published date
@@ -195,6 +239,7 @@ class User(BaseModel):
     open_webpage_for_short_articles = BooleanField(default=False)  # Open webpage instead of modal for short articles
     short_article_threshold = IntegerField(default=500)  # Character count threshold for short articles
     show_timestamps_in_list = BooleanField(default=True)  # Show relative timestamps in article list
+    preferred_view_mode = CharField(max_length=10, default='list')  # 'list' or 'card' view mode
     
     # Feed refresh preferences
     auto_refresh_feeds = BooleanField(default=False)  # Auto-refresh feeds periodically
