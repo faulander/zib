@@ -28,7 +28,9 @@
       "Bash(node:*)",
       "Bash(npm run check:*)",
       "Bash(npm run build:*)",
-      "Bash(open http://localhost:5173)"
+      "Bash(open http://localhost:5173)",
+      "Bash(git config:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
