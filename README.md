@@ -6,7 +6,7 @@
 
 Zib is a self-hosted RSS reader designed for power users who want advanced filtering capabilities and complete control over their news consumption. Unlike cloud-based RSS services, Zib runs on your own server and keeps your reading habits private.
 
-[image.png](https://postimg.cc/VSRs60Kd)
+[![image.png](https://i.postimg.cc/HxGr6Q54/image.png)](https://postimg.cc/VSRs60Kd)
 
 ### Key Features
 
