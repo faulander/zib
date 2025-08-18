@@ -1,6 +1,7 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import Sidebar from '$lib/components/Sidebar.svelte';
@@ -113,7 +114,10 @@
 		if (unreadCountInterval) {
 			clearInterval(unreadCountInterval);
 		}
+		// Only run in browser environment
+	if (browser) {
 		window.removeEventListener('resize', checkMobile);
+	}
 	});
 </script>
 

@@ -35,7 +35,10 @@
 		showAllArticles = false;
 		
 		// Load fresh articles for this category (resets infinite scroll)
-		apiActions.loadArticles();
+		console.log('Loading articles for category:', category);
+		apiActions.loadArticles().catch(err => {
+			console.error('Failed to load articles:', err);
+		});
 		
 		// Close sidebar on mobile after selection
 		if (isMobile) {
@@ -152,7 +155,7 @@
 		<!-- All Articles -->
 		<button
 			onclick={showAll}
-			class="w-full flex items-center justify-between p-1.5 rounded transition-colors {showAllArticles ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+			class="w-full flex items-center justify-between p-1.5 rounded transition-colors {showAllArticles ? 'bg-orange-500 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 		>
 			<div class="flex items-center space-x-1.5">
 				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,14 +190,14 @@
 					<!-- Category name button -->
 					<button
 						onclick={() => selectCategoryHandler(category)}
-						class="flex-1 flex items-center space-x-1.5 p-1.5 rounded transition-colors {$selectedCategory?.id === category.id ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+						class="flex-1 flex items-center space-x-1.5 p-1.5 rounded transition-colors {$selectedCategory?.id === category.id ? 'bg-orange-500 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 					>
 						<span class="text-xs font-medium truncate">{category.name}</span>
 					</button>
 					
 					<!-- Unread count / Mark as read button -->
 					<div 
-						class="text-xs px-1 py-0.5 rounded-full cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition-colors flex-shrink-0 {$selectedCategory?.id === category.id ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}"
+						class="text-xs px-1 py-0.5 rounded-full cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition-colors flex-shrink-0 {$selectedCategory?.id === category.id ? 'bg-orange-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}"
 						onmouseenter={() => hoveredCategory = category.id}
 						onmouseleave={() => hoveredCategory = null}
 						onclick={() => markCategoryAsRead(category.id)}
@@ -214,12 +217,12 @@
 						{#each getCategoryFeeds(category.id) as feed}
 							<button
 								onclick={() => selectFeedHandler(feed)}
-								class="w-full flex items-center justify-between p-1 rounded text-left transition-colors {$selectedFeed?.id === feed.id ? 'bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+								class="w-full flex items-center justify-between p-1 rounded text-left transition-colors {$selectedFeed?.id === feed.id ? 'bg-orange-500 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 							>
 								<div class="flex-1 min-w-0">
 									<p class="text-xs font-normal truncate">{feed.title}</p>
 								</div>
-								<span class="text-xs px-1 py-0.5 rounded-full ml-1 {$selectedFeed?.id === feed.id ? 'bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}">
+								<span class="text-xs px-1 py-0.5 rounded-full ml-1 {$selectedFeed?.id === feed.id ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}">
 									{counts.feeds[feed.id] || 0}
 								</span>
 							</button>

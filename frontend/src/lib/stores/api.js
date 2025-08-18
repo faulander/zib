@@ -232,7 +232,9 @@ export const apiActions = {
       queryParams.sort = 'published_date';
       queryParams.order = 'desc';
       
+      console.log('Loading articles with params:', queryParams);
       const data = await articles.getAll(queryParams);
+      console.log('API response:', data);
       // Handle cursor-based response
       if (data.articles) {
         articlesStore.set(data.articles);

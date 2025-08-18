@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { browser } from '$app/environment';
 
 // Mobile detection and sidebar state
 export const isMobile = writable(false);
@@ -16,6 +17,9 @@ export function closeSidebar() {
 
 // Check if mobile
 export function checkMobile() {
+  // Only run in browser environment
+  if (!browser) return false;
+  
   const mobile = window.innerWidth < 768; // md breakpoint
   isMobile.set(mobile);
   if (!mobile) {

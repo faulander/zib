@@ -4,6 +4,7 @@
 	import { articlesStore, isLoading, isLoadingMore, hasMoreArticles, selectedCategory, selectedFeed, selectedFilter, apiActions } from '$lib/stores/api.js';
 	import { userSettings } from '$lib/api.js';
 	import { isMobile, isSidebarOpen, toggleSidebar } from '$lib/stores/sidebar.js';
+	import { scrollTracker } from '$lib/services/scrollTracker.js';
 	
 	// Use stores for mobile and sidebar state
 	let mobileState = $derived($isMobile);
@@ -31,8 +32,76 @@
 			return 'All Articles';
 		}
 	});
+
+	// Debug category and article loading
+	$effect(() => {
+		console.log('=== PAGE STATE DEBUG ===');
+		console.log('Selected Category:', currentCategory);
+		console.log('Selected Feed:', currentFeed);
+		console.log('Header Title:', headerTitle);
+		console.log('Articles Length:', articles.length);
+		console.log('Loading:', loading);
+		console.log('More Available:', moreAvailable);
+		if (articles.length > 0) {
+			console.log('First article feed:', articles[0].feed?.title);
+			console.log('First article category:', articles[0].feed?.category?.name);
+		}
+		console.log('========================');
+	});
 	
 	let scrollContainer;
+
+	// Force process pending read articles when we reach the end and "No more articles to load" is visible
+	let endMessageVisible = $state(false);
+	
+	$effect(() => {
+		// Only force process when "No more articles to load" is actually visible to the user
+		if (articles.length > 0 && !moreAvailable && !loadingMore && endMessageVisible) {
+			console.log('End of articles reached and message visible, forcing batch process...');
+			console.log('Articles count:', articles.length);
+			console.log('Unread articles:', articles.filter(a => !a.read_status?.is_read).length);
+			
+			// Add a longer delay to ensure all articles have been tracked and viewed
+			setTimeout(() => {
+				console.log('Processing batch now...');
+				console.log('Pending articles in batch:', scrollTracker.pendingReadArticles.size);
+				
+				// Force add the remaining visible unread articles to the batch
+				// since they're at the end and won't be scrolled past
+				articles.forEach(article => {
+					if (!article.read_status?.is_read) {
+						console.log('Force adding end article to batch:', article.id, article.title);
+						scrollTracker.addToBatch(article.id);
+					}
+				});
+				
+				scrollTracker.forceProcessBatch();
+			}, 2000);
+		}
+	});
+
+	// Intersection observer action to detect when "No more articles to load" is visible
+	function endMessageObserver(element) {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					endMessageVisible = entry.isIntersecting;
+					if (entry.isIntersecting) {
+						console.log('"No more articles to load" message is now visible');
+					}
+				});
+			},
+			{ threshold: 0.1 }
+		);
+
+		observer.observe(element);
+
+		return {
+			destroy() {
+				observer.disconnect();
+			}
+		};
+	}
 
 	// Filter handlers
 	function setFilter(filter) {
@@ -199,7 +268,10 @@
 					<span class="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading more articles...</span>
 				</div>
 			{:else if !moreAvailable && articles.length > 0}
-				<div class="flex items-center justify-center py-4">
+				<div 
+					class="flex items-center justify-center py-4"
+					use:endMessageObserver
+				>
 					<span class="text-sm text-gray-500 dark:text-gray-400">No more articles to load</span>
 				</div>
 			{/if}

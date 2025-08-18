@@ -218,24 +218,37 @@
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
 		{#each articles as article (article.id)}
 			<article
-				class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group {article.read_status?.is_read ? 'opacity-60' : ''}"
+				class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group {article.read_status?.is_read ? 'opacity-60' : ''} flex flex-col h-full"
 				onclick={() => handleArticleClick(article)}
 				use:trackElement={{ article }}
 			>
 				<!-- Image Container -->
-				<div class="h-32 bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
-					{#if article.image_url}
+				<div class="h-32 bg-gray-100 dark:bg-gray-700 relative overflow-hidden flex-shrink-0">
+					{#if article.image_url && article.image_url.trim() !== '' && article.image_url.startsWith('http') && !article.image_url.includes('www.china-gadgets.de/www.china-gadgets.de')}
+						{@const imageId = `img-${article.id}`}
+						{@const placeholderId = `placeholder-${article.id}`}
 						<img 
+							id={imageId}
 							src={article.image_url} 
 							alt="{article.title}" 
 							class="w-full h-full object-cover"
 							style="object-position: center;"
+							onerror={(e) => {
+								e.target.style.display = 'none';
+								document.getElementById(placeholderId).style.display = 'flex';
+							}}
 						/>
+						<!-- Fallback placeholder (hidden by default) -->
+						<div id={placeholderId} class="w-full h-full flex items-center justify-center absolute inset-0" style="display: none;">
+							<svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+							</svg>
+						</div>
 					{:else}
 						<!-- Placeholder -->
 						<div class="w-full h-full flex items-center justify-center">
 							<svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
 							</svg>
 						</div>
 					{/if}
@@ -254,7 +267,7 @@
 				</div>
 				
 				<!-- Content -->
-				<div class="p-3">
+				<div class="p-3 flex-1 flex flex-col">
 					<!-- Title -->
 					<h3 class="text-sm font-medium text-gray-900 dark:text-white mb-2 line-clamp-2 {article.read_status?.is_read ? 'text-gray-500 dark:text-gray-500 line-through' : ''}">
 						{article.title}
@@ -263,12 +276,16 @@
 					<!-- Summary -->
 					{#if article.summary}
 						<div class="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
-							{@html DOMPurify.sanitize(article.summary)}
+							{@html DOMPurify.sanitize(article.summary, { 
+								ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'span'],
+								FORBID_TAGS: ['img', 'picture', 'figure'],
+								REMOVE_TAGS: ['img', 'picture', 'figure']
+							})}
 						</div>
 					{/if}
 					
 					<!-- Footer -->
-					<div class="flex items-center justify-between">
+					<div class="flex items-center justify-between mt-auto">
 						<!-- Feed and Date Info -->
 						<div class="flex items-center space-x-1 text-xs text-gray-400 dark:text-gray-500 truncate">
 							<span class="truncate">
