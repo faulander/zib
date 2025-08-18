@@ -6,6 +6,8 @@
 
 Zib is a self-hosted RSS reader designed for power users who want advanced filtering capabilities and complete control over their news consumption. Unlike cloud-based RSS services, Zib runs on your own server and keeps your reading habits private.
 
+[image.png](https://postimg.cc/VSRs60Kd)
+
 ### Key Features
 
 - **🔒 Self-Hosted & Private** - Your data stays on your server
@@ -178,7 +180,7 @@ services:
 ## 📊 System Requirements
 
 - **CPU**: 1 core minimum, 2+ cores recommended
-- **RAM**: 512MB minimum, 1GB+ recommended  
+- **RAM**: 512MB minimum, 1GB+ recommended
 - **Storage**: 2GB minimum, 10GB+ for large feed collections
 - **Network**: Internet connection for RSS feeds
 
