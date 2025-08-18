@@ -2,8 +2,9 @@
 	import { onMount } from 'svelte';
 	import { feedsStore, categoriesStore, apiActions, isLoading, error } from '$lib/stores/api.js';
 	import { settings } from '$lib/stores/settings.js';
-	import { opml, api } from '$lib/api.js';
-	import { Plus, Trash2, Download, Upload, RefreshCw, Settings, Rss, FolderOpen, FileText, ChevronDown, ChevronRight } from '@lucide/svelte';
+	import { opml, api, filters, userSettings } from '$lib/api.js';
+	import { autoRefreshService } from '$lib/services/autoRefreshService.js';
+	import { Plus, Trash2, Download, Upload, RefreshCw, Settings, Rss, FolderOpen, FileText, ChevronDown, ChevronRight, Filter, Edit3 } from '@lucide/svelte';
 	
 	// Use Svelte 5 runes
 	let feeds = $derived($feedsStore);
@@ -13,9 +14,14 @@
 	
 	// Settings - use reactive state for binding
 	let autoRefreshFeeds = $state(false);
+	let autoRefreshInterval = $state(30);
 	let showUnreadCountInTitle = $state(false);
 	let markReadScrollBatchSize = $state(5);
 	let markReadScrollDelay = $state(1000);
+	let openWebpageForShortArticles = $state(false);
+	let shortArticleThreshold = $state(500);
+	let defaultView = $state('unread');
+	let showTimestampsInList = $state(true);
 	
 	// Subscribe to settings changes and update local state
 	$effect(() => {
@@ -54,9 +60,27 @@
 	let importJobId = $state(null);
 	let importStatus = $state(null);
 	
+	// Filter states
+	let userFilters = $state([]);
+	let showAddFilter = $state(false);
+	let newFilterName = $state('');
+	let newFilterType = $state('title_contains');
+	let newFilterValue = $state('');
+	let newFilterCategory = $state('');
+	let newFilterCaseSensitive = $state(false);
+	
+	// Edit filter states
+	let editingFilter = $state(null);
+	let editFilterName = $state('');
+	let editFilterType = $state('title_contains');
+	let editFilterValue = $state('');
+	let editFilterCategory = $state('');
+	let editFilterCaseSensitive = $state(false);
+	
 	// Settings sections
 	const settingsSections = [
 		{ id: 'categories', name: 'Feeds & Categories', icon: FolderOpen },
+		{ id: 'filters', name: 'Content Filters', icon: Filter },
 		{ id: 'general', name: 'General Settings', icon: Settings },
 		{ id: 'import-export', name: 'Import/Export', icon: FileText }
 	];
@@ -273,6 +297,152 @@
 			console.error('Failed to export OPML:', err);
 		}
 	}
+	
+	// Filter management functions
+	async function loadFilters() {
+		try {
+			const filtersData = await filters.getAll();
+			userFilters = filtersData || [];
+		} catch (err) {
+			console.error('Failed to load filters:', err);
+			userFilters = [];
+		}
+	}
+	
+	async function handleAddFilter() {
+		if (!newFilterName.trim() || !newFilterValue.trim()) return;
+		
+		try {
+			const filterData = {
+				name: newFilterName.trim(),
+				filter_type: newFilterType,
+				filter_value: newFilterValue.trim(),
+				category_id: newFilterCategory ? parseInt(newFilterCategory) : null,
+				case_sensitive: newFilterCaseSensitive
+			};
+			
+			await filters.create(filterData);
+			await loadFilters();
+			
+			// Reset form
+			newFilterName = '';
+			newFilterValue = '';
+			newFilterCategory = '';
+			newFilterCaseSensitive = false;
+			showAddFilter = false;
+		} catch (err) {
+			console.error('Failed to add filter:', err);
+		}
+	}
+	
+	async function deleteFilter(filterId) {
+		try {
+			await filters.delete(filterId);
+			await loadFilters();
+		} catch (err) {
+			console.error('Failed to delete filter:', err);
+		}
+	}
+	
+	async function toggleFilter(filterId) {
+		try {
+			await filters.toggle(filterId);
+			await loadFilters();
+		} catch (err) {
+			console.error('Failed to toggle filter:', err);
+		}
+	}
+	
+	function startEditFilter(filter) {
+		editingFilter = filter;
+		editFilterName = filter.name;
+		editFilterType = filter.filter_type;
+		editFilterValue = filter.filter_value;
+		editFilterCategory = filter.category_id || '';
+		editFilterCaseSensitive = filter.case_sensitive;
+	}
+	
+	function cancelEditFilter() {
+		editingFilter = null;
+		editFilterName = '';
+		editFilterType = 'title_contains';
+		editFilterValue = '';
+		editFilterCategory = '';
+		editFilterCaseSensitive = false;
+	}
+	
+	async function handleEditFilter() {
+		if (!editFilterName.trim() || !editFilterValue.trim()) return;
+		
+		try {
+			const filterData = {
+				name: editFilterName.trim(),
+				filter_type: editFilterType,
+				filter_value: editFilterValue.trim(),
+				category_id: editFilterCategory || null,
+				case_sensitive: editFilterCaseSensitive
+			};
+			
+			await filters.update(editingFilter.id, filterData);
+			cancelEditFilter();
+			await loadFilters();
+		} catch (err) {
+			console.error('Failed to update filter:', err);
+		}
+	}
+	
+	// User settings functions
+	async function loadUserSettings() {
+		try {
+			const settingsData = await userSettings.get();
+			openWebpageForShortArticles = settingsData.open_webpage_for_short_articles;
+			shortArticleThreshold = settingsData.short_article_threshold;
+			autoRefreshFeeds = settingsData.auto_refresh_feeds;
+			autoRefreshInterval = settingsData.auto_refresh_interval_minutes;
+			defaultView = settingsData.default_view;
+			showTimestampsInList = settingsData.show_timestamps_in_list;
+		} catch (err) {
+			console.error('Failed to load user settings:', err);
+		}
+	}
+
+	async function saveUserSettings() {
+		try {
+			const settingsData = {
+				feeds_per_page: 50, // Keep existing default
+				default_view: defaultView,
+				open_webpage_for_short_articles: openWebpageForShortArticles,
+				short_article_threshold: shortArticleThreshold,
+				auto_refresh_feeds: autoRefreshFeeds,
+				auto_refresh_interval_minutes: autoRefreshInterval,
+				show_timestamps_in_list: showTimestampsInList
+			};
+			
+			await userSettings.update(settingsData);
+			
+			// Also update localStorage settings for frontend-only settings
+			settings.setSetting('autoRefreshFeeds', autoRefreshFeeds);
+			
+			// Update auto-refresh service with new settings
+			await autoRefreshService.updateSettings(settingsData);
+		} catch (err) {
+			console.error('Failed to save user settings:', err);
+		}
+	}
+
+	// Load filters when filters section is selected
+	$effect(() => {
+		if (selectedSection === 'filters') {
+			loadFilters();
+		}
+	});
+
+	// Load user settings when general section is selected
+	$effect(() => {
+		if (selectedSection === 'general') {
+			loadUserSettings();
+		}
+	});
 </script>
 
 <div class="h-full flex">
@@ -559,6 +729,293 @@
 			</div>
 		</section>
 
+		{:else if selectedSection === 'filters'}
+		<!-- Content Filters Section -->
+		<section class="space-y-4">
+			<div class="flex items-center justify-between mb-4">
+				<div>
+					<h3 class="text-lg font-medium text-gray-900 dark:text-white">Content Filters</h3>
+					<p class="text-sm text-gray-600 dark:text-gray-400">Hide articles based on title, author, or other criteria</p>
+				</div>
+				<button
+					onclick={() => showAddFilter = !showAddFilter}
+					class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+				>
+					<Filter class="h-4 w-4 mr-1" />
+					Add Filter
+				</button>
+			</div>
+			
+			<!-- Add Filter Form -->
+			{#if showAddFilter}
+				<div class="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4 mb-4">
+					<h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Create New Filter</h4>
+					
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<!-- Filter Name -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Filter Name
+							</label>
+							<input
+								type="text"
+								bind:value={newFilterName}
+								placeholder="e.g., Hide Sports News"
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							/>
+						</div>
+						
+						<!-- Filter Type -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Filter Type
+							</label>
+							<select
+								bind:value={newFilterType}
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							>
+								<option value="title_contains">Title contains</option>
+								<option value="title_not_contains">Title does not contain</option>
+								<option value="title_exact">Title matches exactly</option>
+								<option value="author_contains">Author contains</option>
+							</select>
+						</div>
+						
+						<!-- Filter Value -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Filter Value
+							</label>
+							<input
+								type="text"
+								bind:value={newFilterValue}
+								placeholder="e.g., Django, &quot;React Native&quot; OR Vue, sports AND football"
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							/>
+							<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+								<p class="font-medium mb-1">Advanced syntax:</p>
+								<ul class="space-y-1">
+									<li>• Simple: <code>Django</code></li>
+									<li>• Phrase: <code>"Django Rest Framework"</code></li>
+									<li>• OR logic: <code>"Django Rest Framework" OR DRF</code></li>
+									<li>• AND logic: <code>Python AND tutorial</code></li>
+								</ul>
+							</div>
+						</div>
+						
+						<!-- Category Selection -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Apply to Category
+							</label>
+							<select
+								bind:value={newFilterCategory}
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							>
+								<option value="">All categories</option>
+								{#each categories as category}
+									<option value={category.id}>{category.name}</option>
+								{/each}
+							</select>
+						</div>
+					</div>
+					
+					<!-- Case Sensitive Checkbox -->
+					<div class="mt-4">
+						<label class="flex items-center">
+							<input
+								type="checkbox"
+								bind:checked={newFilterCaseSensitive}
+								class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
+							/>
+							<span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Case sensitive</span>
+						</label>
+					</div>
+					
+					<!-- Form Actions -->
+					<div class="flex justify-end space-x-2 mt-4">
+						<button
+							onclick={() => showAddFilter = false}
+							class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md hover:bg-gray-50 dark:hover:bg-gray-500"
+						>
+							Cancel
+						</button>
+						<button
+							onclick={handleAddFilter}
+							disabled={!newFilterName.trim() || !newFilterValue.trim()}
+							class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+						>
+							Create Filter
+						</button>
+					</div>
+				</div>
+			{/if}
+			
+			<!-- Filters List -->
+			<div class="space-y-2">
+				{#if userFilters.length === 0}
+					<div class="text-center py-8">
+						<Filter class="mx-auto h-12 w-12 text-gray-400" />
+						<h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No filters yet</h3>
+						<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+							Create your first filter to hide unwanted articles.
+						</p>
+					</div>
+				{:else}
+					{#each userFilters as filter}
+						<div class="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+							{#if editingFilter && editingFilter.id === filter.id}
+								<!-- Edit Form -->
+								<div class="space-y-4">
+									<div class="grid grid-cols-2 gap-4">
+										<!-- Filter Name -->
+										<div>
+											<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+												Filter Name
+											</label>
+											<input
+												type="text"
+												bind:value={editFilterName}
+												class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+											/>
+										</div>
+										
+										<!-- Filter Type -->
+										<div>
+											<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+												Filter Type
+											</label>
+											<select
+												bind:value={editFilterType}
+												class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+											>
+												<option value="title_contains">Title contains</option>
+												<option value="title_not_contains">Title does not contain</option>
+												<option value="title_exact">Title exact match</option>
+												<option value="author_contains">Author contains</option>
+											</select>
+										</div>
+									</div>
+									
+									<!-- Filter Value -->
+									<div>
+										<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+											Filter Value
+										</label>
+										<textarea
+											bind:value={editFilterValue}
+											placeholder="e.g., Django, &quot;React Native&quot; OR Vue, sports AND football"
+											rows="3"
+											class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+										></textarea>
+									</div>
+									
+									<!-- Category Selection -->
+									<div>
+										<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+											Apply to Category
+										</label>
+										<select
+											bind:value={editFilterCategory}
+											class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+										>
+											<option value="">All categories</option>
+											{#each categories as category}
+												<option value={category.id}>{category.name}</option>
+											{/each}
+										</select>
+									</div>
+									
+									<!-- Case Sensitive Checkbox -->
+									<div>
+										<label class="flex items-center">
+											<input
+												type="checkbox"
+												bind:checked={editFilterCaseSensitive}
+												class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
+											/>
+											<span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Case sensitive</span>
+										</label>
+									</div>
+									
+									<!-- Form Actions -->
+									<div class="flex justify-end space-x-2">
+										<button
+											onclick={cancelEditFilter}
+											class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md hover:bg-gray-50 dark:hover:bg-gray-500"
+										>
+											Cancel
+										</button>
+										<button
+											onclick={handleEditFilter}
+											disabled={!editFilterName.trim() || !editFilterValue.trim()}
+											class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+										>
+											Save Changes
+										</button>
+									</div>
+								</div>
+							{:else}
+								<!-- Display Mode -->
+								<div class="flex items-center justify-between">
+									<div class="flex-1">
+										<div class="flex items-center space-x-2">
+											<h4 class="font-medium text-gray-900 dark:text-white">{filter.name}</h4>
+											<span class="px-2 py-1 text-xs rounded-full {filter.is_active ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}">
+												{filter.is_active ? 'Active' : 'Inactive'}
+											</span>
+										</div>
+										<p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+											{filter.filter_type.replace('_', ' ')}: "{filter.filter_value}"
+											{#if filter.category_name}
+												• Category: {filter.category_name}
+											{:else}
+												• All categories
+											{/if}
+											{#if filter.case_sensitive}
+												• Case sensitive
+											{/if}
+										</p>
+									</div>
+									<div class="flex items-center space-x-2">
+										<button
+											onclick={() => toggleFilter(filter.id)}
+											class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+											title={filter.is_active ? 'Deactivate filter' : 'Activate filter'}
+										>
+											{#if filter.is_active}
+												<svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+													<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+												</svg>
+											{:else}
+												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+												</svg>
+											{/if}
+										</button>
+										<button
+											onclick={() => startEditFilter(filter)}
+											class="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+											title="Edit filter"
+										>
+											<Edit3 class="h-4 w-4" />
+										</button>
+										<button
+											onclick={() => deleteFilter(filter.id)}
+											class="p-2 text-red-400 hover:text-red-600"
+											title="Delete filter"
+										>
+											<Trash2 class="h-4 w-4" />
+										</button>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{/each}
+				{/if}
+			</div>
+		</section>
+
 		{:else if selectedSection === 'general'}
 		<!-- General Settings Section -->
 		<section class="space-y-4">
@@ -573,8 +1030,23 @@
 						<input 
 							type="checkbox" 
 							bind:checked={autoRefreshFeeds}
-							onchange={() => settings.setSetting('autoRefreshFeeds', autoRefreshFeeds)}
+							onchange={saveUserSettings}
 							class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+						/>
+					</div>
+					<div class="flex items-center justify-between">
+						<div>
+							<label class="text-sm font-medium text-gray-900 dark:text-white">Auto-refresh interval (minutes)</label>
+							<p class="text-xs text-gray-600 dark:text-gray-400">How often to automatically refresh feeds</p>
+						</div>
+						<input 
+							type="number" 
+							min="5" 
+							max="1440"
+							step="5"
+							bind:value={autoRefreshInterval}
+							onchange={saveUserSettings}
+							class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
 						/>
 					</div>
 					<div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
@@ -621,6 +1093,67 @@
 							type="checkbox" 
 							bind:checked={showUnreadCountInTitle}
 							onchange={() => settings.setSetting('showUnreadCountInTitle', showUnreadCountInTitle)}
+							class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+						/>
+					</div>
+				</div>
+			</div>
+
+			<!-- Article Display Settings -->
+			<div class="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+				<h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Article Display</h3>
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<div>
+							<label class="text-sm font-medium text-gray-900 dark:text-white">Open webpage instead of RSS feeds for short articles</label>
+							<p class="text-xs text-gray-600 dark:text-gray-400">Click short articles to open original webpage in new tab instead of modal</p>
+						</div>
+						<input 
+							type="checkbox" 
+							bind:checked={openWebpageForShortArticles}
+							onchange={saveUserSettings}
+							class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+						/>
+					</div>
+					<div class="flex items-center justify-between">
+						<div>
+							<label class="text-sm font-medium text-gray-900 dark:text-white">Short article threshold (characters)</label>
+							<p class="text-xs text-gray-600 dark:text-gray-400">Articles shorter than this will open webpage instead of modal</p>
+						</div>
+						<input 
+							type="number" 
+							min="50" 
+							max="2000"
+							step="50"
+							bind:value={shortArticleThreshold}
+							onchange={saveUserSettings}
+							class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
+						/>
+					</div>
+					<div class="flex items-center justify-between">
+						<div>
+							<label class="text-sm font-medium text-gray-900 dark:text-white">Default view</label>
+							<p class="text-xs text-gray-600 dark:text-gray-400">Which view to show when opening the app</p>
+						</div>
+						<select 
+							bind:value={defaultView}
+							onchange={saveUserSettings}
+							class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+						>
+							<option value="all">All Articles</option>
+							<option value="unread">Unread Articles</option>
+							<option value="starred">Starred Articles</option>
+						</select>
+					</div>
+					<div class="flex items-center justify-between">
+						<div>
+							<label class="text-sm font-medium text-gray-900 dark:text-white">Show timestamps in article list</label>
+							<p class="text-xs text-gray-600 dark:text-gray-400">Display relative time (20m, 3h20m, 3d3h20m) for each article</p>
+						</div>
+						<input 
+							type="checkbox" 
+							bind:checked={showTimestampsInList}
+							onchange={saveUserSettings}
 							class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
 						/>
 					</div>

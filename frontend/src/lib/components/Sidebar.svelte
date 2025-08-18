@@ -1,6 +1,6 @@
 <script>
-	import { onMount } from 'svelte';
-	import { Settings, CheckCircle } from '@lucide/svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { Settings, CheckCircle, ChevronRight, ChevronDown } from '@lucide/svelte';
 	import { 
 		categoriesStore, 
 		feedsStore, 
@@ -13,6 +13,8 @@
 	// Local state for UI
 	let showAllArticles = $state(true);
 	let hoveredCategory = $state(null);
+	let expandedCategories = $state(new Set()); // Track which categories are expanded
+	let currentTime = $state(new Date()); // Track current time for relative timestamps
 	
 	// Use stores with Svelte 5 runes
 	let categories = $derived($categoriesStore);
@@ -31,6 +33,16 @@
 		
 		// Load fresh articles for this category (resets infinite scroll)
 		apiActions.loadArticles();
+	}
+	
+	function toggleCategoryExpansion(categoryId) {
+		const newExpanded = new Set(expandedCategories);
+		if (newExpanded.has(categoryId)) {
+			newExpanded.delete(categoryId);
+		} else {
+			newExpanded.add(categoryId);
+		}
+		expandedCategories = newExpanded;
 	}
 	
 	function selectFeedHandler(feed) {
@@ -73,13 +85,12 @@
 		return feeds.filter(feed => feed.category_id === categoryId);
 	}
 	
-	// Format last updated time
+	// Format last updated time (reactive to currentTime)
 	function formatLastUpdated(lastFetched) {
 		if (!lastFetched) return 'Never';
 		
 		const date = new Date(lastFetched);
-		const now = new Date();
-		const diffMs = now - date;
+		const diffMs = currentTime - date;
 		const diffMins = Math.floor(diffMs / 60000);
 		const diffHours = Math.floor(diffMs / 3600000);
 		const diffDays = Math.floor(diffMs / 86400000);
@@ -89,6 +100,21 @@
 		if (diffHours < 24) return `${diffHours}h ago`;
 		return `${diffDays}d ago`;
 	}
+	
+	// Update timestamp every minute
+	let timeUpdateInterval;
+	
+	onMount(() => {
+		timeUpdateInterval = setInterval(() => {
+			currentTime = new Date();
+		}, 60000); // Update every minute
+	});
+	
+	onDestroy(() => {
+		if (timeUpdateInterval) {
+			clearInterval(timeUpdateInterval);
+		}
+	});
 	
 	// Mark all articles in a category as read
 	async function markCategoryAsRead(categoryId) {
@@ -128,16 +154,27 @@
 			<div class="space-y-1">
 				<!-- Category Header -->
 				<div class="flex items-center space-x-1">
+					<!-- Chevron for expanding/collapsing feeds -->
+					<button
+						onclick={() => toggleCategoryExpansion(category.id)}
+						class="p-0.5 rounded transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+					>
+						{#if expandedCategories.has(category.id)}
+							<ChevronDown class="w-3 h-3" />
+						{:else}
+							<ChevronRight class="w-3 h-3" />
+						{/if}
+					</button>
+					
+					<!-- Category name button -->
 					<button
 						onclick={() => selectCategoryHandler(category)}
 						class="flex-1 flex items-center space-x-1.5 p-1.5 rounded transition-colors {$selectedCategory?.id === category.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 					>
-						<div 
-							class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
-							style="background-color: {category.color || '#6B7280'}"
-						></div>
 						<span class="text-xs font-medium truncate">{category.name}</span>
 					</button>
+					
+					<!-- Unread count / Mark as read button -->
 					<div 
 						class="text-xs bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded-full cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition-colors flex-shrink-0"
 						onmouseenter={() => hoveredCategory = category.id}
@@ -154,7 +191,7 @@
 				</div>
 				
 				<!-- Category Feeds -->
-				{#if $selectedCategory?.id === category.id}
+				{#if expandedCategories.has(category.id)}
 					<div class="ml-4 space-y-0.5">
 						{#each getCategoryFeeds(category.id) as feed}
 							<button
@@ -188,7 +225,7 @@
 		
 		<!-- Status and Refresh -->
 		<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-			<span>Last: {formatLastUpdated(feeds[0]?.last_fetched)}</span>
+			<span>Last: {formatLastUpdated(Math.max(...feeds.map(f => new Date(f.last_fetched || 0).getTime())))}</span>
 			<button 
 				onclick={refreshFeeds}
 				class="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"

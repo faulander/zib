@@ -191,6 +191,15 @@ class User(BaseModel):
     feeds_per_page = IntegerField(default=50)  # Articles per page preference
     default_view = CharField(max_length=20, default='unread')  # unread, all, starred
     
+    # Article display preferences
+    open_webpage_for_short_articles = BooleanField(default=False)  # Open webpage instead of modal for short articles
+    short_article_threshold = IntegerField(default=500)  # Character count threshold for short articles
+    show_timestamps_in_list = BooleanField(default=True)  # Show relative timestamps in article list
+    
+    # Feed refresh preferences
+    auto_refresh_feeds = BooleanField(default=False)  # Auto-refresh feeds periodically
+    auto_refresh_interval_minutes = IntegerField(default=30)  # Auto-refresh interval in minutes
+    
     # Timestamps
     created_at = DateTimeField(default=datetime.now)
     updated_at = DateTimeField(default=datetime.now)

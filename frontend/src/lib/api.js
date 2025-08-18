@@ -234,7 +234,63 @@ class ApiClient {
     
     return this.request(`/api/articles?${searchParams.toString()}`);
   }
+
+  // Settings endpoints
+  async getUserSettings() {
+    return this.request('/api/settings');
+  }
+
+  async updateUserSettings(settingsData) {
+    return this.request('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settingsData)
+    });
+  }
 }
+
+// Filter API
+export const filters = {
+  // Get all filters
+  async getAll(activeOnly = false) {
+    const params = activeOnly ? '?active_only=true' : '';
+    return api.request(`/api/filters${params}`);
+  },
+
+  // Get specific filter
+  async getById(filterId) {
+    return api.request(`/api/filters/${filterId}`);
+  },
+
+  // Create filter
+  async create(filterData) {
+    return api.request('/api/filters', {
+      method: 'POST',
+      body: JSON.stringify(filterData)
+    });
+  },
+
+  // Update filter
+  async update(filterId, filterData) {
+    return api.request(`/api/filters/${filterId}`, {
+      method: 'PUT',
+      body: JSON.stringify(filterData)
+    });
+  },
+
+  // Delete filter
+  async delete(filterId) {
+    return api.request(`/api/filters/${filterId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Toggle filter active state
+  async toggle(filterId) {
+    return api.request(`/api/filters/${filterId}/toggle`, {
+      method: 'POST'
+    });
+  }
+};
 
 // Export singleton instance
 export const api = new ApiClient();
@@ -276,6 +332,11 @@ export const opml = {
   getImportStatus: (jobId) => api.getImportStatus(jobId),
   getImportJobs: (status, limit) => api.getImportJobs(status, limit),
   cancelImportJob: (jobId) => api.cancelImportJob(jobId)
+};
+
+export const userSettings = {
+  get: () => api.getUserSettings(),
+  update: (data) => api.updateUserSettings(data)
 };
 
 export default api;

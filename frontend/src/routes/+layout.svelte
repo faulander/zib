@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
@@ -7,27 +7,60 @@
 	import Header from '$lib/components/Header.svelte';
 	import { initializeApp } from '$lib/stores/api.js';
 	import { error, isLoading } from '$lib/stores/api.js';
+	import { autoRefreshService } from '$lib/services/autoRefreshService.js';
+	import { settings } from '$lib/stores/settings.js';
+	import { articles } from '$lib/api.js';
 	
 	let { children } = $props();
 	let initError = $state(null);
 	let isInitialized = $state(false);
+	let unreadCount = $state(0);
 	
 	// Check if we're on the settings page
 	let isSettingsPage = $derived($page.url.pathname.startsWith('/settings'));
 	
+	// Dynamic title based on unread count and settings
+	let pageTitle = $derived(() => {
+		const baseTitle = 'Zib RSS Reader';
+		if ($settings.showUnreadCountInTitle && unreadCount > 0) {
+			return `(${unreadCount}) ${baseTitle}`;
+		}
+		return baseTitle;
+	});
+
+	// Update unread count periodically
+	async function updateUnreadCount() {
+		try {
+			const response = await articles.getAll({ read_status: 'unread', limit: 1 });
+			unreadCount = response.pagination?.total || 0;
+		} catch (err) {
+			console.error('Failed to get unread count:', err);
+		}
+	}
+	
 	onMount(async () => {
 		try {
 			await initializeApp();
+			// Start auto-refresh service after app initialization
+			await autoRefreshService.start();
+			// Initial unread count update
+			await updateUnreadCount();
+			// Update unread count every 30 seconds
+			const unreadCountInterval = setInterval(updateUnreadCount, 30000);
 			isInitialized = true;
 		} catch (err) {
 			initError = err.message;
 			isInitialized = true; // Still show UI with error message
 		}
 	});
+
+	onDestroy(() => {
+		autoRefreshService.stop();
+	});
 </script>
 
 <svelte:head>
-	<title>Zib RSS Reader</title>
+	<title>{pageTitle}</title>
 	<meta name="description" content="An opinionated RSS reader inspired by Austrian news culture" />
 	<link rel="icon" href={favicon} />
 </svelte:head>

@@ -1,6 +1,7 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
 	import { scrollTracker } from '../services/scrollTracker.js';
+	import { userSettings } from '$lib/api.js';
 	import ArticleModal from './ArticleModal.svelte';
 	
 	let { articles, onMarkRead, onToggleStar } = $props();
@@ -8,6 +9,16 @@
 	// Modal state
 	let isModalOpen = $state(false);
 	let selectedArticle = $state(null);
+	
+	// User settings
+	let userSettingsData = $state({
+		open_webpage_for_short_articles: false,
+		short_article_threshold: 500,
+		show_timestamps_in_list: true
+	});
+	
+	// Current time for reactive timestamps
+	let currentTime = $state(new Date());
 	
 	// Track article elements for scroll detection
 	let articleElements = new Map(); // Map of article.id -> element
@@ -37,16 +48,67 @@
 			hour12: true
 		});
 	}
+	
+	// Format relative timestamp (reactive to currentTime)
+	function formatRelativeTimestamp(dateString) {
+		if (!dateString) return '';
+		
+		const date = new Date(dateString);
+		const diffMs = currentTime - date;
+		const diffMins = Math.floor(diffMs / 60000);
+		const diffHours = Math.floor(diffMs / 3600000);
+		const diffDays = Math.floor(diffMs / 86400000);
+		
+		if (diffMins < 1) return 'now';
+		if (diffMins < 60) return `${diffMins}m`;
+		if (diffHours < 24) {
+			const remainingMins = diffMins % 60;
+			return remainingMins > 0 ? `${diffHours}h${remainingMins}m` : `${diffHours}h`;
+		}
+		
+		const remainingHours = diffHours % 24;
+		const remainingMins = diffMins % 60;
+		if (remainingHours > 0 && remainingMins > 0) {
+			return `${diffDays}d${remainingHours}h${remainingMins}m`;
+		} else if (remainingHours > 0) {
+			return `${diffDays}d${remainingHours}h`;
+		}
+		return `${diffDays}d`;
+	}
+
+	async function loadUserSettings() {
+		try {
+			userSettingsData = await userSettings.get();
+		} catch (err) {
+			console.error('Failed to load user settings:', err);
+		}
+	}
+
+	function getContentLength(article) {
+		// Strip HTML tags and count text characters
+		const textContent = article.content?.replace(/<[^>]*>/g, '') || '';
+		return textContent.length;
+	}
 
 	function handleArticleClick(article) {
-		// Open article in modal
-		selectedArticle = article;
-		isModalOpen = true;
-		
-		// Mark as read when opened (if not already read)
+		// Mark as read when clicked (if not already read)
 		if (!article.read_status?.is_read) {
 			onMarkRead(article);
 		}
+
+		// Check if we should open webpage instead of modal for short articles
+		if (userSettingsData.open_webpage_for_short_articles) {
+			const contentLength = getContentLength(article);
+			if (contentLength < userSettingsData.short_article_threshold) {
+				// Open webpage in new tab
+				window.open(article.url, '_blank');
+				return;
+			}
+		}
+
+		// Open article in modal (default behavior)
+		selectedArticle = article;
+		isModalOpen = true;
 	}
 	
 	function closeModal() {
@@ -96,6 +158,18 @@
 		};
 	}
 	
+	// Load user settings on component mount
+	let timeUpdateInterval;
+	
+	onMount(async () => {
+		await loadUserSettings();
+		
+		// Update current time every minute for reactive timestamps
+		timeUpdateInterval = setInterval(() => {
+			currentTime = new Date();
+		}, 60000);
+	});
+
 	// Clean up tracking when component is destroyed
 	onDestroy(() => {
 		// Clean up all tracked articles
@@ -103,6 +177,11 @@
 			scrollTracker.untrackArticle(element);
 		}
 		articleElements.clear();
+		
+		// Clean up time update interval
+		if (timeUpdateInterval) {
+			clearInterval(timeUpdateInterval);
+		}
 	});
 </script>
 
@@ -149,7 +228,7 @@
 					</span>
 					<span class="text-xs">•</span>
 					<span class="whitespace-nowrap text-xs">
-						{formatTime(article.published_date)}
+						{userSettingsData.show_timestamps_in_list ? formatRelativeTimestamp(article.published_date) : formatTime(article.published_date)}
 					</span>
 				</div>
 

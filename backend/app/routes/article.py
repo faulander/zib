@@ -204,6 +204,10 @@ async def get_articles(
         limit_plus_one = params.limit + 1
         articles_data = list(query.limit(limit_plus_one))
         
+        # Apply user filters to remove unwanted articles
+        from app.services.filter_service import FilterService
+        articles_data = FilterService.apply_filters(articles_data, current_user, params.category_id)
+        
         # Check if there are more articles
         has_more = len(articles_data) > params.limit
         if has_more:

@@ -643,6 +643,12 @@ export const apiActions = {
 export async function initializeApp() {
   try {
     await apiActions.checkHealth();
+    
+    // Load user settings first to get default view
+    const { userSettings } = await import('../api.js');
+    const settings = await userSettings.get();
+    selectedFilter.set(settings.default_view);
+    
     await Promise.all([
       apiActions.loadCategories(),
       apiActions.loadFeeds()

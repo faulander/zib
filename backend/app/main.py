@@ -11,8 +11,9 @@ from .core.exceptions import (
     ZibException, validation_exception_handler, zib_exception_handler,
     http_exception_handler, general_exception_handler
 )
-from .routes import feeds_router, categories_router, opml_router, articles_router
+from .routes import feeds_router, categories_router, opml_router, articles_router, filters_router, settings_router
 from .services.health_service import HealthService
+from .services.auto_refresh_service import auto_refresh_service
 
 # Initialize logging
 setup_logging()
@@ -27,10 +28,14 @@ async def lifespan(app: FastAPI):
     logger.info(f'Debug mode: {settings.debug}')
     logger.info(f'Database URL: {settings.database_url}')
     
+    # Start auto-refresh service
+    await auto_refresh_service.start()
+    
     yield
     
     # Shutdown
     logger.info('Shutting down application')
+    await auto_refresh_service.stop()
 
 
 # Create FastAPI application
@@ -121,6 +126,8 @@ app.include_router(feeds_router, prefix='/api')
 app.include_router(categories_router, prefix='/api')
 app.include_router(opml_router)
 app.include_router(articles_router)
+app.include_router(filters_router)
+app.include_router(settings_router)
 
 
 @app.middleware('http')
