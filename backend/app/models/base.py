@@ -96,6 +96,11 @@ class Feed(BaseModel):
     fetch_interval = IntegerField(default=lambda: settings.default_feed_update_interval)
     last_fetched = DateTimeField(null=True)
     
+    # Feed health tracking
+    last_checked = DateTimeField(null=True)
+    accessible = BooleanField(default=True)
+    consecutive_failures = IntegerField(default=0)
+    
     # Import metadata
     import_job = ForeignKeyField(ImportJob, null=True, on_delete='SET NULL')  # Track import source
     opml_title = CharField(max_length=255, null=True)  # Original title from OPML
@@ -255,8 +260,34 @@ class ImportFeedValidation(BaseModel):
         return f'Validation: {self.feed_url} ({"valid" if self.is_valid else "invalid"})'
 
 
+class FeedCheckLog(BaseModel):
+    '''Feed check log model for tracking feed accessibility history'''
+    
+    id = AutoField()
+    feed = ForeignKeyField(Feed, backref='check_logs', on_delete='CASCADE')
+    checked_at = DateTimeField(default=datetime.now)
+    status_code = IntegerField(null=True)
+    error_message = TextField(null=True)
+    response_time_ms = IntegerField(null=True)
+    is_success = BooleanField()
+    user_agent = TextField(null=True)
+    created_at = DateTimeField(default=datetime.now)
+    
+    class Meta:
+        table_name = 'feed_check_logs'
+        indexes = (
+            (('feed',), False),
+            (('checked_at',), False),
+            (('is_success',), False),
+            (('feed', 'checked_at'), False),  # Composite index for history queries
+        )
+    
+    def __str__(self):
+        return f'Check {self.feed.title}: {"✓" if self.is_success else "✗"} at {self.checked_at}'
+
+
 # Model registry for easy access
-ALL_MODELS = [Category, Feed, Filter, SchemaVersion, ImportJob, ImportResult, ImportFeedValidation]
+ALL_MODELS = [Category, Feed, Filter, SchemaVersion, ImportJob, ImportResult, ImportFeedValidation, FeedCheckLog]
 
 # Import article models to make them available
 from app.models.article import ARTICLE_MODELS

@@ -6,17 +6,16 @@ Created: 2025-08-18
 
 import peewee as pw
 from app.core.database import db
+from app.core.migrations import Migration
 
 
-class ShowTimestampsMigration:
+class ShowTimestampsMigration(Migration):
     '''Migration to add show_timestamps_in_list setting'''
     
-    def upgrade(self):
+    def up(self):
         '''Add show_timestamps_in_list column to users table'''
         try:
-            db.connect()
-            
-            # Add show_timestamps_in_list column
+            # Add show_timestamps_in_list column (skip if already exists)
             db.execute_sql('''
                 ALTER TABLE users 
                 ADD COLUMN show_timestamps_in_list BOOLEAN DEFAULT TRUE
@@ -25,17 +24,15 @@ class ShowTimestampsMigration:
             print('✓ Added show_timestamps_in_list column to users table')
             
         except Exception as e:
-            print(f'✗ Migration failed: {e}')
-            raise
-        finally:
-            if not db.is_closed():
-                db.close()
+            if "duplicate column name" in str(e):
+                print('✓ show_timestamps_in_list column already exists, skipping')
+            else:
+                print(f'✗ Migration failed: {e}')
+                raise
     
-    def downgrade(self):
+    def down(self):
         '''Remove show_timestamps_in_list column from users table'''
         try:
-            db.connect()
-            
             # Remove show_timestamps_in_list column
             # SQLite doesn't support DROP COLUMN, so we need to recreate table
             db.execute_sql('''
@@ -55,14 +52,14 @@ class ShowTimestampsMigration:
         except Exception as e:
             print(f'✗ Rollback failed: {e}')
             raise
-        finally:
-            if not db.is_closed():
-                db.close()
 
 
 # Create migration instance
-migration = ShowTimestampsMigration()
+migration = ShowTimestampsMigration(
+    version=8,
+    description='Add show_timestamps_in_list setting to User model'
+)
 
 
 if __name__ == '__main__':
-    migration.upgrade()
+    migration.up()

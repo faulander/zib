@@ -229,7 +229,7 @@ class ApiClient {
       formData.append('category_parent_id', options.category_parent_id);
     }
     
-    return this.request('/api/import/opml/', {
+    return this.request('/api/import/opml', {
       method: 'POST',
       headers: {}, // Remove Content-Type header for FormData
       body: formData
@@ -336,7 +336,15 @@ export const feeds = {
   create: (data) => api.createFeed(data),
   update: (id, data) => api.updateFeed(id, data),
   delete: (id) => api.deleteFeed(id),
-  refresh: (id) => api.refreshFeed(id)
+  refresh: (id) => api.refreshFeed(id),
+  checkCategory: (categoryId) => api.request(`/api/feeds/check-category/${categoryId}`, { method: 'POST' }),
+  getCheckStatus: (sessionId) => api.request(`/api/feeds/check-status/${sessionId}`),
+  getBrokenFeeds: (categoryId, days = 7) => api.request(`/api/feeds/broken/${categoryId}?days=${days}`),
+  bulkDelete: (feedIds) => api.request('/api/feeds/bulk-delete', { 
+    method: 'DELETE',
+    body: JSON.stringify({ feed_ids: feedIds })
+  }),
+  getCheckHistory: (feedId, limit = 20) => api.request(`/api/feeds/${feedId}/check-history?limit=${limit}`)
 };
 
 export const categories = {

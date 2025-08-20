@@ -2,9 +2,9 @@
 	import { onMount } from 'svelte';
 	import { feedsStore, categoriesStore, apiActions, isLoading, error } from '$lib/stores/api.js';
 	import { settings } from '$lib/stores/settings.js';
-	import { opml, api, filters, userSettings } from '$lib/api.js';
+	import { opml, api, filters, userSettings, feeds as feedsApi } from '$lib/api.js';
 	import { autoRefreshService } from '$lib/services/autoRefreshService.js';
-	import { Plus, Trash2, Download, Upload, RefreshCw, Settings, Rss, FolderOpen, FileText, ChevronDown, ChevronRight, Filter, Edit3 } from '@lucide/svelte';
+	import { Plus, Trash2, Download, Upload, RefreshCw, Settings, Rss, FolderOpen, FileText, ChevronDown, ChevronRight, Filter, Edit3, Activity, CheckCircle } from '@lucide/svelte';
 	
 	// Use Svelte 5 runes
 	let feeds = $derived($feedsStore);
@@ -76,6 +76,12 @@
 	let editFilterValue = $state('');
 	let editFilterCategory = $state('');
 	let editFilterCaseSensitive = $state(false);
+	
+	// Feed health checking states
+	let checkingFeeds = $state(new Set()); // Set of category IDs being checked
+	let checkSessions = $state(new Map()); // Map of sessionId -> progress data
+	let brokenFeedsModal = $state({ show: false, categoryId: null, categoryName: '', feeds: [] });
+	let selectedBrokenFeeds = $state(new Set());
 	
 	// Settings sections
 	const settingsSections = [
@@ -443,6 +449,152 @@
 			loadUserSettings();
 		}
 	});
+	
+	// Feed health checking functions
+	async function handleCheckFeeds(category) {
+		try {
+			// Start checking
+			checkingFeeds.add(category.id);
+			checkingFeeds = new Set(checkingFeeds);
+			
+			const response = await feedsApi.checkCategory(category.id);
+			const sessionId = response.session_id;
+			
+			// Store session data
+			checkSessions.set(sessionId, {
+				categoryId: category.id,
+				categoryName: category.name,
+				status: 'running',
+				progress: { completed: 0, total: response.total_feeds, percentage: 0 },
+				results: { accessible: 0, inaccessible: 0, pending: response.total_feeds }
+			});
+			checkSessions = new Map(checkSessions);
+			
+			// Poll for progress
+			pollCheckProgress(sessionId);
+			
+		} catch (err) {
+			console.error('Failed to start feed check:', err);
+			checkingFeeds.delete(category.id);
+			checkingFeeds = new Set(checkingFeeds);
+		}
+	}
+	
+	async function pollCheckProgress(sessionId) {
+		try {
+			const status = await feedsApi.getCheckStatus(sessionId);
+			
+			// Update session data
+			checkSessions.set(sessionId, status);
+			checkSessions = new Map(checkSessions);
+			
+			if (status.status === 'completed') {
+				// Check completed, remove from checking set
+				checkingFeeds.delete(status.progress.categoryId);
+				checkingFeeds = new Set(checkingFeeds);
+				
+				// Show results - either broken feeds or success message
+				if (status.results.inaccessible > 0) {
+					await showBrokenFeeds(status.progress.categoryId);
+				} else {
+					// All feeds are healthy, show success notification
+					await showHealthyFeedsResult(status.progress.categoryId, status.results.accessible);
+				}
+				
+				// Clean up session after 30 seconds
+				setTimeout(() => {
+					checkSessions.delete(sessionId);
+					checkSessions = new Map(checkSessions);
+				}, 30000);
+			} else {
+				// Continue polling
+				setTimeout(() => pollCheckProgress(sessionId), 2000);
+			}
+		} catch (err) {
+			console.error('Failed to get check status:', err);
+			// Remove from checking set on error
+			const sessionData = checkSessions.get(sessionId);
+			if (sessionData && sessionData.progress) {
+				checkingFeeds.delete(sessionData.progress.categoryId);
+				checkingFeeds = new Set(checkingFeeds);
+			}
+		}
+	}
+	
+	async function showBrokenFeeds(categoryId) {
+		try {
+			const category = categories.find(c => c.id === categoryId);
+			const response = await feedsApi.getBrokenFeeds(categoryId);
+			
+			brokenFeedsModal = {
+				show: true,
+				categoryId: categoryId,
+				categoryName: category?.name || 'Unknown',
+				feeds: response.broken_feeds
+			};
+			selectedBrokenFeeds = new Set();
+		} catch (err) {
+			console.error('Failed to get broken feeds:', err);
+		}
+	}
+	
+	async function showHealthyFeedsResult(categoryId, accessibleCount) {
+		const category = categories.find(c => c.id === categoryId);
+		
+		brokenFeedsModal = {
+			show: true,
+			categoryId: categoryId,
+			categoryName: category?.name || 'Unknown',
+			feeds: [],
+			healthyMessage: `All ${accessibleCount} feeds in this category are working correctly! ✅`
+		};
+	}
+	
+	function toggleBrokenFeed(feedId) {
+		if (selectedBrokenFeeds.has(feedId)) {
+			selectedBrokenFeeds.delete(feedId);
+		} else {
+			selectedBrokenFeeds.add(feedId);
+		}
+		selectedBrokenFeeds = new Set(selectedBrokenFeeds);
+	}
+	
+	function selectAllBrokenFeeds() {
+		selectedBrokenFeeds = new Set(brokenFeedsModal.feeds.map(f => f.id));
+	}
+	
+	function deselectAllBrokenFeeds() {
+		selectedBrokenFeeds = new Set();
+	}
+	
+	async function deleteBrokenFeeds() {
+		try {
+			const feedIds = Array.from(selectedBrokenFeeds);
+			if (feedIds.length === 0) return;
+			
+			const result = await feedsApi.bulkDelete(feedIds);
+			
+			// Update the broken feeds modal
+			brokenFeedsModal.feeds = brokenFeedsModal.feeds.filter(f => !feedIds.includes(f.id));
+			selectedBrokenFeeds = new Set();
+			
+			// Refresh feeds and categories
+			await Promise.all([
+				apiActions.loadFeeds(),
+				apiActions.loadCategories()
+			]);
+			
+			console.log(`Deleted ${result.deleted_count} feeds`);
+			
+		} catch (err) {
+			console.error('Failed to delete broken feeds:', err);
+		}
+	}
+	
+	function closeBrokenFeedsModal() {
+		brokenFeedsModal = { show: false, categoryId: null, categoryName: '', feeds: [] };
+		selectedBrokenFeeds = new Set();
+	}
 </script>
 
 <div class="h-full flex">
@@ -623,6 +775,21 @@
 										title="Add feed to this category"
 									>
 										<Plus class="h-4 w-4" />
+									</button>
+									<button
+										onclick={(e) => {
+											e.stopPropagation();
+											handleCheckFeeds(category);
+										}}
+										disabled={checkingFeeds.has(category.id) || categoryFeeds.length === 0}
+										class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 disabled:opacity-50 disabled:cursor-not-allowed"
+										title={categoryFeeds.length === 0 ? "No feeds to check" : checkingFeeds.has(category.id) ? "Checking feeds..." : "Check feed accessibility"}
+									>
+										{#if checkingFeeds.has(category.id)}
+											<RefreshCw class="h-4 w-4 animate-spin" />
+										{:else}
+											<Activity class="h-4 w-4" />
+										{/if}
 									</button>
 									<button
 										onclick={(e) => {
@@ -1315,6 +1482,148 @@
 						Delete Feed
 					{/if}
 				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Broken Feeds Modal -->
+{#if brokenFeedsModal.show}
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+		<div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
+			<div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-600">
+				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+					{brokenFeedsModal.feeds.length > 0 ? `Broken Feeds in "${brokenFeedsModal.categoryName}"` : `Feed Check Results - "${brokenFeedsModal.categoryName}"`}
+				</h3>
+				<button
+					onclick={closeBrokenFeedsModal}
+					class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+				>
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6m0-12L6 6" />
+					</svg>
+				</button>
+			</div>
+			
+			{#if brokenFeedsModal.feeds.length === 0}
+				<div class="flex-1 flex items-center justify-center">
+					<div class="text-center">
+						<CheckCircle class="mx-auto h-16 w-16 text-green-500 mb-4" />
+						<h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">All feeds are accessible!</h3>
+						<p class="text-gray-600 dark:text-gray-400">
+							{brokenFeedsModal.healthyMessage || 'No broken feeds found in this category.'}
+						</p>
+					</div>
+				</div>
+			{:else}
+				<div class="mb-4">
+					<p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+						Found {brokenFeedsModal.feeds.length} feed{brokenFeedsModal.feeds.length === 1 ? '' : 's'} that have been inaccessible for 7+ days. 
+						Select feeds to delete permanently.
+					</p>
+					
+					<!-- Selection Controls -->
+					<div class="flex items-center space-x-4 mb-4">
+						<button
+							onclick={selectAllBrokenFeeds}
+							class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+						>
+							Select All
+						</button>
+						<button
+							onclick={deselectAllBrokenFeeds}
+							class="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+						>
+							Deselect All
+						</button>
+						<span class="text-sm text-gray-500 dark:text-gray-400">
+							{selectedBrokenFeeds.size} of {brokenFeedsModal.feeds.length} selected
+						</span>
+					</div>
+				</div>
+				
+				<!-- Broken Feeds List -->
+				<div class="flex-1 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg">
+					<div class="divide-y divide-gray-200 dark:divide-gray-600">
+						{#each brokenFeedsModal.feeds as feed}
+							<div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+								<div class="flex items-start space-x-3">
+									<input
+										type="checkbox"
+										checked={selectedBrokenFeeds.has(feed.id)}
+										onchange={() => toggleBrokenFeed(feed.id)}
+										class="mt-1 rounded border-gray-300 dark:border-gray-600 text-red-600 focus:ring-red-500"
+									/>
+									<div class="flex-1 min-w-0">
+										<div class="flex items-center space-x-2 mb-1">
+											<h4 class="font-medium text-gray-900 dark:text-white text-sm truncate">
+												{feed.title}
+											</h4>
+											<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+												{feed.consecutive_failures} failures
+											</span>
+										</div>
+										<p class="text-xs text-gray-600 dark:text-gray-400 mb-2 break-all">
+											{feed.url}
+										</p>
+										
+										<div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+											{#if feed.last_checked}
+												<span>Last checked: {new Date(feed.last_checked).toLocaleDateString()}</span>
+											{/if}
+											{#if feed.last_success}
+												<span>Last success: {new Date(feed.last_success).toLocaleDateString()}</span>
+											{/if}
+										</div>
+										
+										{#if feed.recent_errors && feed.recent_errors.length > 0}
+											<div class="mt-2">
+												<details class="text-xs">
+													<summary class="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300">
+														Recent errors ({feed.recent_errors.length})
+													</summary>
+													<div class="mt-1 pl-4 space-y-1">
+														{#each feed.recent_errors as error}
+															<div class="flex items-center space-x-2 text-red-600 dark:text-red-400">
+																<span>{new Date(error.checked_at).toLocaleDateString()}</span>
+																{#if error.status_code}
+																	<span class="font-mono">HTTP {error.status_code}</span>
+																{/if}
+																{#if error.error_message}
+																	<span class="truncate">{error.error_message}</span>
+																{/if}
+															</div>
+														{/each}
+													</div>
+												</details>
+											</div>
+										{/if}
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+			
+			<!-- Modal Actions -->
+			<div class="flex justify-between items-center pt-4 mt-4 border-t border-gray-200 dark:border-gray-600">
+				<button
+					onclick={closeBrokenFeedsModal}
+					class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+				>
+					Close
+				</button>
+				
+				{#if brokenFeedsModal.feeds.length > 0}
+					<button
+						onclick={deleteBrokenFeeds}
+						disabled={selectedBrokenFeeds.size === 0}
+						class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						Delete {selectedBrokenFeeds.size} Selected Feed{selectedBrokenFeeds.size === 1 ? '' : 's'}
+					</button>
+				{/if}
 			</div>
 		</div>
 	</div>

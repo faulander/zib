@@ -29,7 +29,7 @@ from app.services.opml import (
 from app.core.auth import get_current_user
 
 
-router = APIRouter(prefix='/api/import', tags=['OPML Import'])
+router = APIRouter(prefix='/import', tags=['OPML Import'])
 
 
 @router.post('/opml', 

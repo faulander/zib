@@ -1,8 +1,14 @@
-from fastapi import APIRouter, Query, Path, status
+from fastapi import APIRouter, Query, Path, status, HTTPException
 from typing import Optional
 from app.schemas.feed import FeedCreate, FeedUpdate, FeedResponse
 from app.schemas.common import SuccessResponse, PaginatedResponse
+from app.schemas.feed_health import (
+    FeedCheckSessionResponse, FeedCheckStatusResponse, BrokenFeedsResponse,
+    BulkDeleteRequest, BulkDeleteResponse, FeedCheckHistoryResponse
+)
 from app.services.feed_service import FeedService
+from app.services.feed_health_service import feed_health_service
+from app.models.base import Category
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -159,3 +165,122 @@ async def refresh_all_feeds():
             message=f'Feed refresh failed: {str(e)}',
             data={'error': str(e)}
         )
+
+
+# Feed Health Endpoints
+
+@router.post('/check-category/{category_id}', response_model=FeedCheckSessionResponse)
+async def check_category_feeds(category_id: int = Path(..., description='Category ID')):
+    """Initiate feed accessibility checking for all feeds in a category"""
+    logger.info(f'Starting feed check for category: {category_id}')
+    
+    try:
+        # Verify category exists
+        try:
+            category = Category.get_by_id(category_id)
+        except Category.DoesNotExist:
+            raise HTTPException(status_code=404, detail="Category not found")
+        
+        # Start feed checking
+        session_id = await feed_health_service.check_category_feeds(category_id)
+        
+        if not session_id:
+            raise HTTPException(status_code=400, detail="No active feeds found in category")
+        
+        # Get session info for response
+        session_status = feed_health_service.get_session_status(session_id)
+        total_feeds = session_status['progress']['total'] if session_status else 0
+        
+        return FeedCheckSessionResponse(
+            session_id=session_id,
+            message="Feed checking started",
+            total_feeds=total_feeds,
+            estimated_duration=f"{total_feeds * 2} seconds"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f'Error starting feed check for category {category_id}: {e}')
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/check-status/{session_id}', response_model=FeedCheckStatusResponse)
+async def get_check_status(session_id: str = Path(..., description='Session ID')):
+    """Get progress status of ongoing feed check operation"""
+    logger.debug(f'Getting check status for session: {session_id}')
+    
+    session_status = feed_health_service.get_session_status(session_id)
+    
+    if not session_status:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    return FeedCheckStatusResponse(**session_status)
+
+
+@router.get('/broken/{category_id}', response_model=BrokenFeedsResponse)
+async def get_broken_feeds(
+    category_id: int = Path(..., description='Category ID'),
+    days: int = Query(7, ge=1, le=365, description='Days threshold for broken feeds')
+):
+    """Get list of feeds that have been inaccessible for specified number of days"""
+    logger.info(f'Getting broken feeds for category {category_id} (>{days} days)')
+    
+    try:
+        # Verify category exists
+        try:
+            category = Category.get_by_id(category_id)
+        except Category.DoesNotExist:
+            raise HTTPException(status_code=404, detail="Category not found")
+        
+        # Get broken feeds
+        broken_feeds = feed_health_service.get_broken_feeds(category_id, days)
+        
+        return BrokenFeedsResponse(
+            broken_feeds=broken_feeds,
+            total_broken=len(broken_feeds),
+            category_name=category.name
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f'Error getting broken feeds for category {category_id}: {e}')
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete('/bulk-delete', response_model=BulkDeleteResponse)
+async def bulk_delete_feeds(request: BulkDeleteRequest):
+    """Delete multiple feeds in a single operation"""
+    logger.info(f'Bulk deleting {len(request.feed_ids)} feeds')
+    
+    try:
+        result = feed_health_service.bulk_delete_feeds(request.feed_ids)
+        return BulkDeleteResponse(**result)
+        
+    except Exception as e:
+        logger.error(f'Error in bulk delete operation: {e}')
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/{feed_id}/check-history', response_model=FeedCheckHistoryResponse)
+async def get_feed_check_history(
+    feed_id: int = Path(..., description='Feed ID'),
+    limit: int = Query(20, ge=1, le=100, description='Number of history entries to return')
+):
+    """Get detailed check history for a specific feed"""
+    logger.info(f'Getting check history for feed {feed_id}')
+    
+    try:
+        history = feed_health_service.get_feed_check_history(feed_id, limit)
+        
+        if 'error' in history:
+            raise HTTPException(status_code=404, detail=history['error'])
+        
+        return FeedCheckHistoryResponse(**history)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f'Error getting feed check history for {feed_id}: {e}')
+        raise HTTPException(status_code=500, detail=str(e))
