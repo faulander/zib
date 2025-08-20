@@ -7,6 +7,7 @@
 		selectedCategory, 
 		selectedFeed, 
 		unreadCounts,
+		searchQuery,
 		apiActions 
 	} from '../stores/api.js';
 	import { closeSidebar } from '../stores/sidebar.js';
@@ -23,6 +24,20 @@
 	let categories = $derived($categoriesStore);
 	let feeds = $derived($feedsStore);
 	let counts = $derived($unreadCounts);
+	
+	// Reload counters when search changes
+	$effect(() => {
+		const currentSearch = $searchQuery;
+		// Debounce the counter reload to avoid too many API calls
+		const timeoutId = setTimeout(() => {
+			if (categories && feeds && categories.length > 0 && feeds.length > 0) {
+				console.log('Search changed, reloading counters:', currentSearch);
+				apiActions.loadUnreadCounts();
+			}
+		}, 500); // 500ms debounce
+		
+		return () => clearTimeout(timeoutId);
+	});
 	
 	
 	function selectCategoryHandler(category) {

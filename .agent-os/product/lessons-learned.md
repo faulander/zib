@@ -1,7 +1,7 @@
 # Lessons Learned
 
-> Last Updated: 2025-08-16
-> Version: 1.0.0
+> Last Updated: 2025-08-20
+> Version: 1.1.0
 
 ## Development Workflow
 
@@ -62,3 +62,58 @@
 - Always verify table structure before writing queries
 - Check existing column names and types
 - Use proper SQLite syntax and constraints
+
+## Content Filtering & Pagination Architecture
+
+### The Problem: Post-Query Content Filtering Breaks Pagination
+
+**Issue Discovered**: Content filter rules (like Sport and PREMIUM filters) are applied **after** database queries in Python using `FilterService.apply_filters()`, not during SQL queries. This creates a fundamental pagination problem:
+
+1. Backend fetches 50 articles from database
+2. Content filters reduce them to ~10-15 articles  
+3. Frontend receives fewer articles than expected
+4. Infinite scroll stops working (`has_more: false`)
+5. Users see only 22 articles instead of hundreds of available filtered articles
+
+### The Solution: Smart Backend Pagination
+
+**Implemented**: `fetch_filtered_articles_with_pagination()` function that:
+
+1. **Iteratively fetches and filters** until reaching requested article count
+2. **Adaptive batch sizing** - increases batch size when filters are aggressive (< 10% pass rate)
+3. **Safety limits** - maximum 5 database queries per request to prevent infinite loops
+4. **Accurate `has_more` calculation** - only false when truly no more articles exist
+5. **Proper cursor management** - maintains pagination positions through filter iterations
+
+### Key Technical Implementation
+
+```python
+# Smart pagination handles content filtering properly
+articles_data, has_more, next_cursor = fetch_filtered_articles_with_pagination(
+    query=query,
+    user=current_user,
+    category_id=params.category_id,
+    requested_limit=params.limit,
+    cursor=params.since_id
+)
+```
+
+### Counter Accuracy Solution
+
+**Problem**: Sidebar counters showed raw database counts (905) instead of filtered counts (34)
+**Solution**: Created dedicated `/api/articles/filtered-counts` endpoint that applies content filters to count calculations
+
+### Lessons for Future Development
+
+1. **Content filters must be considered during pagination design** - Post-query filtering breaks cursor pagination
+2. **Backend should handle filtering complexity** - Don't push filtering logic to frontend
+3. **Always test with realistic filter scenarios** - Empty or minimal filters may not reveal pagination issues
+4. **Performance vs accuracy tradeoff** - Smart pagination requires more database queries but ensures user experience
+5. **Route ordering matters in FastAPI** - Specific routes (`/filtered-counts`) must come before parametric routes (`/{article_id}`)
+
+### Performance Characteristics
+
+- **Without content filters**: 1 database query per pagination request
+- **With content filters**: 1-5 database queries per pagination request (adaptive)
+- **Filter efficiency tracking**: Automatically adjusts batch sizes based on filter pass-through rates
+- **Memory efficient**: Processes articles in batches rather than loading all at once

@@ -5,8 +5,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { api, feeds, categories, articles } from '../api.js';
 
-const API_BASE = 'http://localhost:8000/api';
-
 // Loading states
 export const isLoading = writable(false);
 export const isLoadingMore = writable(false);
@@ -89,16 +87,7 @@ export const apiActions = {
     try {
       isLoading.set(true);
       error.set(null);
-      const response = await fetch(`${API_BASE}/feeds/${feedId}/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
+      const result = await feeds.refresh(feedId);
       
       // Reload feeds and articles to get updated counts
       await apiActions.loadFeeds();
@@ -117,16 +106,18 @@ export const apiActions = {
     try {
       isLoading.set(true);
       error.set(null);
-      const response = await fetch(`${API_BASE}/feeds/refresh-all`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Refresh each feed individually
+      const allFeeds = get(feedsStore);
+      const results = [];
+      for (const feed of allFeeds) {
+        try {
+          const result = await feeds.refresh(feed.id);
+          results.push(result);
+        } catch (err) {
+          console.error(`Failed to refresh feed ${feed.title}:`, err);
+        }
       }
-      
-      const result = await response.json();
       
       // Reload feeds and articles to get updated counts
       await apiActions.loadFeeds();
@@ -569,62 +560,34 @@ export const apiActions = {
   // Load unread counts for categories and feeds
   async loadUnreadCounts() {
     try {
-      const counts = { feeds: {}, categories: {} };
+      console.log('Loading filtered unread counts...');
       
-      // Get current categories and feeds
-      const categories = get(categoriesStore);
-      const feeds = get(feedsStore);
+      // Get active filters to apply consistently
+      const currentSearch = get(searchQuery);
       
-      if (!Array.isArray(categories) || !Array.isArray(feeds)) {
-        console.log('Categories or feeds not loaded yet, skipping count loading');
-        return;
+      // Use the new filtered counts endpoint that applies content filters
+      const params = {};
+      if (currentSearch) {
+        params.search = currentSearch;
       }
       
-      console.log(`Loading counts for ${categories.length} categories and ${feeds.length} feeds`);
+      const data = await articles.getFilteredCounts(params);
       
-      // For each category, get unread count
-      const categoryPromises = categories.map(async (category) => {
-        try {
-          const response = await fetch(`${API_BASE}/articles?category_id=${category.id}&read_status=unread&limit=1`);
-          if (response.ok) {
-            const data = await response.json();
-            const count = data.pagination?.total || 0;
-            counts.categories[category.id] = count;
-            console.log(`Category ${category.name} (${category.id}): ${count} unread articles`);
-          } else {
-            counts.categories[category.id] = 0;
-          }
-        } catch (err) {
-          console.error(`Failed to get count for category ${category.id}:`, err);
-          counts.categories[category.id] = 0;
-        }
-      });
+      // Update store with the properly filtered counts
+      const counts = {
+        categories: data.categories || {},
+        feeds: data.feeds || {}
+      };
       
-      // For each feed, get unread count  
-      const feedPromises = feeds.map(async (feed) => {
-        try {
-          const response = await fetch(`${API_BASE}/articles?feed_id=${feed.id}&read_status=unread&limit=1`);
-          if (response.ok) {
-            const data = await response.json();
-            const count = data.pagination?.total || 0;
-            counts.feeds[feed.id] = count;
-          } else {
-            counts.feeds[feed.id] = 0;
-          }
-        } catch (err) {
-          console.error(`Failed to get count for feed ${feed.id}:`, err);
-          counts.feeds[feed.id] = 0;
-        }
-      });
-      
-      // Wait for all requests to complete
-      await Promise.all([...categoryPromises, ...feedPromises]);
-      
-      console.log('Final counts:', counts);
+      console.log('Filtered unread counts loaded:', counts);
       unreadCounts.set(counts);
       return counts;
+      
     } catch (err) {
-      console.error('Failed to load unread counts:', err);
+      console.error('Failed to load filtered counts:', err);
+      // Fallback to empty counts on error
+      const emptyCounts = { feeds: {}, categories: {} };
+      unreadCounts.set(emptyCounts);
       throw err;
     }
   },

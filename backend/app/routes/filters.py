@@ -7,7 +7,7 @@ from app.models.article import User
 from app.services.filter_service import FilterService
 from app.core.exceptions import ValidationException
 
-router = APIRouter(prefix='/api/filters', tags=['filters'])
+router = APIRouter(prefix='/filters', tags=['filters'])
 
 
 # Schemas

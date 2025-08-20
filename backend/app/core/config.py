@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from pydantic import field_validator
+from typing import Optional, Union
 
 
 class Settings(BaseSettings):
@@ -16,13 +17,24 @@ class Settings(BaseSettings):
     reload: bool = False
     
     # Database Settings
-    database_url: str = 'sqlite:///zib.db'
+    database_url: str = 'sqlite:///data/zib.db'
     database_echo: bool = False
     
     # CORS Settings
-    cors_origins: list[str] = ['http://localhost:5173', 'http://127.0.0.1:5173']
+    cors_origins: Union[list[str], str] = [
+        'http://localhost:5173', 'http://127.0.0.1:5173',
+        'http://localhost:5174', 'http://127.0.0.1:5174'
+    ]
     cors_methods: list[str] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
     cors_headers: list[str] = ['*']
+    
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            # Split comma-separated string into list
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        return v
     
     # Logging Settings
     log_level: str = 'INFO'
@@ -38,6 +50,7 @@ class Settings(BaseSettings):
         env_file = '.env'
         env_file_encoding = 'utf-8'
         case_sensitive = False
+        extra = 'ignore'  # Ignore extra fields from environment
 
 
 # Global settings instance

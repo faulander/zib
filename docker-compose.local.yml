@@ -1,0 +1,16 @@
+# Docker Compose Override for Local Development
+# This file provides defaults for local development
+# It's automatically loaded by docker-compose when no .env file exists
+
+services:
+  backend:
+    environment:
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:5173,http://127.0.0.1:5173
+      - DEBUG=true
+      - RELOAD=true
+
+  frontend:
+    environment:
+      - ORIGIN=http://localhost:3000
+      - PUBLIC_API_BASE_URL=http://localhost:8000
+      - NODE_ENV=development

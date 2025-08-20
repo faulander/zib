@@ -47,6 +47,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
+    root_path="",  # Set if API is served under a path
     description='''
 ## Zib RSS Reader API
 
@@ -120,6 +121,22 @@ app.add_middleware(
     allow_headers=settings.cors_headers,
 )
 
+# Add middleware to handle proxy headers (for nginx reverse proxy with SSL)
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class ProxyHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        # Trust X-Forwarded headers from nginx
+        if "x-forwarded-proto" in request.headers:
+            request.scope["scheme"] = request.headers["x-forwarded-proto"]
+        if "x-forwarded-host" in request.headers:
+            request.scope["server"] = (request.headers["x-forwarded-host"], request.scope["server"][1])
+        
+        response = await call_next(request)
+        return response
+
+app.add_middleware(ProxyHeadersMiddleware)
+
 # Add exception handlers
 app.add_exception_handler(ValidationError, validation_exception_handler)
 app.add_exception_handler(ZibException, zib_exception_handler)
@@ -129,10 +146,10 @@ app.add_exception_handler(Exception, general_exception_handler)
 # Include API routers
 app.include_router(feeds_router, prefix='/api')
 app.include_router(categories_router, prefix='/api')
-app.include_router(opml_router)
-app.include_router(articles_router)
-app.include_router(filters_router)
-app.include_router(settings_router)
+app.include_router(opml_router, prefix='/api')
+app.include_router(articles_router, prefix='/api')
+app.include_router(filters_router, prefix='/api')
+app.include_router(settings_router, prefix='/api')
 
 
 @app.middleware('http')

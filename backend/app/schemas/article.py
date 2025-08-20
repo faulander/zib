@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel, Field, validator
 from enum import Enum
 
@@ -128,3 +128,10 @@ class MarkArticleRequest(BaseModel):
 class MessageResponse(BaseModel):
     '''Simple message response'''
     message: str
+
+
+class FilteredCountsResponse(BaseModel):
+    '''Filtered article counts response'''
+    categories: Dict[int, int]  # category_id -> filtered_count
+    feeds: Dict[int, int]       # feed_id -> filtered_count
+    total_unread: int

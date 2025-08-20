@@ -2,7 +2,21 @@
  * API client for Zib RSS Reader backend
  */
 
-const API_BASE_URL = 'http://localhost:8000';
+// Get API base URL based on environment
+function getApiBaseUrl() {
+  // Server-side rendering - use internal Docker network
+  if (typeof window === 'undefined') {
+    return 'http://zib-backend:8000';
+  }
+  
+  // Browser-side - check if development or production
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:8000';  // Development
+  }
+  
+  // Production - use same domain with /api path
+  return 'https://zib.hflab.us';
+}
 
 class ApiError extends Error {
   constructor(message, status, response) {
@@ -14,12 +28,13 @@ class ApiError extends Error {
 }
 
 class ApiClient {
-  constructor(baseUrl = API_BASE_URL) {
+  constructor(baseUrl = null) {
     this.baseUrl = baseUrl;
   }
 
   async request(endpoint, options = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
+    const baseUrl = this.baseUrl || getApiBaseUrl();
+    const url = `${baseUrl}${endpoint}`;
     const config = {
       headers: {
         'Content-Type': 'application/json',
@@ -70,7 +85,7 @@ class ApiClient {
 
   // Feeds endpoints
   async getFeeds() {
-    return this.request('/api/feeds');
+    return this.request('/api/feeds/');
   }
 
   async getFeed(feedId) {
@@ -78,7 +93,7 @@ class ApiClient {
   }
 
   async createFeed(feedData) {
-    return this.request('/api/feeds', {
+    return this.request('/api/feeds/', {
       method: 'POST',
       body: JSON.stringify(feedData)
     });
@@ -113,7 +128,7 @@ class ApiClient {
   }
 
   async createCategory(categoryData) {
-    return this.request('/api/categories', {
+    return this.request('/api/categories/', {
       method: 'POST',
       body: JSON.stringify(categoryData)
     });
@@ -144,7 +159,23 @@ class ApiClient {
     });
 
     const queryString = searchParams.toString();
-    const endpoint = queryString ? `/api/articles?${queryString}` : '/api/articles';
+    const endpoint = queryString ? `/api/articles/?${queryString}` : '/api/articles/';
+    
+    return this.request(endpoint);
+  }
+
+  async getFilteredCounts(params = {}) {
+    const searchParams = new URLSearchParams();
+    
+    // Add query parameters (mainly search)
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        searchParams.append(key, value.toString());
+      }
+    });
+
+    const queryString = searchParams.toString();
+    const endpoint = queryString ? `/api/articles/filtered-counts?${queryString}` : '/api/articles/filtered-counts';
     
     return this.request(endpoint);
   }
@@ -168,14 +199,14 @@ class ApiClient {
   }
 
   async markAllRead(params = {}) {
-    return this.request('/api/articles/mark-all-read', {
+    return this.request('/api/articles/mark-all-read/', {
       method: 'POST',
       body: JSON.stringify(params)
     });
   }
 
   async bulkMarkRead(articleIds) {
-    return this.request('/api/articles/bulk/mark-read', {
+    return this.request('/api/articles/bulk/mark-read/', {
       method: 'POST',
       body: JSON.stringify({ article_ids: articleIds })
     });
@@ -198,7 +229,7 @@ class ApiClient {
       formData.append('category_parent_id', options.category_parent_id);
     }
     
-    return this.request('/api/import/opml', {
+    return this.request('/api/import/opml/', {
       method: 'POST',
       headers: {}, // Remove Content-Type header for FormData
       body: formData
@@ -206,7 +237,7 @@ class ApiClient {
   }
 
   async exportOpml() {
-    return this.request('/api/opml/export');
+    return this.request('/api/opml/export/');
   }
 
   async getImportStatus(jobId) {
@@ -237,11 +268,11 @@ class ApiClient {
 
   // Settings endpoints
   async getUserSettings() {
-    return this.request('/api/settings');
+    return this.request('/api/settings/');
   }
 
   async updateUserSettings(settingsData) {
-    return this.request('/api/settings', {
+    return this.request('/api/settings/', {
       method: 'PUT',
       body: JSON.stringify(settingsData)
     });
@@ -253,7 +284,7 @@ export const filters = {
   // Get all filters
   async getAll(activeOnly = false) {
     const params = activeOnly ? '?active_only=true' : '';
-    return api.request(`/api/filters${params}`);
+    return api.request(`/api/filters/${params}`);
   },
 
   // Get specific filter
@@ -263,7 +294,7 @@ export const filters = {
 
   // Create filter
   async create(filterData) {
-    return api.request('/api/filters', {
+    return api.request('/api/filters/', {
       method: 'POST',
       body: JSON.stringify(filterData)
     });
@@ -317,6 +348,7 @@ export const categories = {
 
 export const articles = {
   getAll: (params) => api.getArticles(params),
+  getFilteredCounts: (params) => api.getFilteredCounts(params),
   get: (id) => api.getArticle(id),
   markRead: (id, isRead) => api.markArticleRead(id, isRead),
   star: (id, isStarred) => api.starArticle(id, isStarred),

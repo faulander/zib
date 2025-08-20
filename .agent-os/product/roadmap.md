@@ -1,8 +1,8 @@
 # Product Roadmap
 
-> Last Updated: 2025-08-18
-> Version: 1.2.0
-> Status: Phase 1-3 Complete, Phase 4 Partially Complete
+> Last Updated: 2025-08-20
+> Version: 1.3.0
+> Status: Phase 1-4 Complete
 
 ## Phase 0: Already Completed
 
@@ -94,14 +94,13 @@ The following backend infrastructure has been implemented:
 - [x] **Filter by read status** - Show only unread items integrated in main interface `S`
 - [x] **Filter editing** - Complete CRUD operations for filter management `S`
 - [ ] Filter by date range - Time-based filtering `S`
-- [ ] Smart filters (trending, popular) - AI-based filtering `XL`
 
 ### Dependencies
 
 - Full-text search index
 - Filter rule parser
 
-## Phase 4: Performance & Polish (1 week) - PARTIALLY COMPLETED
+## Phase 4: Performance & Polish (1 week) - COMPLETED
 
 **Goal:** Optimize performance and user workflow
 **Success Criteria:** Fast, reliable feed updates and smooth UI
@@ -110,25 +109,29 @@ The following backend infrastructure has been implemented:
 
 - [x] **Background feed updates** - Automatic refresh with configurable intervals `M`
 - [x] **Feed update scheduling** - User-configurable refresh intervals in minutes `M`
+- [x] **Content filtering pagination architecture** - Smart backend pagination handles post-query filtering `XL`
+- [x] **Accurate filtered counters** - Sidebar counters respect active content filter rules `M`
 - [ ] Performance optimization - Database indexing, caching `L`
 - [ ] Error handling and recovery - Graceful failure handling `M`
 
 ### Should-Have Features
 
 - [x] **Duplicate detection** - Built into RSS parser to avoid duplicate articles `M`
+- [x] **Smart pagination with adaptive batching** - Iterative filtering with efficiency tracking `L`
 - [ ] Feed health monitoring - Track broken feeds `S`
-- [ ] Bulk operations - Mark multiple as read `S`
 
 ### New Features Implemented
 
 - [x] **Auto-refresh service** - Backend scheduler with frontend sync integration
 - [x] **Dynamic page titles** - Unread count displayed in browser title
 - [x] **Webpage redirect for short articles** - Configurable threshold to open links directly
+- [x] **Smart backend pagination** - `fetch_filtered_articles_with_pagination()` with adaptive batch sizing
+- [x] **Filtered counts API** - Dedicated `/api/articles/filtered-counts` endpoint for accurate sidebar counters
+- [x] **Content filter integration** - Proper handling of post-query filtering in pagination and counting
 
 ### Dependencies
 
 - [x] Background job system - Implemented with asyncio
-- [ ] Caching layer
 
 ## Phase 5: Advanced Features (3 weeks)
 
@@ -147,7 +150,6 @@ The following backend infrastructure has been implemented:
 
 - [ ] Webhook integrations - Connect to other services `L`
 - [ ] Email digest - Daily/weekly summaries `XL`
-- [ ] AI-powered recommendations - Content suggestions `XL`
 - [ ] Multi-user support (optional) - Shared instance capability `XL`
 
 ### Dependencies

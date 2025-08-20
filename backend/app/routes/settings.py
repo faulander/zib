@@ -6,7 +6,7 @@ from app.models.article import User
 from app.core.database import TransactionManager
 from app.services.auto_refresh_service import auto_refresh_service
 
-router = APIRouter(prefix='/api/settings', tags=['settings'])
+router = APIRouter(prefix='/settings', tags=['settings'])
 
 
 # Schemas
@@ -34,7 +34,7 @@ class UserSettingsResponse(BaseModel):
     preferred_view_mode: str
 
 
-@router.get('', response_model=UserSettingsResponse)
+@router.get('/', response_model=UserSettingsResponse)
 async def get_user_settings(
     current_user: User = Depends(get_current_user)
 ):
@@ -51,7 +51,7 @@ async def get_user_settings(
     )
 
 
-@router.put('', response_model=UserSettingsResponse)
+@router.put('/', response_model=UserSettingsResponse)
 async def update_user_settings(
     settings_data: UserSettingsRequest,
     current_user: User = Depends(get_current_user)

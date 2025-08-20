@@ -56,27 +56,48 @@
 	
 	$effect(() => {
 		// Only force process when "No more articles to load" is actually visible to the user
+		// AND we've actually reached the end of ALL articles (not just current page)
 		if (articles.length > 0 && !moreAvailable && !loadingMore && endMessageVisible) {
-			console.log('End of articles reached and message visible, forcing batch process...');
+			console.log('End of articles reached and message visible, checking if really at end...');
 			console.log('Articles count:', articles.length);
-			console.log('Unread articles:', articles.filter(a => !a.read_status?.is_read).length);
+			console.log('Has more articles:', moreAvailable);
 			
-			// Add a longer delay to ensure all articles have been tracked and viewed
-			setTimeout(() => {
-				console.log('Processing batch now...');
-				console.log('Pending articles in batch:', scrollTracker.pendingReadArticles.size);
-				
-				// Force add the remaining visible unread articles to the batch
-				// since they're at the end and won't be scrolled past
-				articles.forEach(article => {
-					if (!article.read_status?.is_read) {
-						console.log('Force adding end article to batch:', article.id, article.title);
-						scrollTracker.addToBatch(article.id);
-					}
-				});
-				
-				scrollTracker.forceProcessBatch();
-			}, 2000);
+			// Only process if we're TRULY at the end (no more articles to load from backend)
+			// This prevents marking all articles as read when just pausing mid-scroll
+			if (!moreAvailable) {
+				// Add a delay to ensure only visible articles are tracked
+				setTimeout(() => {
+					console.log('At true end of feed, processing only visible articles...');
+					console.log('Pending articles in batch:', scrollTracker.pendingReadArticles.size);
+					
+					// Get all article elements that are currently visible in viewport
+					const articleElements = document.querySelectorAll('[data-article-id]');
+					const visibleArticleIds = new Set();
+					
+					articleElements.forEach(element => {
+						const rect = element.getBoundingClientRect();
+						// Check if element is at least partially visible in viewport
+						if (rect.top < window.innerHeight && rect.bottom > 0) {
+							const articleId = parseInt(element.dataset.articleId);
+							if (articleId) {
+								visibleArticleIds.add(articleId);
+							}
+						}
+					});
+					
+					console.log('Visible articles in viewport:', visibleArticleIds.size);
+					
+					// Only add VISIBLE unread articles to the batch
+					articles.forEach(article => {
+						if (!article.read_status?.is_read && visibleArticleIds.has(article.id)) {
+							console.log('Adding visible end article to batch:', article.id, article.title);
+							scrollTracker.addToBatch(article.id);
+						}
+					});
+					
+					scrollTracker.forceProcessBatch();
+				}, 2000);
+			}
 		}
 	});
 

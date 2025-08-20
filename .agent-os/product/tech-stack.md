@@ -21,12 +21,12 @@
 
 ## UI/Design
 
-- **CSS Framework:** TailwindCSS 4.0+
+- **CSS Framework:** TailwindCSS 3.x (currently 3.4.0)
 - **UI Components:** Custom components (mobile-first)
 - **Font Provider:** Google Fonts
 - **Font Loading:** From Google
 - **Icon Library:** Lucide Svelte components
-- **Theme Support:** Dark/Light mode
+- **Theme Support:** Dark mode only (opinionated design)
 
 ## Infrastructure
 

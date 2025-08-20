@@ -35,11 +35,12 @@
 		return baseTitle;
 	});
 
-	// Update unread count periodically
+	// Update unread count periodically (use filtered count)
 	async function updateUnreadCount() {
 		try {
-			const response = await articles.getAll({ read_status: 'unread', limit: 1 });
-			unreadCount = response.pagination?.total || 0;
+			const response = await articles.getFilteredCounts();
+			// Use total unread from the filtered counts endpoint
+			unreadCount = response.total_unread || 0;
 		} catch (err) {
 			console.error('Failed to get unread count:', err);
 		}

@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production --no-audit --no-fund
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci --no-audit --no-fund
 
 # Copy application code
 COPY . .
@@ -22,10 +22,14 @@ FROM node:22-alpine AS runtime
 # Set working directory
 WORKDIR /app
 
+# Copy package files first for production dependencies
+COPY --from=builder /app/package*.json ./
+
+# Install only production dependencies for runtime
+RUN npm ci --only=production --no-audit --no-fund
+
 # Copy built application from builder stage
 COPY --from=builder /app/build ./build
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
 
 # Expose port
 EXPOSE 3000

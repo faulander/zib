@@ -5,14 +5,15 @@ from peewee import DoesNotExist, fn, JOIN
 from app.schemas.article import (
     ArticleResponse, ArticleListResponse, ArticleQueryParams,
     BulkMarkReadRequest, BulkOperationResponse, ArticleStatsResponse,
-    MarkArticleRequest, MessageResponse, ReadStatusFilter
+    MarkArticleRequest, MessageResponse, ReadStatusFilter,
+    FilteredCountsResponse
 )
 from app.models.article import Article, User, ReadStatus
 from app.models.base import Feed, Category
 from app.core.auth import get_current_user
 from app.core.database import db
 
-router = APIRouter(prefix="/api/articles", tags=["articles"])
+router = APIRouter(prefix="/articles", tags=["articles"])
 
 
 def build_article_query(user: User, params: ArticleQueryParams):
@@ -171,7 +172,100 @@ def serialize_article(article: Article, user: User) -> ArticleResponse:
     )
 
 
-@router.get("", response_model=ArticleListResponse)
+def fetch_filtered_articles_with_pagination(query, user, category_id, requested_limit, cursor=None, max_queries=5):
+    '''
+    Smart pagination that fetches articles iteratively until we have enough filtered results.
+    
+    Args:
+        query: Base Peewee query object
+        user: Current user for filtering
+        category_id: Category ID for content filters
+        requested_limit: Number of filtered articles requested
+        cursor: Cursor for pagination (article ID)
+        max_queries: Maximum number of database queries to prevent infinite loops
+        
+    Returns:
+        tuple: (filtered_articles, has_more, next_cursor)
+    '''
+    from app.services.filter_service import FilterService
+    from app.core.logging import get_logger
+    logger = get_logger(__name__)
+    
+    filtered_articles = []
+    current_cursor = cursor
+    queries_made = 0
+    batch_size = max(requested_limit * 2, 100)  # Start with larger batches to account for filtering
+    
+    logger.info(f"Smart pagination: requesting {requested_limit} articles, starting with batch size {batch_size}")
+    
+    while len(filtered_articles) < requested_limit and queries_made < max_queries:
+        queries_made += 1
+        
+        # Apply cursor if we have one
+        batch_query = query
+        if current_cursor:
+            batch_query = batch_query.where(Article.id < current_cursor)
+        
+        # Fetch articles with extra buffer to check for has_more
+        fetch_limit = batch_size + 1
+        batch_articles = list(batch_query.limit(fetch_limit))
+        
+        logger.info(f"Query {queries_made}: Fetched {len(batch_articles)} raw articles")
+        
+        if not batch_articles:
+            # No more articles in database
+            logger.info("No more articles in database")
+            break
+            
+        # Remember if we got the extra article (indicates more available)
+        has_more_raw = len(batch_articles) > batch_size
+        if has_more_raw:
+            batch_articles = batch_articles[:batch_size]  # Remove the extra article
+            
+        # Apply content filters
+        filtered_batch = FilterService.apply_filters(batch_articles, user, category_id)
+        
+        logger.info(f"Query {queries_made}: After filtering: {len(filtered_batch)} articles")
+        
+        # Add to our result collection
+        filtered_articles.extend(filtered_batch)
+        
+        # Update cursor for next iteration
+        if batch_articles:
+            current_cursor = batch_articles[-1].id
+            
+        # If we didn't get any new raw articles, we're at the end
+        if not has_more_raw:
+            logger.info("Reached end of raw articles")
+            break
+            
+        # If we got enough filtered articles, we can stop
+        if len(filtered_articles) >= requested_limit:
+            logger.info(f"Got enough filtered articles: {len(filtered_articles)}")
+            break
+            
+        # Adaptive batch sizing: if filtering is very aggressive, increase batch size
+        filter_efficiency = len(filtered_batch) / len(batch_articles) if batch_articles else 0
+        if filter_efficiency < 0.1 and queries_made < max_queries - 1:  # Less than 10% pass through
+            batch_size = min(batch_size * 2, 500)  # Double batch size, cap at 500
+            logger.info(f"Low filter efficiency ({filter_efficiency:.2%}), increasing batch size to {batch_size}")
+    
+    # Trim to requested limit
+    has_more_filtered = len(filtered_articles) > requested_limit
+    if has_more_filtered:
+        filtered_articles = filtered_articles[:requested_limit]
+        
+    # Calculate next cursor
+    next_cursor = None
+    if filtered_articles and (has_more_filtered or queries_made == max_queries):
+        next_cursor = filtered_articles[-1].id
+        
+    logger.info(f"Smart pagination complete: {len(filtered_articles)} articles returned, has_more={has_more_filtered or queries_made == max_queries}, {queries_made} queries made")
+    
+    return filtered_articles, (has_more_filtered or queries_made == max_queries), next_cursor
+
+
+@router.get("/", response_model=ArticleListResponse)
 async def get_articles(
     params: ArticleQueryParams = Depends(),
     current_user: User = Depends(get_current_user)
@@ -179,10 +273,15 @@ async def get_articles(
     '''Get articles with cursor-based pagination, filtering, and search'''
     
     try:
+        # Debug: Log the parameters being received
+        from app.core.logging import get_logger
+        logger = get_logger(__name__)
+        logger.info(f"Articles API called with params: limit={params.limit}, category_id={params.category_id}, feed_id={params.feed_id}, read_status={params.read_status}, search={params.search}")
+        
         # Build query
         query = build_article_query(current_user, params)
         
-        # Get total count (for legacy pagination info)
+        # Get total count (for legacy pagination info) - this is not filtered by content filters
         total_query = query.clone()
         if params.since_id:
             # Remove cursor filter for total count
@@ -201,26 +300,17 @@ async def get_articles(
             ))
         total = total_query.count()
         
-        # Execute query with limit + 1 to check if there are more articles
-        limit_plus_one = params.limit + 1
-        articles_data = list(query.limit(limit_plus_one))
-        
-        # Apply user filters to remove unwanted articles
-        from app.services.filter_service import FilterService
-        articles_data = FilterService.apply_filters(articles_data, current_user, params.category_id)
-        
-        # Check if there are more articles
-        has_more = len(articles_data) > params.limit
-        if has_more:
-            articles_data = articles_data[:params.limit]  # Remove the extra article
+        # Use smart pagination that handles content filtering properly
+        articles_data, has_more, next_cursor = fetch_filtered_articles_with_pagination(
+            query=query,
+            user=current_user,
+            category_id=params.category_id,
+            requested_limit=params.limit,
+            cursor=params.since_id
+        )
         
         # Serialize articles
         articles = [serialize_article(article, current_user) for article in articles_data]
-        
-        # Get next cursor (ID of the last article)
-        next_cursor = None
-        if has_more and articles:
-            next_cursor = articles[-1].id
         
         # Build legacy pagination info (for backward compatibility)
         pagination = {
@@ -353,6 +443,132 @@ async def bulk_mark_read_by_category(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error bulk marking category articles as read: {str(e)}"
+        )
+
+
+@router.get("/filtered-counts", response_model=FilteredCountsResponse)
+async def get_filtered_counts(
+    search: Optional[str] = Query(None, description='Search query to apply to counts'),
+    current_user: User = Depends(get_current_user)
+):
+    '''Get filtered article counts for categories and feeds including content filter rules'''
+    
+    try:
+        from app.services.filter_service import FilterService
+        from app.core.logging import get_logger
+        logger = get_logger(__name__)
+        
+        logger.info(f"Getting filtered counts with search: {search}")
+        
+        # Get all categories and feeds
+        categories = list(Category.select())
+        feeds = list(Feed.select())
+        
+        # Initialize counters
+        category_counts = {}
+        feed_counts = {}
+        total_unread = 0
+        
+        # For each category, get filtered unread count
+        for category in categories:
+            try:
+                # Build base query for unread articles in this category
+                query = (Article
+                    .select()
+                    .join(Feed)
+                    .where(
+                        (Feed.category == category) &
+                        (Feed.is_active == True)
+                    ))
+                
+                # Apply search filter if provided
+                if search:
+                    query = query.where(
+                        (Article.title.contains(search)) |
+                        (Article.author.contains(search))
+                    )
+                
+                # Filter out read articles for this user
+                read_article_ids = (ReadStatus
+                    .select(ReadStatus.article)
+                    .where(
+                        (ReadStatus.user == current_user) & 
+                        (ReadStatus.is_read == True)
+                    ))
+                
+                query = query.where(Article.id.not_in(read_article_ids))
+                
+                # Execute query to get articles
+                articles_data = list(query)
+                
+                # Apply content filter rules (this is where the magic happens!)
+                filtered_articles = FilterService.apply_filters(articles_data, current_user, category.id)
+                
+                # Count the filtered results
+                count = len(filtered_articles)
+                category_counts[category.id] = count
+                
+            except Exception as e:
+                logger.error(f"Error counting category {category.id}: {e}")
+                category_counts[category.id] = 0
+        
+        # For each feed, get filtered unread count
+        for feed in feeds:
+            try:
+                # Build base query for unread articles in this feed
+                query = (Article
+                    .select()
+                    .where(
+                        (Article.feed == feed) &
+                        (feed.is_active == True)
+                    ))
+                
+                # Apply search filter if provided
+                if search:
+                    query = query.where(
+                        (Article.title.contains(search)) |
+                        (Article.author.contains(search))
+                    )
+                
+                # Filter out read articles for this user
+                read_article_ids = (ReadStatus
+                    .select(ReadStatus.article)
+                    .where(
+                        (ReadStatus.user == current_user) & 
+                        (ReadStatus.is_read == True)
+                    ))
+                
+                query = query.where(Article.id.not_in(read_article_ids))
+                
+                # Execute query to get articles
+                articles_data = list(query)
+                
+                # Apply content filter rules
+                filtered_articles = FilterService.apply_filters(articles_data, current_user, feed.category.id if feed.category else None)
+                
+                # Count the filtered results
+                count = len(filtered_articles)
+                feed_counts[feed.id] = count
+                
+            except Exception as e:
+                logger.error(f"Error counting feed {feed.id}: {e}")
+                feed_counts[feed.id] = 0
+        
+        # Calculate total unread (sum all category counts)
+        total_unread = sum(category_counts.values())
+        
+        logger.info(f"Filtered counts calculated: categories={len(category_counts)}, feeds={len(feed_counts)}, total={total_unread}")
+        
+        return FilteredCountsResponse(
+            categories=category_counts,
+            feeds=feed_counts,
+            total_unread=total_unread
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching filtered counts: {str(e)}"
         )
 
 
@@ -541,3 +757,4 @@ async def get_article_statistics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error fetching article statistics: {str(e)}"
         )
+

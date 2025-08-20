@@ -41,8 +41,12 @@ coverage.xml
 .pytest_cache/
 cover/
 
-# Virtual environments
+# Environment files
 .env
+.env.local
+.env.production
+.env.development
+.env.test
 .venv
 env/
 venv/
@@ -51,7 +55,6 @@ env.bak/
 venv.bak/
 
 # FastAPI specific
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -101,6 +104,8 @@ pids/
 *.sqlite3
 
 # Zib RSS Reader specific
+data/
+backend/data/
 zib.db
 zib.db-*
 *.db-journal
@@ -131,3 +136,6 @@ Thumbs.db
 
 # Claude settings
 .claude/settings.local.json
+
+# Deployment script
+deploy.sh

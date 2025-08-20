@@ -221,6 +221,7 @@
 				class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group {article.read_status?.is_read ? 'opacity-60' : ''} flex flex-col h-full"
 				onclick={() => handleArticleClick(article)}
 				use:trackElement={{ article }}
+				data-article-id={article.id}
 			>
 				<!-- Image Container -->
 				<div class="h-32 bg-gray-100 dark:bg-gray-700 relative overflow-hidden flex-shrink-0">
@@ -346,6 +347,7 @@
 				class="px-4 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group {article.read_status?.is_read ? 'opacity-50 bg-gray-25 dark:bg-gray-800/30' : ''}"
 				onclick={() => handleArticleClick(article)}
 				use:trackElement={{ article }}
+				data-article-id={article.id}
 			>
 				<div class="flex items-center justify-between w-full pr-2">
 					<!-- Left side: Read indicator + Title -->

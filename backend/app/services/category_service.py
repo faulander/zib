@@ -194,11 +194,13 @@ class CategoryService:
             for category in query:
                 category_data = CategoryResponse.model_validate(category)
                 
-                # Add feeds if requested
+                # Add feeds if requested - skip for performance reasons on list endpoint
                 if include_feeds:
                     feeds = Feed.select().where(Feed.category == category.id)
                     from app.schemas.feed import FeedResponse
                     category_data.feeds = [FeedResponse.model_validate(feed) for feed in feeds]
+                else:
+                    category_data.feeds = []
                 
                 items.append(category_data.model_dump())
             

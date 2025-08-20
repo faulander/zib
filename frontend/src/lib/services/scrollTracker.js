@@ -5,6 +5,7 @@
 import { get } from 'svelte/store';
 import { settings } from '../stores/settings.js';
 import { apiActions } from '../stores/api.js';
+import { articles } from '../api.js';
 
 class ScrollTracker {
   constructor() {
@@ -223,22 +224,8 @@ class ScrollTracker {
     if (articleIds.length === 0) return;
     
     try {
-      // Use the bulk API endpoint
-      const response = await fetch('http://localhost:8000/api/articles/bulk/mark-read', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          article_ids: articleIds
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
+      // Use the API client which handles the correct URL
+      const result = await articles.bulkMarkRead(articleIds);
       
       // Update local state for each successfully marked article
       articleIds.forEach(articleId => {
