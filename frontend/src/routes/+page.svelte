@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import ArticleList from '$lib/components/ArticleList.svelte';
 	import { articlesStore, isLoading, isLoadingMore, hasMoreArticles, selectedCategory, selectedFeed, selectedFilter, apiActions } from '$lib/stores/api.js';
-	import { userSettings } from '$lib/api.js';
+	import { userSettings, articles as articlesApi } from '$lib/api.js';
 	import { isMobile, isSidebarOpen, toggleSidebar } from '$lib/stores/sidebar.js';
 	import { scrollTracker } from '$lib/services/scrollTracker.js';
 	
@@ -51,55 +51,54 @@
 	
 	let scrollContainer;
 
-	// Force process pending read articles when we reach the end and "No more articles to load" is visible
+	// Track when end message is visible to show mark-as-read button
 	let endMessageVisible = $state(false);
+	let showMarkAllReadButton = $state(false);
 	
 	$effect(() => {
-		// Only force process when "No more articles to load" is actually visible to the user
-		// AND we've actually reached the end of ALL articles (not just current page)
+		// Show mark-as-read button when we reach the end and there are unread articles
 		if (articles.length > 0 && !moreAvailable && !loadingMore && endMessageVisible) {
-			console.log('End of articles reached and message visible, checking if really at end...');
-			console.log('Articles count:', articles.length);
-			console.log('Has more articles:', moreAvailable);
-			
-			// Only process if we're TRULY at the end (no more articles to load from backend)
-			// This prevents marking all articles as read when just pausing mid-scroll
-			if (!moreAvailable) {
-				// Add a delay to ensure only visible articles are tracked
-				setTimeout(() => {
-					console.log('At true end of feed, processing only visible articles...');
-					console.log('Pending articles in batch:', scrollTracker.pendingReadArticles.size);
-					
-					// Get all article elements that are currently visible in viewport
-					const articleElements = document.querySelectorAll('[data-article-id]');
-					const visibleArticleIds = new Set();
-					
-					articleElements.forEach(element => {
-						const rect = element.getBoundingClientRect();
-						// Check if element is at least partially visible in viewport
-						if (rect.top < window.innerHeight && rect.bottom > 0) {
-							const articleId = parseInt(element.dataset.articleId);
-							if (articleId) {
-								visibleArticleIds.add(articleId);
-							}
-						}
-					});
-					
-					console.log('Visible articles in viewport:', visibleArticleIds.size);
-					
-					// Only add VISIBLE unread articles to the batch
-					articles.forEach(article => {
-						if (!article.read_status?.is_read && visibleArticleIds.has(article.id)) {
-							console.log('Adding visible end article to batch:', article.id, article.title);
-							scrollTracker.addToBatch(article.id);
-						}
-					});
-					
-					scrollTracker.forceProcessBatch();
-				}, 2000);
-			}
+			const hasUnreadArticles = articles.some(article => !article.read_status?.is_read);
+			showMarkAllReadButton = hasUnreadArticles;
+		} else {
+			showMarkAllReadButton = false;
 		}
 	});
+	
+	// Function to mark all articles in current view as read
+	async function markAllCurrentRead() {
+		try {
+			console.log('markAllCurrentRead called');
+			console.log('Selected category:', $selectedCategory);
+			console.log('Articles length:', articles.length);
+			
+			// If we're viewing a specific category, mark the entire category as read
+			if ($selectedCategory) {
+				console.log('Marking category as read:', $selectedCategory.id);
+				await apiActions.markCategoryAsRead($selectedCategory.id);
+			} else {
+				// Mark all currently loaded articles as read
+				const unreadArticleIds = articles
+					.filter(article => !article.read_status?.is_read)
+					.map(article => article.id);
+				
+				console.log('Marking individual articles as read:', unreadArticleIds.length, 'articles');
+				
+				if (unreadArticleIds.length > 0) {
+					await articlesApi.bulkMarkRead(unreadArticleIds);
+				}
+			}
+			
+			// Reload articles to refresh the view
+			await apiActions.loadArticles();
+			
+			// Hide the button after successful action
+			showMarkAllReadButton = false;
+			
+		} catch (error) {
+			console.error('Failed to mark articles as read:', error);
+		}
+	}
 
 	// Intersection observer action to detect when "No more articles to load" is visible
 	function endMessageObserver(element) {
@@ -290,10 +289,22 @@
 				</div>
 			{:else if !moreAvailable && articles.length > 0}
 				<div 
-					class="flex items-center justify-center py-4"
+					class="flex flex-col items-center justify-center py-4 space-y-3"
 					use:endMessageObserver
 				>
 					<span class="text-sm text-gray-500 dark:text-gray-400">No more articles to load</span>
+					
+					{#if showMarkAllReadButton}
+						<button
+							onclick={markAllCurrentRead}
+							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors duration-200 flex items-center gap-2"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+							</svg>
+							Want to mark all read?
+						</button>
+					{/if}
 				</div>
 			{/if}
 		{/if}

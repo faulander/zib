@@ -50,18 +50,16 @@ class AutoRefreshService:
     async def _start_user_refresh_tasks(self):
         '''Start refresh tasks for all users with auto-refresh enabled'''
         try:
-            if db.is_closed():
-                db.connect()
             users = list(User.select().where(User.auto_refresh_feeds == True))
+            logger.info(f'Found {len(users)} users with auto-refresh enabled')
             
             for user in users:
                 await self._start_user_refresh_task(user)
                 
         except Exception as e:
             logger.error(f'Failed to start user refresh tasks: {e}')
-        finally:
-            if not db.is_closed():
-                db.close()
+            import traceback
+            logger.error(traceback.format_exc())
     
     async def _start_user_refresh_task(self, user: User):
         '''Start refresh task for a specific user'''
@@ -102,8 +100,6 @@ class AutoRefreshService:
             from app.services.feed_fetcher import feed_fetcher
             
             # Get all active feeds
-            if db.is_closed():
-                db.connect()
             feeds = list(Feed.select().where(Feed.is_active == True))
             
             if not feeds:
@@ -122,9 +118,8 @@ class AutoRefreshService:
             
         except Exception as e:
             logger.error(f'Failed to refresh feeds for user {user.username}: {e}')
-        finally:
-            if not db.is_closed():
-                db.close()
+            import traceback
+            logger.error(traceback.format_exc())
     
     async def update_user_settings(self, user: User):
         '''Update refresh task when user settings change'''
