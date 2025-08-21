@@ -31,7 +31,8 @@
       "Bash(open http://localhost:5173)",
       "Bash(git config:*)",
       "Bash(git pull:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(ssh:*)"
     ],
     "deny": [],
     "ask": []

@@ -28,6 +28,13 @@ async def lifespan(app: FastAPI):
     logger.info(f'Debug mode: {settings.debug}')
     logger.info(f'Database URL: {settings.database_url}')
     
+    # Ensure default user exists for auto-refresh
+    try:
+        from app.services.auto_refresh_helper import ensure_default_user
+        ensure_default_user()
+    except Exception as e:
+        logger.error(f'Failed to ensure default user: {e}')
+    
     # Start auto-refresh service
     try:
         logger.info('Starting auto-refresh service...')

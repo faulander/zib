@@ -76,15 +76,30 @@ class AutoRefreshService:
     async def _user_refresh_loop(self, user: User):
         '''Main refresh loop for a user'''
         try:
+            user_id = user.id
+            logger.info(f'Starting refresh loop for user {user.username} (ID: {user_id})')
+            
             while self.running:
-                # Wait for the refresh interval
-                await asyncio.sleep(user.auto_refresh_interval_minutes * 60)
+                # Refresh user object to get latest settings
+                try:
+                    current_user = User.get_by_id(user_id)
+                    if not current_user.auto_refresh_feeds:
+                        logger.info(f'Auto-refresh disabled for user {current_user.username}, stopping task')
+                        break
+                except Exception as e:
+                    logger.error(f'Failed to refresh user settings: {e}')
+                    current_user = user  # Fallback to original user object
+                
+                # Do the refresh first, then sleep
+                await self._refresh_user_feeds(current_user)
                 
                 if not self.running:
                     break
                 
-                # Refresh all feeds for this user
-                await self._refresh_user_feeds(user)
+                # Wait for the refresh interval using current settings
+                sleep_seconds = current_user.auto_refresh_interval_minutes * 60
+                logger.info(f'Next refresh for user {current_user.username} in {current_user.auto_refresh_interval_minutes} minutes')
+                await asyncio.sleep(sleep_seconds)
                 
         except asyncio.CancelledError:
             logger.info(f'Auto-refresh cancelled for user {user.username}')
@@ -95,6 +110,12 @@ class AutoRefreshService:
         '''Refresh all feeds for a user'''
         try:
             logger.info(f'Auto-refreshing feeds for user {user.username}')
+            
+            # Ensure database connection is active
+            from app.core.database import db
+            if db.is_closed():
+                logger.info('Database connection closed, reconnecting...')
+                db.connect()
             
             # Import feed_fetcher here to avoid circular imports
             from app.services.feed_fetcher import feed_fetcher

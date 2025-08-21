@@ -117,3 +117,39 @@ articles_data, has_more, next_cursor = fetch_filtered_articles_with_pagination(
 - **With content filters**: 1-5 database queries per pagination request (adaptive)
 - **Filter efficiency tracking**: Automatically adjusts batch sizes based on filter pass-through rates
 - **Memory efficient**: Processes articles in batches rather than loading all at once
+
+## Production Deployment
+
+### SSH Access
+- **Production server**: `ssh -i ~/.ssh/zib_deploy_key hf@192.168.42.167`
+- **Backend container**: `zib-backend`
+- **Frontend container**: `zib-frontend`
+
+### Auto Refresh Service Debugging
+
+**Issue Found (2025-08-21)**: Auto refresh service wasn't working in production despite being enabled in settings.
+
+**Root Cause**: 
+1. **Sleep-first logic**: Service would sleep for 5 minutes BEFORE doing first refresh, causing no immediate activity
+2. **Stale user settings**: Async task held static user object, not reflecting UI setting changes
+3. **Database connection issues**: Long-running async tasks might lose database connection
+
+**Solution Implemented**:
+- Changed to refresh-first, then sleep pattern for immediate activity
+- Added dynamic user settings refresh in the loop using `User.get_by_id()`  
+- Added database connection check and reconnection logic
+- Improved logging to track refresh cycles and user setting updates
+
+**Key Commands for Debugging**:
+```bash
+# Check container status
+ssh -i ~/.ssh/zib_deploy_key hf@192.168.42.167 "docker ps | grep zib"
+
+# Check backend logs for auto refresh activity
+ssh -i ~/.ssh/zib_deploy_key hf@192.168.42.167 "docker logs zib-backend | grep -i 'auto-refresh'"
+
+# Check current settings via API
+ssh -i ~/.ssh/zib_deploy_key hf@192.168.42.167 "curl -s http://localhost:8000/api/settings/"
+```
+
+**Testing Pattern**: With 5-minute interval, expect to see refresh logs every 5 minutes after initial startup refresh.
