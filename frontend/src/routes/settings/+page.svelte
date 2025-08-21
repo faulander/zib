@@ -4,13 +4,18 @@
 	import { settings } from '$lib/stores/settings.js';
 	import { opml, api, filters, userSettings, feeds as feedsApi } from '$lib/api.js';
 	import { autoRefreshService } from '$lib/services/autoRefreshService.js';
-	import { Plus, Trash2, Download, Upload, RefreshCw, Settings, Rss, FolderOpen, FileText, ChevronDown, ChevronRight, Filter, Edit3, Activity, CheckCircle } from '@lucide/svelte';
+	import { isMobile, isSidebarOpen, toggleSidebar, closeSidebar } from '$lib/stores/sidebar.js';
+	import { Plus, Trash2, Download, Upload, RefreshCw, Settings, Rss, FolderOpen, FileText, ChevronDown, ChevronRight, Filter, Edit3, Activity, CheckCircle, Menu } from '@lucide/svelte';
 	
 	// Use Svelte 5 runes
 	let feeds = $derived($feedsStore);
 	let categories = $derived($categoriesStore);
 	let loading = $derived($isLoading);
 	let apiError = $derived($error);
+	
+	// Mobile and sidebar state
+	let mobileState = $derived($isMobile);
+	let sidebarState = $derived($isSidebarOpen);
 	
 	// Settings - use reactive state for binding
 	let autoRefreshFeeds = $state(false);
@@ -595,11 +600,60 @@
 		brokenFeedsModal = { show: false, categoryId: null, categoryName: '', feeds: [] };
 		selectedBrokenFeeds = new Set();
 	}
+	
+	// Touch handling for swipe gestures
+	let touchStartX = 0;
+	let touchEndX = 0;
+	
+	function handleTouchStart(e) {
+		if (mobileState) {
+			touchStartX = e.touches[0].clientX;
+		}
+	}
+	
+	function handleTouchEnd(e) {
+		if (mobileState) {
+			touchEndX = e.changedTouches[0].clientX;
+			handleSwipe();
+		}
+	}
+	
+	function handleSwipe() {
+		const swipeDistance = touchEndX - touchStartX;
+		const swipeThreshold = 75; // Minimum swipe distance
+		
+		if (Math.abs(swipeDistance) > swipeThreshold) {
+			if (swipeDistance > 0 && touchStartX < 50) {
+				// Swipe right from left edge - open sidebar
+				$isSidebarOpen = true;
+			} else if (swipeDistance < 0 && sidebarState) {
+				// Swipe left - close sidebar
+				closeSidebar();
+			}
+		}
+	}
 </script>
 
-<div class="h-full flex">
+<div 
+	class="h-full flex relative"
+	ontouchstart={handleTouchStart}
+	ontouchend={handleTouchEnd}
+>
+	<!-- Mobile Overlay -->
+	{#if mobileState && sidebarState}
+		<div 
+			class="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+			onclick={() => closeSidebar()}
+		></div>
+	{/if}
+	
 	<!-- Settings Sidebar -->
-	<aside class="w-80 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+	<aside class="
+		{mobileState ? 'fixed left-0 top-0 h-full z-40 transform transition-transform duration-300' : 'relative'} 
+		{mobileState && !sidebarState ? '-translate-x-full' : 'translate-x-0'}
+		w-80 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col
+		md:relative md:translate-x-0 md:z-auto
+	">
 		<!-- Settings Header -->
 		<div class="p-4 border-b border-gray-200 dark:border-gray-700">
 			<div class="flex items-center space-x-2">
@@ -615,7 +669,13 @@
 		<div class="flex-1 overflow-y-auto p-2 space-y-1">
 			{#each settingsSections as section}
 				<button
-					onclick={() => selectedSection = section.id}
+					onclick={() => {
+						selectedSection = section.id;
+						// Close sidebar on mobile after selection
+						if (mobileState) {
+							closeSidebar();
+						}
+					}}
 					class="w-full flex items-center space-x-2 p-2 rounded transition-colors text-left {selectedSection === section.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 				>
 					<svelte:component this={section.icon} class="h-4 w-4" />
@@ -628,10 +688,20 @@
 	<!-- Settings Content -->
 	<main class="flex-1 overflow-y-auto bg-white dark:bg-gray-800">
 		<!-- Content Header -->
-		<div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4 bg-white dark:bg-gray-800">
+		<div class="border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 py-4 bg-white dark:bg-gray-800">
 			<div class="flex items-center justify-between">
-				<div>
-					<h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+				<div class="flex items-center space-x-3">
+					<!-- Hamburger Menu (Mobile Only) -->
+					{#if mobileState}
+						<button
+							onclick={() => toggleSidebar()}
+							class="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+							aria-label="Toggle menu"
+						>
+							<Menu class="h-5 w-5 text-gray-600 dark:text-gray-300" />
+						</button>
+					{/if}
+					<h2 class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
 						{settingsSections.find(s => s.id === selectedSection)?.name || 'Settings'}
 					</h2>
 				</div>
