@@ -31,7 +31,7 @@ class RefreshStatusService {
    */
   async start() {
     if (this.pollInterval) {
-      console.log('Refresh status service already running');
+      // Refresh status service already running
       return; // Already running
     }
 
@@ -97,7 +97,7 @@ class RefreshStatusService {
    * Called when a refresh is completed on the backend
    */
   onRefreshCompleted() {
-    console.log('Backend refresh completed, triggering frontend data reload');
+    // Backend refresh completed, trigger frontend data reload
     
     // Dispatch a custom event that components can listen to
     if (typeof window !== 'undefined') {
@@ -106,9 +106,9 @@ class RefreshStatusService {
   }
 
   /**
-   * Format time until next refresh
+   * Format time until next refresh (instance method)
    */
-  static formatTimeUntilRefresh(seconds) {
+  formatTimeUntilRefresh(seconds) {
     if (!seconds || seconds < 0) return 'Now';
     
     const minutes = Math.floor(seconds / 60);

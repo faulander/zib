@@ -25,31 +25,32 @@
 	let categories = $derived($categoriesStore);
 	let feeds = $derived($feedsStore);
 	let counts = $derived($unreadCounts);
-	// Use reactive statement with proper reactivity
-	let refreshingStatus = $state(false);
-	let secondsUntilRefresh = $state(null);
-	let intervalMinutes = $state(5);
-	let lastRefreshCompleted = $state(null);
 	
-	// Subscribe to store updates and set individual reactive values
+	// Use the store directly with $ syntax for proper reactivity
+	let refreshData = $derived($refreshStatus);
+	
+	// Derive individual values from the store for cleaner template access
+	let refreshingStatus = $derived(refreshData?.is_refreshing || false);
+	let secondsUntilRefresh = $derived(refreshData?.seconds_until_refresh || null);
+	let intervalMinutes = $derived(refreshData?.interval_minutes || 5);
+	let lastRefreshCompleted = $derived(refreshData?.last_refresh_completed || null);
+	
+	// Debug: log the state to understand what's happening
 	$effect(() => {
-		const unsubscribe = refreshStatus.subscribe(value => {
-			refreshingStatus = value?.is_refreshing || false;
-			secondsUntilRefresh = value?.seconds_until_refresh || null;
-			intervalMinutes = value?.interval_minutes || 5;
-			lastRefreshCompleted = value?.last_refresh_completed || null;
-			
-			// Debug: log which condition should be true
-			if (value?.is_refreshing === true) {
-				console.log('UI should show: Refreshing...');
-			} else if (value?.seconds_until_refresh && value.seconds_until_refresh > 0) {
-				console.log('UI should show: Next countdown -', value.seconds_until_refresh);
-			} else {
-				console.log('UI should show: Auto-refresh ready');
-			}
-		});
+		if (refreshData?.is_refreshing === true) {
+			console.log('UI should show: Refreshing...');
+		} else if (refreshData?.seconds_until_refresh && refreshData.seconds_until_refresh > 0) {
+			console.log('UI should show: Next countdown -', refreshData.seconds_until_refresh);
+		} else {
+			console.log('UI should show: Auto-refresh ready');
+		}
 		
-		return unsubscribe;
+		// Also log the derived values
+		console.log('Derived values:', {
+			refreshingStatus,
+			secondsUntilRefresh,
+			intervalMinutes
+		});
 	});
 	
 	// Reload counters when search changes
@@ -231,30 +232,25 @@
 			</a>
 			
 			<!-- Refresh Status -->
-			<div class="space-y-1">
-				<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-					<span>
-						{#if refreshingStatus === true}
-							<span class="flex items-center space-x-1">
-								<svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-								</svg>
-								<span>Refreshing...</span>
-							</span>
-						{:else if secondsUntilRefresh && secondsUntilRefresh > 0}
-							Next: {refreshStatusService.formatTimeUntilRefresh(secondsUntilRefresh)}
-						{:else}
-							Auto-refresh ready
-						{/if}
-					</span>
-					<span class="text-xs">
-						{intervalMinutes}m
-					</span>
-				</div>
+			<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+				<span>
+					{#if refreshingStatus === true}
+						<span class="flex items-center space-x-1">
+							<svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+							</svg>
+							<span>Refreshing...</span>
+						</span>
+					{:else if secondsUntilRefresh && secondsUntilRefresh > 0}
+						Next: {refreshStatusService.formatTimeUntilRefresh(secondsUntilRefresh)}
+					{:else}
+						Auto-refresh ready
+					{/if}
+				</span>
 				{#if lastRefreshCompleted}
-					<div class="text-xs text-gray-400 dark:text-gray-500">
+					<span class="text-gray-400 dark:text-gray-500">
 						Last: {formatLastUpdated(new Date(lastRefreshCompleted).getTime())}
-					</div>
+					</span>
 				{/if}
 			</div>
 		</div>

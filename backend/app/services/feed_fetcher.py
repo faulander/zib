@@ -458,13 +458,21 @@ class FeedFetcher:
                                 pass
                         
                         # Skip articles that are older than the last refresh time
+                        # BUT always allow articles from today (even if published before last refresh)
                         # Only apply this filter if we have both timestamps and this is not the first fetch
                         if last_refresh_time and article_published_date:
-                            if article_published_date < last_refresh_time:
+                            # Get today's date at midnight (UTC)
+                            from datetime import timezone
+                            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+                            
+                            # Skip only if article is both:
+                            # 1. Older than last refresh time AND
+                            # 2. Not from today
+                            if article_published_date < last_refresh_time and article_published_date < today_start:
                                 articles_skipped_old += 1
                                 logger.debug(
                                     f'Skipping old article: "{article_data.get("title", "Unknown")}" '
-                                    f'(published: {article_published_date}, last refresh: {last_refresh_time})'
+                                    f'(published: {article_published_date}, last refresh: {last_refresh_time}, today: {today_start})'
                                 )
                                 continue
                         
