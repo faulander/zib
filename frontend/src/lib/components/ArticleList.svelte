@@ -300,7 +300,7 @@
 							</span>
 							<span>•</span>
 							<span class="whitespace-nowrap">
-								{userSettingsData.show_timestamps_in_list ? formatRelativeTimestamp(article.published_date) : formatTime(article.published_date)}
+								{userSettingsData.show_timestamps_in_list ? formatRelativeTimestamp(article.published_date || article.created_at) : formatTime(article.published_date || article.created_at)}
 							</span>
 						</div>
 						
@@ -374,18 +374,18 @@
 						</svg>
 					{/if}
 
-					<!-- Feed and Date Info (hide on mobile in list view) -->
-					{#if !isMobile}
-						<div class="flex items-center space-x-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+					<!-- Feed and Date Info -->
+					<div class="flex items-center space-x-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+						{#if !isMobile}
 							<span class="truncate max-w-16 sm:max-w-20 text-xs">
 								{article.feed?.title || 'Unknown'}
 							</span>
 							<span class="text-xs">•</span>
-							<span class="whitespace-nowrap text-xs">
-								{userSettingsData.show_timestamps_in_list ? formatRelativeTimestamp(article.published_date) : formatTime(article.published_date)}
-							</span>
-						</div>
-					{/if}
+						{/if}
+						<span class="whitespace-nowrap text-xs">
+							{userSettingsData.show_timestamps_in_list ? formatRelativeTimestamp(article.published_date || article.created_at) : formatTime(article.published_date || article.created_at)}
+						</span>
+					</div>
 
 					<!-- Article Actions -->
 					<div class="flex items-center space-x-0.5 {isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity flex-shrink-0">

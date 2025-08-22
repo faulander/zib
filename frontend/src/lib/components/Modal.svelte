@@ -18,7 +18,8 @@
 	}
 	
 	function handleBackdropClick(event) {
-		if (event.target === event.currentTarget) {
+		// Check if the click was on the backdrop or modal container (not the modal content)
+		if (event.target === event.currentTarget || event.target.classList.contains('modal-backdrop')) {
 			closeModal();
 		}
 	}
@@ -67,10 +68,10 @@
 		aria-labelledby="modal-title"
 	>
 		<!-- Backdrop -->
-		<div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+		<div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity modal-backdrop"></div>
 		
 		<!-- Modal container -->
-		<div class="flex min-h-full items-center justify-center p-4">
+		<div class="flex min-h-full items-center justify-center p-4 modal-backdrop">
 			<div 
 				bind:this={modalElement}
 				class="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden"
