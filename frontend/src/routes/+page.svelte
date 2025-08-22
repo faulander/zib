@@ -92,6 +92,9 @@
 			// Reload articles to refresh the view
 			await apiActions.loadArticles();
 			
+			// Reload unread counts to update the sidebar
+			await apiActions.loadUnreadCounts();
+			
 			// Hide the button after successful action
 			showMarkAllReadButton = false;
 			

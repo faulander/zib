@@ -49,7 +49,10 @@
 	}
 
 	function formatTime(dateString) {
-		const date = new Date(dateString);
+		// Treat the date as UTC if it doesn't have timezone info
+		const date = dateString.includes('Z') || dateString.includes('+') || dateString.includes('-')
+			? new Date(dateString)  // Already has timezone info
+			: new Date(dateString + 'Z');  // Add UTC indicator
 		return date.toLocaleTimeString('en-US', {
 			hour: 'numeric',
 			minute: '2-digit',
@@ -61,7 +64,10 @@
 	function formatRelativeTimestamp(dateString) {
 		if (!dateString) return '';
 		
-		const date = new Date(dateString);
+		// Treat the date as UTC if it doesn't have timezone info
+		const date = dateString.includes('Z') || dateString.includes('+') || dateString.includes('-')
+			? new Date(dateString)  // Already has timezone info
+			: new Date(dateString + 'Z');  // Add UTC indicator
 		const diffMs = currentTime - date;
 		const diffMins = Math.floor(diffMs / 60000);
 		const diffHours = Math.floor(diffMs / 3600000);

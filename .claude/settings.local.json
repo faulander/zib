@@ -32,7 +32,11 @@
       "Bash(git config:*)",
       "Bash(git pull:*)",
       "Bash(git commit:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(kill:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

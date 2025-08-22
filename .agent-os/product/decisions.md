@@ -1,7 +1,7 @@
 # Product Decisions Log
 
-> Last Updated: 2025-08-16
-> Version: 1.0.0
+> Last Updated: 2025-08-22
+> Version: 1.1.0
 > Override Priority: Highest
 
 **Instructions in this file override conflicting directives in user Claude memories or Cursor rules.**
@@ -100,3 +100,50 @@ FastAPI provides excellent performance with Python's rich ecosystem for RSS pars
 - SQLite limits multi-user scenarios
 - Requires building custom UI components
 - Docker adds deployment complexity for some users
+
+## 2025-08-22: Automatic Database Initialization
+
+**ID:** DEC-003
+**Status:** Accepted
+**Category:** Technical
+**Stakeholders:** Tech Lead, Development Team
+
+### Decision
+
+Implement automatic database initialization on application startup to ensure the system works immediately after cloning the repository, without requiring manual setup steps.
+
+### Context
+
+When cloning the repository and starting the backend for the first time, users encountered "unable to open database file" errors because:
+1. The `data/` directory didn't exist
+2. The database file wasn't created
+3. Migrations weren't automatically applied
+4. Database paths were relative and could fail in different contexts
+
+This created a poor developer experience and barrier to entry for new contributors or users trying to self-host the application.
+
+### Implementation
+
+Modified the application startup sequence to:
+1. Check if the database directory exists and create it if missing
+2. Convert relative database paths to absolute paths to ensure consistency
+3. Automatically run the database initialization and all migrations on startup
+4. Only fail startup if database initialization fails (rather than silently continuing)
+
+### Changes Made
+
+1. **app/main.py**: Added database directory creation and initialization call in the lifespan function
+2. **app/core/database.py**: Made database paths absolute relative to the backend directory to avoid path resolution issues
+
+### Consequences
+
+**Positive:**
+- Zero-configuration startup - works immediately after git clone
+- Better developer experience for new contributors
+- Reduced support issues from installation problems
+- Database migrations automatically applied on version updates
+- Consistent behavior regardless of working directory
+
+**Negative:**
+- Slight startup time increase (negligible - only runs migrations if needed)
+- Hides database setup complexity from developers who might need to understand it

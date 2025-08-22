@@ -236,6 +236,9 @@ class ScrollTracker {
         });
       });
       
+      // Update unread counts after batch marking
+      await apiActions.loadUnreadCounts();
+      
       return result;
     } catch (error) {
       console.error('Failed to bulk mark articles as read:', error);

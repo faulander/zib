@@ -425,6 +425,10 @@ class FeedFetcher:
             articles_added = 0
             articles_updated = 0
             articles_failed = 0
+            articles_skipped_old = 0
+            
+            # Get the timestamp of the last refresh for filtering
+            last_refresh_time = feed.last_fetched
             
             for article_data in article_data_list:
                 try:
@@ -440,6 +444,30 @@ class FeedFetcher:
                         articles_updated += 1
                         logger.debug(f'Article already exists: {article_data["link"]}')
                     else:
+                        # Parse published date to check if article is newer than last refresh
+                        article_published_date = None
+                        if article_data.get('published_parsed'):
+                            try:
+                                import calendar
+                                from datetime import timezone
+                                # Convert time struct to UTC timestamp using calendar.timegm (treats as UTC)
+                                utc_timestamp = calendar.timegm(article_data['published_parsed'])
+                                # Parse as UTC datetime, then convert to naive (to match database storage)
+                                article_published_date = datetime.fromtimestamp(utc_timestamp, tz=timezone.utc).replace(tzinfo=None)
+                            except (ValueError, TypeError, OverflowError):
+                                pass
+                        
+                        # Skip articles that are older than the last refresh time
+                        # Only apply this filter if we have both timestamps and this is not the first fetch
+                        if last_refresh_time and article_published_date:
+                            if article_published_date < last_refresh_time:
+                                articles_skipped_old += 1
+                                logger.debug(
+                                    f'Skipping old article: "{article_data.get("title", "Unknown")}" '
+                                    f'(published: {article_published_date}, last refresh: {last_refresh_time})'
+                                )
+                                continue
+                        
                         # Create new article
                         article = Article.create_from_feed_entry(feed, article_data)
                         articles_added += 1
@@ -466,7 +494,8 @@ class FeedFetcher:
             
             logger.info(
                 f'Feed updated: {feed.url} - '
-                f'Added: {articles_added}, Updated: {articles_updated}, Failed: {articles_failed}'
+                f'Added: {articles_added}, Updated: {articles_updated}, Failed: {articles_failed}, '
+                f'Skipped (old): {articles_skipped_old}'
             )
             
             return FeedUpdateResult(

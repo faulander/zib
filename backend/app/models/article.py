@@ -206,10 +206,12 @@ class Article(BaseModel):
         # Parse published date
         if entry.get('published_parsed'):
             try:
-                import time
-                article_data['published_date'] = datetime.fromtimestamp(
-                    time.mktime(entry['published_parsed'])
-                )
+                import calendar
+                from datetime import timezone
+                # Convert time struct to UTC timestamp using calendar.timegm (treats as UTC)
+                utc_timestamp = calendar.timegm(entry['published_parsed'])
+                # Store as UTC datetime, then convert to naive (database stores as naive UTC)
+                article_data['published_date'] = datetime.fromtimestamp(utc_timestamp, tz=timezone.utc).replace(tzinfo=None)
             except (ValueError, TypeError, OverflowError):
                 pass
         

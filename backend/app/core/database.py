@@ -1,12 +1,21 @@
 from peewee import SqliteDatabase, Model
+from pathlib import Path
+import os
 from .config import settings
 from .logging import get_logger
 
 logger = get_logger(__name__)
 
+# Ensure database path is absolute
+db_path = settings.database_url.replace('sqlite:///', '')
+if not os.path.isabs(db_path):
+    # Make path absolute relative to backend directory
+    backend_dir = Path(__file__).parent.parent.parent
+    db_path = str(backend_dir / db_path)
+
 # Database instance
 db = SqliteDatabase(
-    settings.database_url.replace('sqlite:///', ''),
+    db_path,
     pragmas={
         'journal_mode': 'wal',
         'cache_size': -1 * 64000,  # 64MB
