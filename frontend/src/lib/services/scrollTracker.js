@@ -27,6 +27,10 @@ class ScrollTracker {
    * @param {Object} article - The article data
    */
   trackArticle(element, article) {
+    // TEMPORARILY DISABLED: Auto-mark-as-read functionality is causing issues
+    // Articles are being marked as read when they shouldn't be
+    return;
+    
     if (!element || !article) {
       return;
     }

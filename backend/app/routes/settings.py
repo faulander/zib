@@ -5,7 +5,9 @@ from app.core.auth import get_current_user
 from app.models.article import User
 from app.core.database import TransactionManager
 from app.services.auto_refresh_service import auto_refresh_service
+from app.core.logging import get_logger
 
+logger = get_logger(__name__)
 router = APIRouter(prefix='/settings', tags=['settings'])
 
 
@@ -16,7 +18,7 @@ class UserSettingsRequest(BaseModel):
     default_view: str = Field(default='unread')
     open_webpage_for_short_articles: bool = Field(default=False)
     short_article_threshold: int = Field(default=500, ge=50, le=5000)
-    auto_refresh_feeds: bool = Field(default=False)
+    auto_refresh_feeds: bool = Field(default=True)
     auto_refresh_interval_minutes: int = Field(default=30, ge=5, le=1440)  # 5 min to 24 hours
     show_timestamps_in_list: bool = Field(default=True)
     preferred_view_mode: str = Field(default='list')
@@ -89,3 +91,56 @@ async def update_user_settings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Failed to update settings: {str(e)}'
         )
+
+
+@router.get('/refresh-status', response_model=dict)
+async def get_refresh_status():
+    '''Get the current auto-refresh status for the user'''
+    try:
+        # For single-user system, always use user ID 1
+        status = auto_refresh_service.get_refresh_status(1)
+        
+        # Convert datetime objects to ISO format for JSON serialization
+        from datetime import datetime
+        
+        def serialize_datetime(dt_value):
+            '''Helper to safely serialize datetime to ISO string'''
+            if dt_value is None:
+                return None
+            if isinstance(dt_value, datetime):
+                return dt_value.isoformat()
+            # If already a string, return as-is
+            return dt_value
+        
+        # Serialize all datetime fields
+        status['last_refresh_started'] = serialize_datetime(status.get('last_refresh_started'))
+        status['last_refresh_completed'] = serialize_datetime(status.get('last_refresh_completed'))
+        
+        # Handle next_refresh_at and calculate seconds_until_refresh
+        next_refresh_at = status.get('next_refresh_at')
+        if next_refresh_at:
+            if isinstance(next_refresh_at, datetime):
+                # Calculate seconds until refresh
+                seconds_until_refresh = max(0, int((next_refresh_at - datetime.now()).total_seconds()))
+                status['seconds_until_refresh'] = seconds_until_refresh
+                status['next_refresh_at'] = next_refresh_at.isoformat()
+            else:
+                # Try to parse string datetime
+                try:
+                    next_refresh_dt = datetime.fromisoformat(str(next_refresh_at))
+                    seconds_until_refresh = max(0, int((next_refresh_dt - datetime.now()).total_seconds()))
+                    status['seconds_until_refresh'] = seconds_until_refresh
+                    status['next_refresh_at'] = str(next_refresh_at)
+                except Exception as parse_e:
+                    logger.error(f'Failed to parse next_refresh_at: {parse_e}')
+                    status['seconds_until_refresh'] = None
+                    status['next_refresh_at'] = str(next_refresh_at)
+        else:
+            status['seconds_until_refresh'] = None
+            status['next_refresh_at'] = None
+        
+        return status
+        
+    except Exception as e:
+        logger.error(f'Error getting refresh status: {e}')
+        raise HTTPException(status_code=500, detail=str(e))

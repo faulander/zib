@@ -16,6 +16,7 @@ class AutoRefreshService:
     def __init__(self):
         self.refresh_tasks: Dict[int, asyncio.Task] = {}  # user_id -> task
         self.running = False
+        self.refresh_status: Dict[int, Dict] = {}  # user_id -> refresh status info
     
     async def start(self):
         '''Start the auto-refresh service'''
@@ -90,11 +91,32 @@ class AutoRefreshService:
                     logger.error(f'Failed to refresh user settings: {e}')
                     current_user = user  # Fallback to original user object
                 
+                # Update status to indicate refresh is starting
+                self.refresh_status[user_id] = {
+                    'is_refreshing': True,
+                    'last_refresh_started': datetime.now(),
+                    'last_refresh_completed': self.refresh_status.get(user_id, {}).get('last_refresh_completed'),
+                    'next_refresh_at': None,
+                    'interval_minutes': current_user.auto_refresh_interval_minutes
+                }
+                
                 # Do the refresh first, then sleep
                 await self._refresh_user_feeds(current_user)
                 
                 if not self.running:
                     break
+                
+                # Calculate next refresh time
+                next_refresh = datetime.now() + timedelta(minutes=current_user.auto_refresh_interval_minutes)
+                
+                # Update status to indicate refresh is complete
+                self.refresh_status[user_id] = {
+                    'is_refreshing': False,
+                    'last_refresh_started': self.refresh_status[user_id]['last_refresh_started'],
+                    'last_refresh_completed': datetime.now(),
+                    'next_refresh_at': next_refresh,
+                    'interval_minutes': current_user.auto_refresh_interval_minutes
+                }
                 
                 # Wait for the refresh interval using current settings
                 sleep_seconds = current_user.auto_refresh_interval_minutes * 60
@@ -141,6 +163,52 @@ class AutoRefreshService:
             logger.error(f'Failed to refresh feeds for user {user.username}: {e}')
             import traceback
             logger.error(traceback.format_exc())
+    
+    def get_refresh_status(self, user_id: int) -> Dict:
+        '''Get the current refresh status for a user'''
+        status = self.refresh_status.get(user_id)
+        if not status:
+            # Try to get user settings
+            try:
+                user = User.get_by_id(user_id)
+                if user.auto_refresh_feeds:
+                    # Calculate initial next refresh time
+                    next_refresh = datetime.now() + timedelta(minutes=user.auto_refresh_interval_minutes)
+                    return {
+                        'is_refreshing': False,
+                        'last_refresh_started': None,
+                        'last_refresh_completed': None,
+                        'next_refresh_at': next_refresh,
+                        'interval_minutes': user.auto_refresh_interval_minutes,
+                        'auto_refresh_enabled': True
+                    }
+                else:
+                    return {
+                        'is_refreshing': False,
+                        'last_refresh_started': None,
+                        'last_refresh_completed': None,
+                        'next_refresh_at': None,
+                        'interval_minutes': user.auto_refresh_interval_minutes,
+                        'auto_refresh_enabled': False
+                    }
+            except:
+                return {
+                    'is_refreshing': False,
+                    'last_refresh_started': None,
+                    'last_refresh_completed': None,
+                    'next_refresh_at': None,
+                    'interval_minutes': 0,
+                    'auto_refresh_enabled': False
+                }
+        
+        # Add auto_refresh_enabled flag to existing status
+        try:
+            user = User.get_by_id(user_id)
+            status['auto_refresh_enabled'] = user.auto_refresh_feeds
+        except:
+            status['auto_refresh_enabled'] = False
+            
+        return status
     
     async def update_user_settings(self, user: User):
         '''Update refresh task when user settings change'''

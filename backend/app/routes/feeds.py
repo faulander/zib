@@ -8,12 +8,15 @@ from app.schemas.feed_health import (
 )
 from app.services.feed_service import FeedService
 from app.services.feed_health_service import feed_health_service
+from app.services.auto_refresh_service import auto_refresh_service
 from app.models.base import Category
+from app.models.article import User
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix='/feeds', tags=['feeds'])
+
 
 
 @router.post('/', status_code=status.HTTP_201_CREATED, response_model=FeedResponse)

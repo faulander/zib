@@ -131,6 +131,8 @@ class FilterService:
     def apply_filters(articles: List[Article], user: User, category_id: Optional[int] = None) -> List[Article]:
         '''Apply user's active filters to a list of articles'''
         try:
+            from datetime import datetime, timezone
+            
             # Get active filters for this user
             filters = FilterRule.select().where(
                 (FilterRule.user == user) & 
@@ -157,11 +159,28 @@ class FilterService:
                 logger.debug('No active filters found, returning all articles')
                 return articles
             
+            # Get today's date for comparison
+            today = datetime.now(timezone.utc).date()
+            
             # Apply each filter
             filtered_articles = []
             for article in articles:
                 should_filter = False
                 
+                # Check if article is unread and from today - if so, bypass filters
+                article_date = None
+                if article.published_at:
+                    article_date = article.published_at.date()
+                elif article.created_at:
+                    article_date = article.created_at.date()
+                
+                # Allow unread articles from today to bypass filters
+                if not article.is_read and article_date == today:
+                    logger.debug(f'Allowing today\'s unread article to bypass filters: "{article.title}"')
+                    filtered_articles.append(article)
+                    continue
+                
+                # Apply regular filtering for other articles
                 for filter_rule in filters:
                     # Check if filter applies to this article's feed
                     if filter_rule.feed_id and article.feed_id != filter_rule.feed_id:

@@ -344,7 +344,8 @@ export const feeds = {
     method: 'DELETE',
     body: JSON.stringify({ feed_ids: feedIds })
   }),
-  getCheckHistory: (feedId, limit = 20) => api.request(`/api/feeds/${feedId}/check-history?limit=${limit}`)
+  getCheckHistory: (feedId, limit = 20) => api.request(`/api/feeds/${feedId}/check-history?limit=${limit}`),
+  getRefreshStatus: () => api.request('/api/settings/refresh-status')
 };
 
 export const categories = {
