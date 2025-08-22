@@ -1,6 +1,6 @@
 import asyncio
 import time
-from datetime import datetime, timedelta
+import pendulum
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 import aiohttp
@@ -256,14 +256,14 @@ class FeedFetcher:
             return True
         
         # Check if enough time has passed
-        time_since_last_fetch = datetime.now() - feed.last_fetched
+        time_since_last_fetch = pendulum.now('UTC') - feed.last_fetched
         fetch_interval = timedelta(seconds=feed.fetch_interval)
         
         return time_since_last_fetch >= fetch_interval
     
     def update_feed_last_fetched(self, feed: Feed):
         '''Update feed's last_fetched timestamp'''
-        feed.last_fetched = datetime.now()
+        feed.last_fetched = pendulum.now('UTC').to_datetime_string()
         feed.save()
         logger.debug(f'Updated last_fetched for feed: {feed.url}')
     
@@ -293,7 +293,7 @@ class FeedFetcher:
                     'summary': getattr(entry, 'summary', None),
                     'id': getattr(entry, 'id', None) or getattr(entry, 'guid', None),
                     'author': self._extract_author(entry),
-                    'published_parsed': getattr(entry, 'published_parsed', None),
+                    'published_parsed': getattr(entry, 'published_parsed', None) or getattr(entry, 'updated_parsed', None),
                     'tags': self._extract_tags(entry),
                     # Include media fields for image extraction
                     'media_content': getattr(entry, 'media_content', None),
@@ -449,11 +449,10 @@ class FeedFetcher:
                         if article_data.get('published_parsed'):
                             try:
                                 import calendar
-                                from datetime import timezone
                                 # Convert time struct to UTC timestamp using calendar.timegm (treats as UTC)
                                 utc_timestamp = calendar.timegm(article_data['published_parsed'])
-                                # Parse as UTC datetime, then convert to naive (to match database storage)
-                                article_published_date = datetime.fromtimestamp(utc_timestamp, tz=timezone.utc).replace(tzinfo=None)
+                                # Parse as UTC datetime using pendulum
+                                article_published_date = pendulum.from_timestamp(utc_timestamp, tz='UTC')
                             except (ValueError, TypeError, OverflowError):
                                 pass
                         
@@ -461,14 +460,14 @@ class FeedFetcher:
                         # BUT always allow articles from today (even if published before last refresh)
                         # Only apply this filter if we have both timestamps and this is not the first fetch
                         if last_refresh_time and article_published_date:
-                            # Get today's date at midnight (UTC)
-                            from datetime import timezone
-                            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+                            # Convert naive datetime to pendulum for comparison
+                            last_refresh_pendulum = pendulum.parse(str(last_refresh_time), tz='UTC')
+                            today_start = pendulum.now('UTC').start_of('day')
                             
                             # Skip only if article is both:
                             # 1. Older than last refresh time AND
                             # 2. Not from today
-                            if article_published_date < last_refresh_time and article_published_date < today_start:
+                            if article_published_date < last_refresh_pendulum and article_published_date < today_start:
                                 articles_skipped_old += 1
                                 logger.debug(
                                     f'Skipping old article: "{article_data.get("title", "Unknown")}" '

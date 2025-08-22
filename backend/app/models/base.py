@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+import pendulum
 from peewee import (
     AutoField, CharField, TextField, BooleanField, IntegerField, 
     DateTimeField, ForeignKeyField, DeferredForeignKey
@@ -32,7 +32,7 @@ class ImportJob(BaseModel):
     duplicates_found = IntegerField(default=0)
     
     # Timestamps
-    created_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     started_at = DateTimeField(null=True)
     completed_at = DateTimeField(null=True)
     
@@ -60,8 +60,8 @@ class Category(BaseModel):
     description = TextField(null=True)
     color = CharField(max_length=7, null=True)  # Hex color code
     import_job = ForeignKeyField(ImportJob, null=True, on_delete='SET NULL')  # Track import source
-    created_at = DateTimeField(default=datetime.now)
-    updated_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    updated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     
     class Meta:
         table_name = 'categories'
@@ -75,7 +75,7 @@ class Category(BaseModel):
     
     def save(self, *args, **kwargs):
         '''Override save to update timestamp'''
-        self.updated_at = datetime.now()
+        self.updated_at = pendulum.now('UTC').to_datetime_string()
         return super().save(*args, **kwargs)
 
 
@@ -107,8 +107,8 @@ class Feed(BaseModel):
     opml_description = TextField(null=True)  # Original description from OPML
     opml_html_url = CharField(max_length=500, null=True)  # HTML URL from OPML
     
-    created_at = DateTimeField(default=datetime.now)
-    updated_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    updated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     
     class Meta:
         table_name = 'feeds'
@@ -124,7 +124,7 @@ class Feed(BaseModel):
     
     def save(self, *args, **kwargs):
         '''Override save to update timestamp'''
-        self.updated_at = datetime.now()
+        self.updated_at = pendulum.now('UTC').to_datetime_string()
         return super().save(*args, **kwargs)
 
 
@@ -136,8 +136,8 @@ class Filter(BaseModel):
     type = CharField(max_length=50)  # 'keyword', 'regex', 'category', etc.
     criteria = TextField()  # JSON string with filter criteria
     is_active = BooleanField(default=True)
-    created_at = DateTimeField(default=datetime.now)
-    updated_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    updated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     
     class Meta:
         table_name = 'filters'
@@ -162,7 +162,7 @@ class Filter(BaseModel):
     
     def save(self, *args, **kwargs):
         '''Override save to update timestamp'''
-        self.updated_at = datetime.now()
+        self.updated_at = pendulum.now('UTC').to_datetime_string()
         return super().save(*args, **kwargs)
 
 
@@ -171,7 +171,7 @@ class SchemaVersion(BaseModel):
     
     id = AutoField()
     version = IntegerField(unique=True)
-    applied_at = DateTimeField(default=datetime.now)
+    applied_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     description = TextField(null=True)
     
     class Meta:
@@ -219,7 +219,7 @@ class ImportResult(BaseModel):
     created_feed = DeferredForeignKey('Feed', null=True, on_delete='SET NULL')
     existing_item_id = IntegerField(null=True)  # For duplicate handling
     
-    created_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     
     class Meta:
         table_name = 'import_results'
@@ -246,7 +246,7 @@ class ImportFeedValidation(BaseModel):
     feed_type = CharField(max_length=20, null=True)  # rss, atom, unknown
     error_message = TextField(null=True)
     error_code = CharField(max_length=50, null=True)
-    validated_at = DateTimeField(default=datetime.now)
+    validated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     expires_at = DateTimeField(null=True)  # Cache expiration
     
     class Meta:
@@ -265,13 +265,13 @@ class FeedCheckLog(BaseModel):
     
     id = AutoField()
     feed = ForeignKeyField(Feed, backref='check_logs', on_delete='CASCADE')
-    checked_at = DateTimeField(default=datetime.now)
+    checked_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     status_code = IntegerField(null=True)
     error_message = TextField(null=True)
     response_time_ms = IntegerField(null=True)
     is_success = BooleanField()
     user_agent = TextField(null=True)
-    created_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     
     class Meta:
         table_name = 'feed_check_logs'

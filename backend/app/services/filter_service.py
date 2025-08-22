@@ -1,4 +1,5 @@
 import logging
+import pendulum
 from typing import List, Optional
 from peewee import DoesNotExist
 
@@ -131,7 +132,6 @@ class FilterService:
     def apply_filters(articles: List[Article], user: User, category_id: Optional[int] = None) -> List[Article]:
         '''Apply user's active filters to a list of articles'''
         try:
-            from datetime import datetime, timezone
             
             # Get active filters for this user
             filters = FilterRule.select().where(
@@ -160,7 +160,7 @@ class FilterService:
                 return articles
             
             # Get today's date for comparison
-            today = datetime.now(timezone.utc).date()
+            today = pendulum.now('UTC').date()
             
             # Apply each filter
             filtered_articles = []
@@ -169,18 +169,21 @@ class FilterService:
                 
                 # Check if article is unread and from today - if so, bypass filters
                 article_date = None
-                if article.published_at:
-                    article_date = article.published_at.date()
+                if article.published_date:
+                    # Parse the UTC date string and get the date part
+                    article_date = pendulum.parse(str(article.published_date)).date()
                 elif article.created_at:
-                    article_date = article.created_at.date()
+                    article_date = pendulum.parse(str(article.created_at)).date()
                 
-                # Allow unread articles from today to bypass filters
-                if not article.is_read and article_date == today:
-                    logger.debug(f'Allowing today\'s unread article to bypass filters: "{article.title}"')
-                    filtered_articles.append(article)
-                    continue
+                # Check if article is read for this user
+                from app.models.article import ReadStatus
+                try:
+                    read_status = ReadStatus.get((ReadStatus.user == user) & (ReadStatus.article == article))
+                    article_is_read = read_status.is_read
+                except:
+                    article_is_read = False  # Default to unread if no status exists
                 
-                # Apply regular filtering for other articles
+                # Apply filtering for this article
                 for filter_rule in filters:
                     # Check if filter applies to this article's feed
                     if filter_rule.feed_id and article.feed_id != filter_rule.feed_id:
@@ -188,9 +191,19 @@ class FilterService:
                     
                     # Check if article matches filter (should be hidden)
                     if filter_rule.matches(article.title, article.author):
-                        logger.debug(f'Filtering out article: "{article.title}" (matched filter: {filter_rule.name})')
-                        should_filter = True
-                        break
+                        # Content filters (like [premium]) ALWAYS apply regardless of date/read status
+                        if '[premium]' in filter_rule.filter_value.lower() or 'premium' in filter_rule.name.lower():
+                            logger.debug(f'Content filter matched - filtering out article: "{article.title}" (matched filter: {filter_rule.name})')
+                            should_filter = True
+                            break
+                        # Other filters allow unread articles from today to bypass
+                        elif not article_is_read and article_date == today:
+                            logger.debug(f'Non-content filter bypassed for today\'s unread article: "{article.title}" (filter: {filter_rule.name})')
+                            continue
+                        else:
+                            logger.debug(f'Filtering out article: "{article.title}" (matched filter: {filter_rule.name})')
+                            should_filter = True
+                            break
                 
                 if not should_filter:
                     filtered_articles.append(article)

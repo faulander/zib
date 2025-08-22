@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Optional, List, Dict
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_serializer, validator
 from enum import Enum
+import pendulum
 
 
 class SortField(str, Enum):
@@ -41,6 +42,18 @@ class ReadStatusInfo(BaseModel):
     is_archived: bool = False
     read_at: Optional[datetime] = None
     starred_at: Optional[datetime] = None
+    
+    @field_serializer('read_at', 'starred_at')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        '''Convert naive datetime to UTC ISO string'''
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            # Assume naive datetime is UTC and return as ISO string with Z suffix
+            return pendulum.instance(value, tz='UTC').to_iso8601_string()
+        else:
+            # Already timezone-aware, convert to UTC and return ISO string
+            return pendulum.instance(value).in_timezone('UTC').to_iso8601_string()
 
 
 class ArticleResponse(BaseModel):
@@ -61,6 +74,18 @@ class ArticleResponse(BaseModel):
     read_status: ReadStatusInfo
     word_count: Optional[int] = None
     estimated_reading_time: Optional[int] = None
+
+    @field_serializer('published_date', 'created_at', 'updated_at')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        '''Convert naive datetime to UTC ISO string'''
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            # Assume naive datetime is UTC and return as ISO string with Z suffix
+            return pendulum.instance(value, tz='UTC').to_iso8601_string()
+        else:
+            # Already timezone-aware, convert to UTC and return ISO string
+            return pendulum.instance(value).in_timezone('UTC').to_iso8601_string()
 
     class Config:
         from_attributes = True

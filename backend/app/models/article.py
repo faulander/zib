@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+import pendulum
 from typing import List, Optional
 from peewee import (
     AutoField, CharField, TextField, BooleanField, IntegerField, 
@@ -29,8 +29,8 @@ class Article(BaseModel):
     image_url = CharField(max_length=1000, null=True)  # Article thumbnail/image URL
     
     # System metadata
-    created_at = DateTimeField(default=datetime.now)
-    updated_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    updated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     
     class Meta:
         table_name = 'articles'
@@ -51,7 +51,7 @@ class Article(BaseModel):
     
     def save(self, *args, **kwargs):
         '''Override save to update timestamp'''
-        self.updated_at = datetime.now()
+        self.updated_at = pendulum.now('UTC').to_datetime_string()
         return super().save(*args, **kwargs)
     
     def get_tag_list(self) -> List[str]:
@@ -203,15 +203,16 @@ class Article(BaseModel):
             'image_url': cls._extract_image_url(entry),
         }
         
-        # Parse published date
-        if entry.get('published_parsed'):
+        # Parse published date - try published_parsed first, then updated_parsed
+        date_parsed = entry.get('published_parsed') or entry.get('updated_parsed')
+        if date_parsed:
             try:
                 import calendar
-                from datetime import timezone
                 # Convert time struct to UTC timestamp using calendar.timegm (treats as UTC)
-                utc_timestamp = calendar.timegm(entry['published_parsed'])
-                # Store as UTC datetime, then convert to naive (database stores as naive UTC)
-                article_data['published_date'] = datetime.fromtimestamp(utc_timestamp, tz=timezone.utc).replace(tzinfo=None)
+                utc_timestamp = calendar.timegm(date_parsed)
+                # Create UTC datetime using pendulum, convert to string for SQLite
+                utc_dt = pendulum.from_timestamp(utc_timestamp, tz='UTC')
+                article_data['published_date'] = utc_dt.to_datetime_string()
             except (ValueError, TypeError, OverflowError):
                 pass
         
@@ -248,8 +249,8 @@ class User(BaseModel):
     auto_refresh_interval_minutes = IntegerField(default=30)  # Auto-refresh interval in minutes
     
     # Timestamps
-    created_at = DateTimeField(default=datetime.now)
-    updated_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    updated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     last_login = DateTimeField(null=True)
     
     class Meta:
@@ -265,7 +266,7 @@ class User(BaseModel):
     
     def save(self, *args, **kwargs):
         '''Override save to update timestamp'''
-        self.updated_at = datetime.now()
+        self.updated_at = pendulum.now('UTC').to_datetime_string()
         return super().save(*args, **kwargs)
 
 
@@ -282,8 +283,8 @@ class UserSubscription(BaseModel):
     notification_enabled = BooleanField(default=False)
     
     # Timestamps
-    subscribed_at = DateTimeField(default=datetime.now)
-    updated_at = DateTimeField(default=datetime.now)
+    subscribed_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    updated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     
     class Meta:
         table_name = 'user_subscriptions'
@@ -299,7 +300,7 @@ class UserSubscription(BaseModel):
     
     def save(self, *args, **kwargs):
         '''Override save to update timestamp'''
-        self.updated_at = datetime.now()
+        self.updated_at = pendulum.now('UTC').to_datetime_string()
         return super().save(*args, **kwargs)
 
 
@@ -318,8 +319,8 @@ class ReadStatus(BaseModel):
     # Timestamps
     read_at = DateTimeField(null=True)  # When article was marked as read
     starred_at = DateTimeField(null=True)  # When article was starred
-    created_at = DateTimeField(default=datetime.now)
-    updated_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    updated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     
     class Meta:
         table_name = 'read_statuses'
@@ -349,18 +350,18 @@ class ReadStatus(BaseModel):
     
     def save(self, *args, **kwargs):
         '''Override save to update timestamp and set read_at'''
-        self.updated_at = datetime.now()
+        self.updated_at = pendulum.now('UTC').to_datetime_string()
         
         # Set read_at timestamp when marking as read
         if self.is_read and not self.read_at:
-            self.read_at = datetime.now()
+            self.read_at = pendulum.now('UTC').to_datetime_string()
         # Clear read_at when marking as unread
         elif not self.is_read and self.read_at:
             self.read_at = None
             
         # Set starred_at timestamp when starring
         if self.is_starred and not self.starred_at:
-            self.starred_at = datetime.now()
+            self.starred_at = pendulum.now('UTC').to_datetime_string()
         # Clear starred_at when unstarring
         elif not self.is_starred and self.starred_at:
             self.starred_at = None

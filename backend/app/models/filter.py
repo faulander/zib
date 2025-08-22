@@ -1,4 +1,4 @@
-from datetime import datetime
+import pendulum
 from peewee import (
     AutoField, CharField, BooleanField, 
     DateTimeField, ForeignKeyField, IntegerField
@@ -28,8 +28,8 @@ class FilterRule(BaseModel):
     case_sensitive = BooleanField(default=False)
     
     # Timestamps
-    created_at = DateTimeField(default=datetime.now)
-    updated_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    updated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     
     class Meta:
         table_name = 'filter_rules'

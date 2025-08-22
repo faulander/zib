@@ -64,10 +64,16 @@
 	function formatRelativeTimestamp(dateString) {
 		if (!dateString) return '';
 		
-		// Treat the date as UTC if it doesn't have timezone info
-		const date = dateString.includes('Z') || dateString.includes('+') || dateString.includes('-')
-			? new Date(dateString)  // Already has timezone info
-			: new Date(dateString + 'Z');  // Add UTC indicator
+		// Parse the date - handle both old format (naive) and new format (with timezone)
+		let date;
+		if (dateString.includes('Z') || dateString.includes('+') || dateString.includes('-')) {
+			// Already has timezone info, parse directly
+			date = new Date(dateString);
+		} else {
+			// Naive datetime from backend, treat as UTC
+			date = new Date(dateString + 'Z');
+		}
+		
 		const diffMs = currentTime - date;
 		const diffMins = Math.floor(diffMs / 60000);
 		const diffHours = Math.floor(diffMs / 3600000);
