@@ -78,8 +78,8 @@ class RefreshStatusService {
         // A refresh just completed!
         this.lastCompletedRefresh = status.last_refresh_completed;
         
-        // Trigger data refresh if we weren't already refreshing
-        if (!currentStatus.is_refreshing) {
+        // Trigger data refresh if the previous status was refreshing and now it's not
+        if (currentStatus.is_refreshing && !status.is_refreshing) {
           this.onRefreshCompleted();
         }
       }

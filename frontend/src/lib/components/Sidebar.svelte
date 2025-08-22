@@ -35,23 +35,6 @@
 	let intervalMinutes = $derived(refreshData?.interval_minutes || 5);
 	let lastRefreshCompleted = $derived(refreshData?.last_refresh_completed || null);
 	
-	// Debug: log the state to understand what's happening
-	$effect(() => {
-		if (refreshData?.is_refreshing === true) {
-			console.log('UI should show: Refreshing...');
-		} else if (refreshData?.seconds_until_refresh && refreshData.seconds_until_refresh > 0) {
-			console.log('UI should show: Next countdown -', refreshData.seconds_until_refresh);
-		} else {
-			console.log('UI should show: Auto-refresh ready');
-		}
-		
-		// Also log the derived values
-		console.log('Derived values:', {
-			refreshingStatus,
-			secondsUntilRefresh,
-			intervalMinutes
-		});
-	});
 	
 	// Reload counters when search changes
 	$effect(() => {
@@ -181,7 +164,6 @@
 		
 		// Listen for backend refresh completion
 		const handleRefreshCompleted = () => {
-			console.log('Backend refresh completed, reloading data');
 			// Reload feeds, categories and articles
 			apiActions.loadFeeds();
 			apiActions.loadCategories();
