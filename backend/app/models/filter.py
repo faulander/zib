@@ -46,7 +46,7 @@ class FilterRule(BaseModel):
     
     def save(self, *args, **kwargs):
         '''Override save to update timestamp'''
-        self.updated_at = datetime.now()
+        self.updated_at = pendulum.now('UTC').to_datetime_string()
         return super().save(*args, **kwargs)
     
     def matches(self, article_title: str, article_author: str = None) -> bool:

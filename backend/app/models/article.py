@@ -248,6 +248,10 @@ class User(BaseModel):
     auto_refresh_feeds = BooleanField(default=False)  # Auto-refresh feeds periodically
     auto_refresh_interval_minutes = IntegerField(default=30)  # Auto-refresh interval in minutes
     
+    # Mark as read on scroll preferences
+    mark_read_scroll_batch_size = IntegerField(default=5)  # Number of articles to batch before marking as read
+    mark_read_scroll_delay = IntegerField(default=1000)  # Delay in milliseconds after article leaves viewport
+    
     # Timestamps
     created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
     updated_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())

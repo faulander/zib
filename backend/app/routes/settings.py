@@ -22,6 +22,8 @@ class UserSettingsRequest(BaseModel):
     auto_refresh_interval_minutes: int = Field(default=30, ge=5, le=1440)  # 5 min to 24 hours
     show_timestamps_in_list: bool = Field(default=True)
     preferred_view_mode: str = Field(default='list')
+    mark_read_scroll_batch_size: int = Field(default=5, ge=1, le=20)  # Batch size for marking articles as read
+    mark_read_scroll_delay: int = Field(default=1000, ge=100, le=10000)  # Delay in ms (100ms to 10s)
 
 
 class UserSettingsResponse(BaseModel):
@@ -34,6 +36,8 @@ class UserSettingsResponse(BaseModel):
     auto_refresh_interval_minutes: int
     show_timestamps_in_list: bool
     preferred_view_mode: str
+    mark_read_scroll_batch_size: int
+    mark_read_scroll_delay: int
 
 
 @router.get('/', response_model=UserSettingsResponse)
@@ -49,7 +53,9 @@ async def get_user_settings(
         auto_refresh_feeds=current_user.auto_refresh_feeds,
         auto_refresh_interval_minutes=current_user.auto_refresh_interval_minutes,
         show_timestamps_in_list=current_user.show_timestamps_in_list,
-        preferred_view_mode=current_user.preferred_view_mode
+        preferred_view_mode=current_user.preferred_view_mode,
+        mark_read_scroll_batch_size=getattr(current_user, 'mark_read_scroll_batch_size', 5),
+        mark_read_scroll_delay=getattr(current_user, 'mark_read_scroll_delay', 1000)
     )
 
 
@@ -70,6 +76,8 @@ async def update_user_settings(
             current_user.auto_refresh_interval_minutes = settings_data.auto_refresh_interval_minutes
             current_user.show_timestamps_in_list = settings_data.show_timestamps_in_list
             current_user.preferred_view_mode = settings_data.preferred_view_mode
+            current_user.mark_read_scroll_batch_size = settings_data.mark_read_scroll_batch_size
+            current_user.mark_read_scroll_delay = settings_data.mark_read_scroll_delay
             current_user.save()
             
             # Update auto-refresh service with new settings
@@ -83,7 +91,9 @@ async def update_user_settings(
                 auto_refresh_feeds=current_user.auto_refresh_feeds,
                 auto_refresh_interval_minutes=current_user.auto_refresh_interval_minutes,
                 show_timestamps_in_list=current_user.show_timestamps_in_list,
-                preferred_view_mode=current_user.preferred_view_mode
+                preferred_view_mode=current_user.preferred_view_mode,
+                mark_read_scroll_batch_size=current_user.mark_read_scroll_batch_size,
+                mark_read_scroll_delay=current_user.mark_read_scroll_delay
             )
             
     except Exception as e:

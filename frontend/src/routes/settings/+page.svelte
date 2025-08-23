@@ -21,8 +21,6 @@
 	let autoRefreshFeeds = $state(false);
 	let autoRefreshInterval = $state(30);
 	let showUnreadCountInTitle = $state(false);
-	let markReadScrollBatchSize = $state(5);
-	let markReadScrollDelay = $state(1000);
 	let openWebpageForShortArticles = $state(false);
 	let shortArticleThreshold = $state(500);
 	let defaultView = $state('unread');
@@ -33,8 +31,6 @@
 		const currentSettings = $settings;
 		autoRefreshFeeds = currentSettings.autoRefreshFeeds;
 		showUnreadCountInTitle = currentSettings.showUnreadCountInTitle;
-		markReadScrollBatchSize = currentSettings.markReadScrollBatchSize;
-		markReadScrollDelay = currentSettings.markReadScrollDelay;
 	});
 	
 	
@@ -412,6 +408,11 @@
 			autoRefreshInterval = settingsData.auto_refresh_interval_minutes;
 			defaultView = settingsData.default_view;
 			showTimestampsInList = settingsData.show_timestamps_in_list;
+			
+			// Also update the frontend store
+			settings.update(s => ({
+				...s,
+			}));
 		} catch (err) {
 			console.error('Failed to load user settings:', err);
 		}
@@ -1288,38 +1289,7 @@
 					</div>
 					<div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
 						<h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Mark as Read on Scroll</h4>
-						<p class="text-xs text-gray-600 dark:text-gray-400 mb-4">Articles are automatically marked as read when scrolling past them. Configure the behavior below.</p>
-						<div class="space-y-3">
-							<div class="flex items-center justify-between">
-								<div>
-									<label class="text-sm font-medium text-gray-900 dark:text-white">Batch size</label>
-									<p class="text-xs text-gray-600 dark:text-gray-400">Number of articles to batch before marking as read</p>
-								</div>
-								<input 
-									type="number" 
-									min="1" 
-									max="20"
-									bind:value={markReadScrollBatchSize}
-									onchange={() => settings.setSetting('markReadScrollBatchSize', markReadScrollBatchSize)}
-									class="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
-								/>
-							</div>
-							<div class="flex items-center justify-between">
-								<div>
-									<label class="text-sm font-medium text-gray-900 dark:text-white">Scroll delay (ms)</label>
-									<p class="text-xs text-gray-600 dark:text-gray-400">Delay after article leaves viewport before adding to batch</p>
-								</div>
-								<input 
-									type="number" 
-									min="500" 
-									max="5000"
-									step="100"
-									bind:value={markReadScrollDelay}
-									onchange={() => settings.setSetting('markReadScrollDelay', markReadScrollDelay)}
-									class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
-								/>
-							</div>
-						</div>
+						<p class="text-xs text-gray-600 dark:text-gray-400">Articles are automatically marked as read when scrolling past them. This feature uses optimal defaults and requires no configuration.</p>
 					</div>
 					<div class="flex items-center justify-between">
 						<div>

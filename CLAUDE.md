@@ -24,6 +24,7 @@
 ### Development Standards
 - **Code Style:** @~/.agent-os/standards/code-style.md
 - **Best Practices:** @~/.agent-os/standards/best-practices.md
+- **⚠️ CRITICAL: Lessons Learned:** @.agent-os/product/lessons-learned.md - ALL patterns and rules from this file MUST be followed desperately to avoid known pitfalls and breaking core features
 
 ### Project Management
 - **Active Specs:** @.agent-os/specs/
@@ -69,3 +70,4 @@ When asked to work on this codebase:
 - User's specific instructions override (or amend) instructions found in `.agent-os/specs/...`
 - Always adhere to established patterns, code style, and best practices documented above.
 - **TailwindCSS**: Use v3.x configuration in frontend (working setup)
+- **⚠️ CRITICAL**: The lessons-learned.md file contains essential patterns and pitfalls that MUST be followed to prevent breaking feed refresh, auto-mark-read-on-scroll, and other core features

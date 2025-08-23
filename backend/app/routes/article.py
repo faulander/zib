@@ -227,8 +227,13 @@ def fetch_filtered_articles_with_pagination(query, user, category_id, requested_
         
         logger.info(f"Query {queries_made}: After filtering: {len(filtered_batch)} articles")
         
-        # Add to our result collection
-        filtered_articles.extend(filtered_batch)
+        # Add to our result collection, but avoid duplicates
+        for article in filtered_batch:
+            # Check if we already have this article (shouldn't happen, but safety check)
+            if not any(existing.id == article.id for existing in filtered_articles):
+                filtered_articles.append(article)
+            else:
+                logger.warning(f"Duplicate article detected: {article.id} - {article.title}")
         
         # Update cursor for next iteration
         if batch_articles:

@@ -14,7 +14,19 @@
 	let viewMode = $state('list'); // 'list' or 'card'
 	
 	// Use real articles from API with Svelte 5 runes
-	let articles = $derived($articlesStore);
+	let allArticles = $derived($articlesStore);
+	
+	// Filter articles based on current filter to handle local filtering
+	// This complements backend filtering and handles articles marked as read locally
+	let articles = $derived.by(() => {
+		if (currentFilter === 'unread') {
+			return allArticles.filter(article => !article.read_status?.is_read);
+		} else if (currentFilter === 'starred') {
+			return allArticles.filter(article => article.read_status?.is_starred);
+		}
+		return allArticles; // 'all' filter shows everything
+	});
+	
 	let loading = $derived($isLoading);
 	let loadingMore = $derived($isLoadingMore);
 	let moreAvailable = $derived($hasMoreArticles);

@@ -57,8 +57,8 @@ async def get_filters(
                 feed_id=f.feed_id,
                 is_active=f.is_active,
                 case_sensitive=f.case_sensitive,
-                created_at=f.created_at.isoformat(),
-                updated_at=f.updated_at.isoformat()
+                created_at=str(f.created_at),
+                updated_at=str(f.updated_at)
             )
             for f in filters
         ]
@@ -88,8 +88,8 @@ async def get_filter(
             feed_id=filter_rule.feed_id,
             is_active=filter_rule.is_active,
             case_sensitive=filter_rule.case_sensitive,
-            created_at=filter_rule.created_at.isoformat(),
-            updated_at=filter_rule.updated_at.isoformat()
+            created_at=str(filter_rule.created_at),
+            updated_at=str(filter_rule.updated_at)
         )
     except ValidationException as e:
         raise HTTPException(
@@ -125,8 +125,8 @@ async def create_filter(
             feed_id=filter_rule.feed_id,
             is_active=filter_rule.is_active,
             case_sensitive=filter_rule.case_sensitive,
-            created_at=filter_rule.created_at.isoformat(),
-            updated_at=filter_rule.updated_at.isoformat()
+            created_at=str(filter_rule.created_at),
+            updated_at=str(filter_rule.updated_at)
         )
     except ValidationException as e:
         raise HTTPException(
@@ -164,8 +164,8 @@ async def update_filter(
             feed_id=filter_rule.feed_id,
             is_active=filter_rule.is_active,
             case_sensitive=filter_rule.case_sensitive,
-            created_at=filter_rule.created_at.isoformat(),
-            updated_at=filter_rule.updated_at.isoformat()
+            created_at=str(filter_rule.created_at),
+            updated_at=str(filter_rule.updated_at)
         )
     except ValidationException as e:
         raise HTTPException(

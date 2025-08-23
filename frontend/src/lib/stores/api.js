@@ -4,6 +4,7 @@
 
 import { writable, derived, get } from 'svelte/store';
 import { api, feeds, categories, articles } from '../api.js';
+import { scrollTracker } from '../services/scrollTracker.js';
 
 // Loading states
 export const isLoading = writable(false);
@@ -43,6 +44,44 @@ export const filteredFeeds = derived(
 
 // Store for unread counts - will be populated by API calls
 export const unreadCounts = writable({ feeds: {}, categories: {} });
+
+// Helper function to intelligently merge articles during refresh
+function mergeArticlesForRefresh(currentArticles, newArticles) {
+  // If it's a complete refresh (not pagination), we need to be smart about it
+  const currentMap = new Map(currentArticles.map(a => [a.id, a]));
+  const mergedArticles = [];
+  
+  // Get current filter to respect user's view during refresh
+  const currentFilter = get(selectedFilter);
+  
+  for (const newArticle of newArticles) {
+    const existingArticle = currentMap.get(newArticle.id);
+    if (existingArticle) {
+      // Preserve the existing article object reference if nothing important changed
+      // This helps maintain DOM element stability
+      if (existingArticle.read_status?.is_read === newArticle.read_status?.is_read &&
+          existingArticle.read_status?.is_starred === newArticle.read_status?.is_starred) {
+        mergedArticles.push(existingArticle);
+      } else {
+        // For unread view, don't include articles that became read
+        if (currentFilter === 'unread' && newArticle.read_status?.is_read) {
+          // Skip this article - it was marked as read
+          continue;
+        }
+        mergedArticles.push(newArticle);
+      }
+    } else {
+      // New article - check if it should be included based on current filter
+      if (currentFilter === 'unread' && newArticle.read_status?.is_read) {
+        // Don't add read articles to unread view
+        continue;
+      }
+      mergedArticles.push(newArticle);
+    }
+  }
+  
+  return mergedArticles;
+}
 
 // API Actions
 export const apiActions = {
@@ -121,7 +160,7 @@ export const apiActions = {
       
       // Reload feeds and articles to get updated counts
       await apiActions.loadFeeds();
-      await apiActions.loadArticles();
+      await apiActions.loadArticles({}, true); // Pass isAutoRefresh=true
       
       return result;
     } catch (err) {
@@ -184,13 +223,20 @@ export const apiActions = {
   },
 
   // Articles
-  async loadArticles(params = {}) {
+  async loadArticles(params = {}, isAutoRefresh = false) {
     try {
       isLoading.set(true);
       error.set(null);
       
-      // Reset cursor when loading fresh articles
-      nextCursor.set(null);
+      // Pause scroll tracking if this is an auto-refresh
+      if (isAutoRefresh) {
+        scrollTracker.pauseForRefresh();
+      }
+      
+      // Reset cursor when loading fresh articles (but not during auto-refresh)
+      if (!isAutoRefresh) {
+        nextCursor.set(null);
+      }
       
       // Build query parameters
       const queryParams = { ...params };
@@ -226,19 +272,39 @@ export const apiActions = {
       console.log('Loading articles with params:', queryParams);
       const data = await articles.getAll(queryParams);
       console.log('API response:', data);
+      
+      // Get current articles for smart merging during refresh
+      const currentArticles = get(articlesStore);
+      
       // Handle cursor-based response
       if (data.articles) {
-        articlesStore.set(data.articles);
+        if (isAutoRefresh && currentArticles.length > 0) {
+          // Smart merge to preserve DOM stability during refresh
+          const merged = mergeArticlesForRefresh(currentArticles, data.articles);
+          articlesStore.set(merged);
+        } else {
+          articlesStore.set(data.articles);
+        }
         totalArticleCount.set(data.pagination?.total || data.articles.length);
         hasMoreArticles.set(data.has_more || false);
         nextCursor.set(data.next_cursor);
       } else if (data.items) {
-        articlesStore.set(data.items);
+        if (isAutoRefresh && currentArticles.length > 0) {
+          const merged = mergeArticlesForRefresh(currentArticles, data.items);
+          articlesStore.set(merged);
+        } else {
+          articlesStore.set(data.items);
+        }
         totalArticleCount.set(data.total || data.items.length);
         hasMoreArticles.set(false);
         nextCursor.set(null);
       } else if (Array.isArray(data)) {
-        articlesStore.set(data);
+        if (isAutoRefresh && currentArticles.length > 0) {
+          const merged = mergeArticlesForRefresh(currentArticles, data);
+          articlesStore.set(merged);
+        } else {
+          articlesStore.set(data);
+        }
         totalArticleCount.set(data.length);
         hasMoreArticles.set(false);
         nextCursor.set(null);
@@ -248,10 +314,24 @@ export const apiActions = {
         hasMoreArticles.set(false);
         nextCursor.set(null);
       }
+      
+      // Resume scroll tracking after refresh with a delay
+      if (isAutoRefresh) {
+        setTimeout(() => {
+          scrollTracker.resumeAfterRefresh();
+        }, 500);
+      }
+      
       return data;
     } catch (err) {
       error.set(`Failed to load articles: ${err.message}`);
       console.error('Failed to load articles:', err);
+      
+      // Resume tracking even on error
+      if (isAutoRefresh) {
+        scrollTracker.resumeAfterRefresh();
+      }
+      
       throw err;
     } finally {
       isLoading.set(false);
@@ -342,32 +422,22 @@ export const apiActions = {
 
   async markArticleRead(articleId, isRead = true) {
     try {
-      const currentFilter = get(selectedFilter);
-      
-      // Check if article should be removed from current view
-      // Don't remove from unread filter to prevent UI jumping
-      const shouldRemove = (currentFilter === 'starred' && isRead && !get(articlesStore).find(a => a.id === articleId)?.read_status?.is_starred);
-      
-      if (shouldRemove) {
-        // Remove article from current view (only for starred filter)
-        articlesStore.update(current => current.filter(article => article.id !== articleId));
-      } else {
-        // Update article state in current view (keep in place for unread filter)
-        articlesStore.update(current => 
-          current.map(article => 
-            article.id === articleId 
-              ? { 
-                  ...article, 
-                  read_status: { 
-                    ...article.read_status, 
-                    is_read: isRead,
-                    read_at: isRead ? new Date().toISOString() : null
-                  }
+      // Always update article state, never remove from list
+      // This preserves infinite scroll pagination by keeping the article count stable
+      articlesStore.update(current => 
+        current.map(article => 
+          article.id === articleId 
+            ? { 
+                ...article, 
+                read_status: { 
+                  ...article.read_status, 
+                  is_read: isRead,
+                  read_at: isRead ? new Date().toISOString() : null
                 }
-              : article
-          )
-        );
-      }
+              }
+            : article
+        )
+      );
       
       // Then make API call
       await articles.markRead(articleId, isRead);

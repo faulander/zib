@@ -150,7 +150,7 @@
 		
 		const element = articleElements.get(article.id);
 		if (element) {
-			scrollTracker.untrackArticle(element);
+			scrollTracker.untrackArticle(element, article.id);
 			articleElements.delete(article.id);
 		}
 	}
@@ -202,7 +202,7 @@
 	onDestroy(() => {
 		// Clean up all tracked articles
 		for (const [articleId, element] of articleElements) {
-			scrollTracker.untrackArticle(element);
+			scrollTracker.untrackArticle(element, articleId);
 		}
 		articleElements.clear();
 		

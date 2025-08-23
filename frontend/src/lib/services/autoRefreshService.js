@@ -4,6 +4,7 @@
 
 import { userSettings, articles } from '$lib/api.js';
 import { feedsStore, categoriesStore, apiActions } from '$lib/stores/api.js';
+import { scrollTracker } from './scrollTracker.js';
 
 class AutoRefreshService {
   constructor() {
@@ -76,8 +77,9 @@ class AutoRefreshService {
       // Reload unread counts to update sidebar numbers
       await apiActions.loadUnreadCounts();
       
-      // Refresh articles in the current view
-      await apiActions.loadArticles();
+      // Refresh articles in the current view with auto-refresh flag
+      // The loadArticles function will handle scroll tracking pause/resume
+      await apiActions.loadArticles({}, true);
       
       this.lastRefreshTime = new Date();
       
