@@ -37,6 +37,7 @@ ENV HOST=0.0.0.0
 ENV PORT=8000
 ENV DEBUG=false
 ENV RELOAD=false
+ENV DOCKER_CONTAINER=true
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

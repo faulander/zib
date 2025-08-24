@@ -14,7 +14,7 @@ services:
       - RELOAD=false
       - CORS_ORIGINS=${CORS_ORIGINS}
     volumes:
-      - ./backend/data:/app/data
+      - zib-database:/app/data
     restart: unless-stopped
     networks:
       - hf_proxy_network
@@ -34,6 +34,14 @@ services:
     restart: unless-stopped
     networks:
       - hf_proxy_network
+
+volumes:
+  zib-database:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/backend/data
 
 networks:
   hf_proxy_network:

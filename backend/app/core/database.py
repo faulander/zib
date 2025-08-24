@@ -1,17 +1,108 @@
 from peewee import SqliteDatabase, Model
 from pathlib import Path
 import os
+import time
 from .config import settings
 from .logging import get_logger
 
 logger = get_logger(__name__)
 
-# Ensure database path is absolute
-db_path = settings.database_url.replace('sqlite:///', '')
-if not os.path.isabs(db_path):
-    # Make path absolute relative to backend directory
-    backend_dir = Path(__file__).parent.parent.parent
-    db_path = str(backend_dir / db_path)
+
+def get_database_path():
+    """Get the correct database path for current environment"""
+    db_path = settings.database_url.replace('sqlite:///', '')
+    
+    # In Docker container, use absolute path that matches volume mount
+    if os.getenv('DOCKER_CONTAINER'):
+        resolved_path = f'/app/{db_path}'
+        logger.info(f'Docker environment detected, using path: {resolved_path}')
+        return resolved_path
+    
+    # For local development, use relative to backend directory
+    if not os.path.isabs(db_path):
+        backend_dir = Path(__file__).parent.parent.parent
+        resolved_path = str(backend_dir / db_path)
+        logger.info(f'Local environment detected, using path: {resolved_path}')
+        return resolved_path
+    
+    logger.info(f'Using absolute path: {db_path}')
+    return db_path
+
+
+def log_database_environment():
+    """Log detailed database environment information for debugging"""
+    logger.info('=== DATABASE ENVIRONMENT DEBUG ===')
+    logger.info(f'Environment: {"Docker" if os.getenv("DOCKER_CONTAINER") else "Local"}')
+    logger.info(f'Working directory: {os.getcwd()}')
+    logger.info(f'Database URL from config: {settings.database_url}')
+    
+    db_path = get_database_path()
+    logger.info(f'Resolved database path: {db_path}')
+    logger.info(f'Database file exists: {Path(db_path).exists()}')
+    
+    if Path(db_path).exists():
+        stat = Path(db_path).stat()
+        logger.info(f'Database file size: {stat.st_size} bytes')
+        logger.info(f'Database file modified: {time.ctime(stat.st_mtime)}')
+    
+    db_dir = Path(db_path).parent
+    logger.info(f'Database directory: {db_dir}')
+    logger.info(f'Database directory exists: {db_dir.exists()}')
+    
+    if db_dir.exists():
+        try:
+            contents = list(db_dir.glob('*'))
+            logger.info(f'Database directory contents: {contents}')
+        except Exception as e:
+            logger.warning(f'Could not list directory contents: {e}')
+    
+    # Check volume mount in Docker
+    if os.getenv('DOCKER_CONTAINER'):
+        logger.info('=== DOCKER VOLUME DEBUG ===')
+        try:
+            # Check if /proc/mounts exists and is readable
+            if Path('/proc/mounts').exists():
+                mount_info = Path('/proc/mounts').read_text()
+                for line in mount_info.splitlines():
+                    if '/app/data' in line:
+                        logger.info(f'Volume mount: {line}')
+            else:
+                logger.info('/proc/mounts not accessible')
+        except Exception as e:
+            logger.warning(f'Could not check volume mounts: {e}')
+    
+    logger.info('=== END DATABASE DEBUG ===')
+
+
+def ensure_database_directory():
+    """Ensure database directory exists and is properly mounted"""
+    db_path = get_database_path()
+    db_dir = Path(db_path).parent
+    
+    logger.info(f'Checking database directory: {db_dir}')
+    
+    if not db_dir.exists():
+        if os.getenv('DOCKER_CONTAINER'):
+            # In Docker, the volume should already be mounted
+            logger.warning(f'Database directory {db_dir} not found in Docker container')
+            logger.warning('This may indicate a volume mounting issue')
+        
+        logger.info(f'Creating database directory: {db_dir}')
+        db_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Verify directory is writable
+    test_file = db_dir / '.write_test'
+    try:
+        test_file.touch()
+        test_file.unlink()
+        logger.info(f'Database directory {db_dir} is writable')
+    except Exception as e:
+        logger.error(f'Database directory {db_dir} is not writable: {e}')
+        raise
+
+
+# Get database path using the new function
+db_path = get_database_path()
 
 # Database instance
 db = SqliteDatabase(
@@ -75,19 +166,78 @@ def drop_tables(models):
         raise
 
 
-def init_database():
-    '''Initialize database connection and run migrations'''
-    from .migrations import migration_manager
+def safe_database_initialization():
+    """Initialize database with existing data preservation"""
+    # Log database environment for debugging
+    log_database_environment()
     
-    logger.info('Initializing database...')
+    # Ensure database directory exists and is writable
+    ensure_database_directory()
     
+    db_path = get_database_path()
+    
+    # Check if database already exists
+    db_exists = Path(db_path).exists()
+    logger.info(f'Database exists: {db_exists} at path: {db_path}')
+    
+    if db_exists:
+        # Database exists - verify it's valid and run migrations only
+        logger.info('Existing database found, running migrations only')
+        
+        # Check database integrity
+        try:
+            with DatabaseManager():
+                db.execute_sql('SELECT COUNT(*) FROM sqlite_master')
+                logger.info('Existing database is valid')
+        except Exception as e:
+            logger.error(f'Existing database is corrupted: {e}')
+            
+            # Create backup before any recovery attempts
+            backup_path = f'{db_path}.backup.{int(time.time())}'
+            logger.info(f'Creating backup at: {backup_path}')
+            try:
+                Path(db_path).rename(backup_path)
+                logger.info('Database backup created successfully')
+            except Exception as backup_error:
+                logger.error(f'Failed to create backup: {backup_error}')
+                raise
+            
+            logger.warning('Database corrupted, will create new database')
+            db_exists = False
+    
+    if not db_exists:
+        logger.info('No existing database, creating new database')
+    
+    # Connect and run migrations
     if not connect_database():
         raise Exception('Failed to connect to database')
     
     try:
-        # Run migrations
+        # Run migrations (should be safe for both new and existing databases)
+        from .migrations import migration_manager
         if migration_manager.migrate():
-            logger.info('Database initialization completed successfully')
+            logger.info('Database initialization/migration completed successfully')
+            
+            # Log some basic stats to verify data preservation
+            try:
+                with DatabaseManager():
+                    from app.models.base import User
+                    from app.models.filter import FilterRule
+                    
+                    user_count = User.select().count()
+                    filter_count = FilterRule.select().count()
+                    
+                    logger.info(f'Database stats: {user_count} users, {filter_count} filters')
+                    
+                    if db_exists and (user_count > 0 or filter_count > 0):
+                        logger.info('✅ Existing data preserved during migration')
+                    elif not db_exists:
+                        logger.info('✅ New database created successfully')
+                    else:
+                        logger.warning('⚠️ Database exists but no data found - possible data loss')
+                        
+            except Exception as e:
+                logger.warning(f'Could not retrieve database stats: {e}')
         else:
             raise Exception('Database migration failed')
             
@@ -95,6 +245,12 @@ def init_database():
         logger.error(f'Database initialization failed: {e}')
         close_database()
         raise
+
+
+def init_database():
+    '''Initialize database connection and run migrations (legacy wrapper)'''
+    logger.info('Initializing database (using safe initialization)...')
+    safe_database_initialization()
 
 
 class DatabaseManager:

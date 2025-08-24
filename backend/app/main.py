@@ -28,19 +28,11 @@ async def lifespan(app: FastAPI):
     logger.info(f'Debug mode: {settings.debug}')
     logger.info(f'Database URL: {settings.database_url}')
     
-    # Ensure data directory exists
-    import os
-    from pathlib import Path
-    db_path = settings.database_url.replace('sqlite:///', '')
-    if not os.path.isabs(db_path):
-        # Make path absolute relative to backend directory
-        backend_dir = Path(__file__).parent.parent
-        db_path = str(backend_dir / db_path)
-    
-    db_dir = Path(db_path).parent
-    if not db_dir.exists():
-        logger.info(f'Creating database directory: {db_dir}')
-        db_dir.mkdir(parents=True, exist_ok=True)
+    # Ensure database directory exists and log environment
+    from .core.database import log_database_environment, ensure_database_directory
+    logger.info('Checking database environment...')
+    log_database_environment()
+    ensure_database_directory()
     
     # Initialize database and run migrations
     try:
