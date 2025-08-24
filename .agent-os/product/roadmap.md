@@ -38,7 +38,6 @@ The following backend infrastructure has been implemented:
 
 - [x] **Full dark mode** - Opinionated dark-only design, theme toggle removed `S`
 - [x] **Mobile-responsive design** - TailwindCSS responsive design implemented `M`
-- [ ] Keyboard shortcuts - Navigate without mouse `S`
 
 ### Frontend Components Completed
 
@@ -100,7 +99,7 @@ The following backend infrastructure has been implemented:
 - Full-text search index
 - Filter rule parser
 
-## Phase 4: Performance & Polish (1 week) - COMPLETED
+## Phase 4: Performance & Polish (1 week)
 
 **Goal:** Optimize performance and user workflow
 **Success Criteria:** Fast, reliable feed updates and smooth UI

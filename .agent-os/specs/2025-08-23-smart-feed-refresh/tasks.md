@@ -46,3 +46,11 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
   - [ ] 5.4 Ensure frontend auto-refresh continues working with isAutoRefresh=true flag
   - [ ] 5.5 Test that mark-as-read-on-scroll continues working during smart refresh
   - [ ] 5.6 Verify all existing auto-refresh functionality remains intact
+
+- [ ] 6. Feed Health Monitoring Implementation
+  - [ ] 6.1 Write tests for feed health tracking and error detection
+  - [ ] 6.2 Add health status fields to Feed model (last_error, consecutive_failures, health_score)
+  - [ ] 6.3 Implement error tracking during refresh attempts
+  - [ ] 6.4 Create health score calculation based on success rate and response times
+  - [ ] 6.5 Add API endpoint for feed health status overview
+  - [ ] 6.6 Implement automatic disabling of consistently failing feeds
