@@ -12,6 +12,7 @@
 	import { settings } from '$lib/stores/settings.js';
 	import { articles } from '$lib/api.js';
 	import { isMobile, isSidebarOpen, toggleSidebar, closeSidebar, checkMobile } from '$lib/stores/sidebar.js';
+	import { initializeFontScale } from '$lib/fontScale.js';
 	
 	let { children } = $props();
 	let initError = $state(null);
@@ -92,6 +93,9 @@
 	
 	onMount(async () => {
 		try {
+			// Initialize font scale from localStorage/settings
+			initializeFontScale();
+			
 			// Check if mobile on mount
 			checkMobile();
 			window.addEventListener('resize', checkMobile);

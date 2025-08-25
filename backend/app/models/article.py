@@ -2,7 +2,7 @@ import re
 import pendulum
 from typing import List, Optional
 from peewee import (
-    AutoField, CharField, TextField, BooleanField, IntegerField, 
+    AutoField, CharField, TextField, BooleanField, IntegerField, FloatField,
     DateTimeField, ForeignKeyField, DoesNotExist
 )
 from app.core.database import BaseModel
@@ -243,6 +243,7 @@ class User(BaseModel):
     short_article_threshold = IntegerField(default=500)  # Character count threshold for short articles
     show_timestamps_in_list = BooleanField(default=True)  # Show relative timestamps in article list
     preferred_view_mode = CharField(max_length=10, default='list')  # 'list' or 'card' view mode
+    font_scale = FloatField(default=1.0)  # Font scale multiplier for accessibility (0.85 to 1.3)
     
     # Feed refresh preferences
     auto_refresh_feeds = BooleanField(default=False)  # Auto-refresh feeds periodically

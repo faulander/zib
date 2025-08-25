@@ -24,6 +24,7 @@ class UserSettingsRequest(BaseModel):
     preferred_view_mode: str = Field(default='list')
     mark_read_scroll_batch_size: int = Field(default=5, ge=1, le=20)  # Batch size for marking articles as read
     mark_read_scroll_delay: int = Field(default=1000, ge=100, le=10000)  # Delay in ms (100ms to 10s)
+    font_scale: float = Field(default=1.0, ge=0.85, le=1.3)  # Font scale for accessibility
 
 
 class UserSettingsResponse(BaseModel):
@@ -38,6 +39,7 @@ class UserSettingsResponse(BaseModel):
     preferred_view_mode: str
     mark_read_scroll_batch_size: int
     mark_read_scroll_delay: int
+    font_scale: float
 
 
 @router.get('/', response_model=UserSettingsResponse)
@@ -55,7 +57,8 @@ async def get_user_settings(
         show_timestamps_in_list=current_user.show_timestamps_in_list,
         preferred_view_mode=current_user.preferred_view_mode,
         mark_read_scroll_batch_size=getattr(current_user, 'mark_read_scroll_batch_size', 5),
-        mark_read_scroll_delay=getattr(current_user, 'mark_read_scroll_delay', 1000)
+        mark_read_scroll_delay=getattr(current_user, 'mark_read_scroll_delay', 1000),
+        font_scale=getattr(current_user, 'font_scale', 1.0)
     )
 
 
@@ -78,6 +81,7 @@ async def update_user_settings(
             current_user.preferred_view_mode = settings_data.preferred_view_mode
             current_user.mark_read_scroll_batch_size = settings_data.mark_read_scroll_batch_size
             current_user.mark_read_scroll_delay = settings_data.mark_read_scroll_delay
+            current_user.font_scale = settings_data.font_scale
             current_user.save()
             
             # Update auto-refresh service with new settings
@@ -93,7 +97,8 @@ async def update_user_settings(
                 show_timestamps_in_list=current_user.show_timestamps_in_list,
                 preferred_view_mode=current_user.preferred_view_mode,
                 mark_read_scroll_batch_size=current_user.mark_read_scroll_batch_size,
-                mark_read_scroll_delay=current_user.mark_read_scroll_delay
+                mark_read_scroll_delay=current_user.mark_read_scroll_delay,
+                font_scale=current_user.font_scale
             )
             
     except Exception as e:

@@ -11,7 +11,8 @@ const defaultSettings = {
   markReadScrollBatchSize: 5, // Number of articles to batch before marking as read
   markReadScrollDelay: 1000, // Delay in ms after article leaves viewport before adding to batch
   mark_read_scroll_batch_size: 5, // Backend field name
-  mark_read_scroll_delay: 1000 // Backend field name
+  mark_read_scroll_delay: 1000, // Backend field name
+  font_scale: 1.0 // Font scale for accessibility
 };
 
 // Load settings from localStorage

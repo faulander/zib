@@ -679,10 +679,16 @@ export async function initializeApp() {
   try {
     await apiActions.checkHealth();
     
-    // Load user settings first to get default view
+    // Load user settings first to get default view and font scale
     const { userSettings } = await import('../api.js');
     const settings = await userSettings.get();
     selectedFilter.set(settings.default_view);
+    
+    // Apply font scale from backend settings
+    if (settings.font_scale) {
+      const { applyFontScale } = await import('../fontScale.js');
+      applyFontScale(settings.font_scale);
+    }
     
     await Promise.all([
       apiActions.loadCategories(),

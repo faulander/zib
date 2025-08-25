@@ -22,6 +22,7 @@
         toggleSidebar,
         closeSidebar,
     } from "$lib/stores/sidebar.js";
+    import { FONT_SCALES, applyFontScale, getCurrentFontScale, getFontScaleLevel } from "$lib/fontScale.js";
     import {
         Plus,
         Trash2,
@@ -59,6 +60,7 @@
     let shortArticleThreshold = $state(500);
     let defaultView = $state("unread");
     let showTimestampsInList = $state(true);
+    let fontScale = $state(1.0);
 
     // Subscribe to settings changes and update local state
     $effect(() => {
@@ -458,6 +460,7 @@
             autoRefreshInterval = settingsData.auto_refresh_interval_minutes;
             defaultView = settingsData.default_view;
             showTimestampsInList = settingsData.show_timestamps_in_list;
+            fontScale = settingsData.font_scale || 1.0;
 
             // Also update the frontend store
             settings.update((s) => ({
@@ -466,6 +469,12 @@
         } catch (err) {
             console.error("Failed to load user settings:", err);
         }
+    }
+
+    async function handleFontScaleChange(scale) {
+        fontScale = scale;
+        applyFontScale(scale);
+        await saveUserSettings();
     }
 
     async function saveUserSettings() {
@@ -478,6 +487,7 @@
                 auto_refresh_feeds: autoRefreshFeeds,
                 auto_refresh_interval_minutes: autoRefreshInterval,
                 show_timestamps_in_list: showTimestampsInList,
+                font_scale: fontScale,
             };
 
             await userSettings.update(settingsData);
@@ -504,6 +514,12 @@
         if (selectedSection === "general") {
             loadUserSettings();
         }
+    });
+    
+    // Initialize font scale on mount
+    $effect(() => {
+        // Apply current font scale from localStorage
+        fontScale = getCurrentFontScale();
     });
 
     // Feed health checking functions
@@ -1775,6 +1791,49 @@
                                     onchange={saveUserSettings}
                                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                 />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Accessibility Settings -->
+                    <div
+                        class="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4"
+                    >
+                        <h3
+                            class="text-lg font-medium text-gray-900 dark:text-white mb-4"
+                        >
+                            Accessibility
+                        </h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label
+                                    class="text-sm font-medium text-gray-900 dark:text-white block mb-2"
+                                    >Font Size</label
+                                >
+                                <p
+                                    class="text-xs text-gray-600 dark:text-gray-400 mb-3"
+                                >
+                                    Adjust the font size across the entire interface
+                                </p>
+                                <div class="flex items-center gap-2">
+                                    {#each Object.entries(FONT_SCALES) as [key, scale]}
+                                        <button
+                                            onclick={() => handleFontScaleChange(scale.value)}
+                                            class="px-3 py-2 text-sm rounded-lg border transition-colors
+                                                   {fontScale === scale.value 
+                                                    ? 'bg-blue-600 text-white border-blue-600' 
+                                                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}"
+                                            title={scale.label}
+                                        >
+                                            {scale.label}
+                                        </button>
+                                    {/each}
+                                </div>
+                                <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <p class="text-sm text-gray-700 dark:text-gray-300" style="font-size: calc(1rem * {fontScale})">
+                                        Preview: This is how text will appear with your selected font size.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
