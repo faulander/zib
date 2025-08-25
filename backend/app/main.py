@@ -12,6 +12,7 @@ from .core.exceptions import (
     http_exception_handler, general_exception_handler
 )
 from .routes import feeds_router, categories_router, opml_router, articles_router, filters_router, settings_router
+from .routes.smart_refresh import router as smart_refresh_router
 from .services.health_service import HealthService
 from .services.auto_refresh_service import auto_refresh_service
 
@@ -131,6 +132,10 @@ For detailed usage examples, see the individual endpoint documentation below.
         {
             'name': 'OPML Import',
             'description': 'OPML file import and job management operations'
+        },
+        {
+            'name': 'smart-refresh',
+            'description': 'Priority-based smart feed refresh system operations'
         }
     ]
 )
@@ -166,7 +171,8 @@ app.add_exception_handler(ZibException, zib_exception_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(Exception, general_exception_handler)
 
-# Include API routers
+# Include API routers (more specific routes first)
+app.include_router(smart_refresh_router)
 app.include_router(feeds_router, prefix='/api')
 app.include_router(categories_router, prefix='/api')
 app.include_router(opml_router, prefix='/api')

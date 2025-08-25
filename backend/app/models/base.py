@@ -1,7 +1,7 @@
 import json
 import pendulum
 from peewee import (
-    AutoField, CharField, TextField, BooleanField, IntegerField, 
+    AutoField, CharField, TextField, BooleanField, IntegerField, FloatField,
     DateTimeField, ForeignKeyField, DeferredForeignKey
 )
 from app.core.database import BaseModel
@@ -100,6 +100,13 @@ class Feed(BaseModel):
     last_checked = DateTimeField(null=True)
     accessible = BooleanField(default=True)
     consecutive_failures = IntegerField(default=0)
+    
+    # Smart refresh priority fields
+    priority_score = FloatField(default=0.0)  # Calculated priority for refresh ordering
+    last_post_date = DateTimeField(null=True)  # Date of most recent article posted
+    posting_frequency_days = FloatField(default=1.0)  # Average days between posts
+    total_articles_fetched = IntegerField(default=0)  # Total articles fetched from this feed
+    user_engagement_score = FloatField(default=0.0)  # User interaction score for prioritization
     
     # Import metadata
     import_job = ForeignKeyField(ImportJob, null=True, on_delete='SET NULL')  # Track import source
@@ -286,8 +293,49 @@ class FeedCheckLog(BaseModel):
         return f'Check {self.feed.title}: {"✓" if self.is_success else "✗"} at {self.checked_at}'
 
 
+class FeedPostingHistory(BaseModel):
+    '''Track posting patterns for adaptive scheduling'''
+    
+    id = AutoField()
+    feed = ForeignKeyField(Feed, backref='posting_history', on_delete='CASCADE')
+    posting_date = DateTimeField()  # Date when articles were posted
+    articles_count = IntegerField(default=1)  # Number of articles posted on this date
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    
+    class Meta:
+        table_name = 'feed_posting_history'
+        indexes = (
+            (('feed', 'posting_date'), False),  # Composite index for feed history queries
+            (('posting_date',), False),  # Index for date-based queries
+        )
+    
+    def __str__(self):
+        return f'{self.feed.title}: {self.articles_count} articles on {self.posting_date}'
+
+
+class RefreshMetrics(BaseModel):
+    '''Track refresh performance for optimization'''
+    
+    id = AutoField()
+    refresh_started_at = DateTimeField()  # When refresh cycle started
+    feeds_processed = IntegerField(default=0)  # Number of feeds processed
+    total_duration_seconds = FloatField(default=0.0)  # Total refresh duration
+    batch_size = IntegerField(default=10)  # Configured batch size
+    priority_algorithm_version = CharField(max_length=10, default='v1.0')  # Version for A/B testing
+    created_at = DateTimeField(default=lambda: pendulum.now('UTC').to_datetime_string())
+    
+    class Meta:
+        table_name = 'refresh_metrics'
+        indexes = (
+            (('refresh_started_at',), False),  # Index for temporal queries
+        )
+    
+    def __str__(self):
+        return f'Refresh {self.refresh_started_at}: {self.feeds_processed} feeds in {self.total_duration_seconds:.1f}s'
+
+
 # Model registry for easy access
-ALL_MODELS = [Category, Feed, Filter, SchemaVersion, ImportJob, ImportResult, ImportFeedValidation, FeedCheckLog]
+ALL_MODELS = [Category, Feed, Filter, SchemaVersion, ImportJob, ImportResult, ImportFeedValidation, FeedCheckLog, FeedPostingHistory, RefreshMetrics]
 
 # Import article models to make them available
 from app.models.article import ARTICLE_MODELS

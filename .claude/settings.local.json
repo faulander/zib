@@ -36,7 +36,8 @@
       "Bash(ls:*)",
       "Bash(cat:*)",
       "Bash(kill:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(uv add:*)"
     ],
     "deny": [],
     "ask": []

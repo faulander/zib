@@ -61,3 +61,8 @@ zib = "app.cli:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]
