@@ -5,17 +5,44 @@
   import { Switch } from '$lib/components/ui/switch';
   import { Separator } from '$lib/components/ui/separator';
   import FilterEditor from '$lib/components/filter-editor.svelte';
-  import { ArrowLeft, Plus, Pencil, Trash2 } from '@lucide/svelte';
+  import { ArrowLeft, Plus, Pencil, Trash2, Upload } from '@lucide/svelte';
   import { goto } from '$app/navigation';
+  import { toast } from 'svelte-sonner';
+  import { appStore } from '$lib/stores/app.svelte';
 
   let { data }: { data: PageData } = $props();
 
   let filters = $state<Filter[]>([]);
+  let hideReadArticles = $state(false);
+  let compactListView = $state(false);
 
-  // Initialize filters from server data
+  // Initialize from server data
   $effect(() => {
     filters = data.filters;
+    hideReadArticles = data.settings.hideReadArticles;
+    compactListView = data.settings.compactListView;
   });
+
+  async function updateSetting(key: 'hideReadArticles' | 'compactListView', value: boolean) {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: value })
+      });
+
+      if (res.ok) {
+        if (key === 'hideReadArticles') {
+          appStore.setHideReadArticles(value);
+        } else if (key === 'compactListView') {
+          appStore.setCompactListView(value);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update setting:', err);
+      toast.error('Failed to save setting');
+    }
+  }
   let editingFilter = $state<Filter | null>(null);
   let showEditor = $state(false);
 
@@ -69,6 +96,42 @@
     showEditor = false;
     editingFilter = null;
   }
+
+  let isImporting = $state(false);
+
+  function handleImportClick() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.opml,.xml';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      isImporting = true;
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/import/opml', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          toast.success(`Imported ${result.feedsImported || 0} feeds`);
+        } else {
+          toast.error('Import failed');
+        }
+      } catch (err) {
+        console.error('Import failed:', err);
+        toast.error('Import failed');
+      } finally {
+        isImporting = false;
+      }
+    };
+    input.click();
+  }
 </script>
 
 <div class="min-h-screen bg-background">
@@ -79,6 +142,73 @@
       </Button>
       <h1 class="text-2xl font-bold">Settings</h1>
     </div>
+
+    <Separator class="mb-6" />
+
+    <!-- General Settings Section -->
+    <section class="mb-8">
+      <div class="mb-4">
+        <h2 class="text-lg font-semibold">General</h2>
+        <p class="text-sm text-muted-foreground">Display preferences</p>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between p-4 border rounded-lg">
+          <div>
+            <div class="font-medium">Hide read articles</div>
+            <div class="text-sm text-muted-foreground">
+              Only show unread articles in the article list
+            </div>
+          </div>
+          <Switch
+            checked={hideReadArticles}
+            onCheckedChange={(checked) => {
+              hideReadArticles = checked;
+              updateSetting('hideReadArticles', checked);
+            }}
+          />
+        </div>
+
+        <div class="flex items-center justify-between p-4 border rounded-lg">
+          <div>
+            <div class="font-medium">Compact list view</div>
+            <div class="text-sm text-muted-foreground">
+              Reduce vertical spacing in list view
+            </div>
+          </div>
+          <Switch
+            checked={compactListView}
+            onCheckedChange={(checked) => {
+              compactListView = checked;
+              updateSetting('compactListView', checked);
+            }}
+          />
+        </div>
+      </div>
+    </section>
+
+    <Separator class="mb-6" />
+
+    <!-- Import/Export Section -->
+    <section class="mb-8">
+      <div class="mb-4">
+        <h2 class="text-lg font-semibold">Import / Export</h2>
+        <p class="text-sm text-muted-foreground">Import feeds from other RSS readers</p>
+      </div>
+
+      <div class="flex items-center gap-4 p-4 border rounded-lg">
+        <div class="flex-1">
+          <div class="font-medium">Import OPML</div>
+          <div class="text-sm text-muted-foreground">
+            Import feeds and folders from an OPML file exported from another RSS reader
+          </div>
+        </div>
+        <Button onclick={handleImportClick} disabled={isImporting}>
+          <Upload class="h-4 w-4 mr-2" />
+          {isImporting ? 'Importing...' : 'Import'}
+        </Button>
+      </div>
+    </section>
 
     <Separator class="mb-6" />
 

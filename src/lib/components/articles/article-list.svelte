@@ -1,14 +1,29 @@
 <script lang="ts">
   import { appStore } from '$lib/stores/app.svelte';
-  import { ScrollArea } from '$lib/components/ui/scroll-area';
   import ArticleRow from './article-row.svelte';
   import ArticleCard from './article-card.svelte';
   import Spinner from '$lib/components/spinner.svelte';
 
   const isEmpty = $derived(appStore.articles.length === 0 && !appStore.isLoading);
+
+  let scrollContainer: HTMLDivElement;
+
+  function handleScroll() {
+    if (!scrollContainer || appStore.isLoadingMore || !appStore.hasMoreArticles) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+    // Load more when within 200px of bottom
+    if (scrollHeight - scrollTop - clientHeight < 200) {
+      window.dispatchEvent(new CustomEvent('load-more-articles'));
+    }
+  }
 </script>
 
-<ScrollArea class="h-full">
+<div
+  class="h-full overflow-y-auto"
+  bind:this={scrollContainer}
+  onscroll={handleScroll}
+>
   {#if appStore.isLoading}
     <div class="flex items-center justify-center h-64">
       <Spinner size="lg" />
@@ -38,5 +53,17 @@
         {/if}
       {/each}
     </div>
+
+    {#if appStore.isLoadingMore}
+      <div class="flex items-center justify-center py-4">
+        <Spinner size="sm" />
+      </div>
+    {/if}
+
+    {#if !appStore.hasMoreArticles && appStore.articles.length > 0}
+      <div class="text-center py-4 text-sm text-muted-foreground">
+        No more articles
+      </div>
+    {/if}
   {/if}
-</ScrollArea>
+</div>

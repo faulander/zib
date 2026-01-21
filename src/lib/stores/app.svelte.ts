@@ -1,5 +1,9 @@
 import type { Folder, Feed, Article, UnreadCounts } from '$lib/types';
 
+// Settings (persisted)
+let hideReadArticles = $state(false);
+let compactListView = $state(false);
+
 // View state
 let viewMode = $state<'list' | 'cards'>('list');
 let selectedFolderId = $state<number | null>(null);
@@ -17,6 +21,8 @@ let articles = $state<Article[]>([]);
 let unreadCounts = $state<UnreadCounts>({ total: 0, by_folder: {}, by_feed: {} });
 let isLoading = $state(false);
 let isRefreshing = $state(false);
+let isLoadingMore = $state(false);
+let hasMoreArticles = $state(true);
 
 // Computed
 const selectedArticle = $derived(articles.find((a) => a.id === selectedArticleId) || null);
@@ -104,6 +110,18 @@ function setIsRefreshing(value: boolean) {
   isRefreshing = value;
 }
 
+function setIsLoadingMore(value: boolean) {
+  isLoadingMore = value;
+}
+
+function setHasMoreArticles(value: boolean) {
+  hasMoreArticles = value;
+}
+
+function appendArticles(newArticles: Article[]) {
+  articles = [...articles, ...newArticles];
+}
+
 function updateArticleInList(id: number, updates: Partial<Article>) {
   articles = articles.map((a) => (a.id === id ? { ...a, ...updates } : a));
 }
@@ -112,9 +130,28 @@ function removeArticleFromList(id: number) {
   articles = articles.filter((a) => a.id !== id);
 }
 
+function setHideReadArticles(value: boolean) {
+  hideReadArticles = value;
+}
+
+function setCompactListView(value: boolean) {
+  compactListView = value;
+}
+
+function initSettings(settings: { hideReadArticles: boolean; compactListView: boolean }) {
+  hideReadArticles = settings.hideReadArticles;
+  compactListView = settings.compactListView;
+}
+
 // Export reactive getters and setters
 export const appStore = {
   // Getters (reactive)
+  get hideReadArticles() {
+    return hideReadArticles;
+  },
+  get compactListView() {
+    return compactListView;
+  },
   get viewMode() {
     return viewMode;
   },
@@ -157,6 +194,12 @@ export const appStore = {
   get isRefreshing() {
     return isRefreshing;
   },
+  get isLoadingMore() {
+    return isLoadingMore;
+  },
+  get hasMoreArticles() {
+    return hasMoreArticles;
+  },
   get selectedArticle() {
     return selectedArticle;
   },
@@ -183,6 +226,12 @@ export const appStore = {
   setUnreadCounts,
   setIsLoading,
   setIsRefreshing,
+  setIsLoadingMore,
+  setHasMoreArticles,
+  appendArticles,
   updateArticleInList,
-  removeArticleFromList
+  removeArticleFromList,
+  setHideReadArticles,
+  setCompactListView,
+  initSettings
 };

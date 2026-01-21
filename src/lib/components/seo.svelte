@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { PUBLIC_APP_NAME, PUBLIC_APP_URL } from '$env/static/public';
+  import { env } from '$env/dynamic/public';
 
   interface Props {
     title?: string;
@@ -18,8 +18,8 @@
     nofollow = false
   }: Props = $props();
 
-  const siteName = PUBLIC_APP_NAME || 'My App';
-  const siteUrl = PUBLIC_APP_URL || 'http://localhost:5173';
+  const siteName = env.PUBLIC_APP_NAME || 'RSS Reader';
+  const siteUrl = env.PUBLIC_APP_URL || 'http://localhost:5173';
 
   const pageTitle = $derived(title ? `${title} | ${siteName}` : siteName);
   const canonicalUrl = $derived(`${siteUrl}${$page.url.pathname}`);

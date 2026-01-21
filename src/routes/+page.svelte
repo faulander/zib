@@ -15,22 +15,25 @@
     appStore.setIsLoading(true);
 
     try {
-      // Load folders and feeds
-      const [foldersRes, feedsRes, countsRes] = await Promise.all([
+      // Load folders, feeds, and settings
+      const [foldersRes, feedsRes, countsRes, settingsRes] = await Promise.all([
         fetch('/api/folders'),
         fetch('/api/feeds'),
-        fetch('/api/articles?counts=true')
+        fetch('/api/articles?counts=true'),
+        fetch('/api/settings')
       ]);
 
-      const [folders, feeds, counts] = await Promise.all([
+      const [folders, feeds, counts, settings] = await Promise.all([
         foldersRes.json(),
         feedsRes.json(),
-        countsRes.json()
+        countsRes.json(),
+        settingsRes.json()
       ]);
 
       appStore.setFolders(folders);
       appStore.setFeeds(feeds);
       appStore.setUnreadCounts(counts);
+      appStore.initSettings(settings);
 
       // Load articles
       await loadArticles();
@@ -41,7 +44,9 @@
     }
   }
 
-  async function loadArticles() {
+  const ARTICLES_PER_PAGE = 50;
+
+  function buildArticleParams(offset: number = 0): URLSearchParams {
     const params = new URLSearchParams();
 
     if (appStore.selectedFeedId) {
@@ -50,7 +55,7 @@
       params.set('folder_id', String(appStore.selectedFolderId));
     }
 
-    if (appStore.showUnreadOnly) {
+    if (appStore.showUnreadOnly || appStore.hideReadArticles) {
       params.set('is_read', 'false');
     }
 
@@ -58,11 +63,33 @@
       params.set('is_starred', 'true');
     }
 
-    params.set('limit', '100');
+    params.set('limit', String(ARTICLES_PER_PAGE));
+    params.set('offset', String(offset));
 
+    return params;
+  }
+
+  async function loadArticles() {
+    const params = buildArticleParams(0);
     const res = await fetch(`/api/articles?${params}`);
     const articles = await res.json();
     appStore.setArticles(articles);
+    appStore.setHasMoreArticles(articles.length >= ARTICLES_PER_PAGE);
+  }
+
+  async function loadMoreArticles() {
+    if (appStore.isLoadingMore || !appStore.hasMoreArticles) return;
+
+    appStore.setIsLoadingMore(true);
+    try {
+      const params = buildArticleParams(appStore.articles.length);
+      const res = await fetch(`/api/articles?${params}`);
+      const newArticles = await res.json();
+      appStore.appendArticles(newArticles);
+      appStore.setHasMoreArticles(newArticles.length >= ARTICLES_PER_PAGE);
+    } finally {
+      appStore.setIsLoadingMore(false);
+    }
   }
 
   async function loadCounts() {
@@ -78,6 +105,7 @@
     appStore.selectedFolderId;
     appStore.showUnreadOnly;
     appStore.showStarredOnly;
+    appStore.hideReadArticles;
 
     loadArticles();
   });
@@ -88,13 +116,16 @@
     // Listen for reload events
     const handleReload = () => loadData();
     const handleReloadCounts = () => loadCounts();
+    const handleLoadMore = () => loadMoreArticles();
 
     window.addEventListener('reload-data', handleReload);
     window.addEventListener('reload-counts', handleReloadCounts);
+    window.addEventListener('load-more-articles', handleLoadMore);
 
     return () => {
       window.removeEventListener('reload-data', handleReload);
       window.removeEventListener('reload-counts', handleReloadCounts);
+      window.removeEventListener('load-more-articles', handleLoadMore);
     };
   });
 </script>

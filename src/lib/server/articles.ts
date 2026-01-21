@@ -232,39 +232,83 @@ export function getUnreadCounts(): {
   by_feed: Record<number, number>;
 } {
   const db = getDb();
+  const enabledFilters = getEnabledFilters();
 
-  const total = db.prepare('SELECT COUNT(*) as count FROM articles WHERE is_read = 0').get() as {
-    count: number;
-  };
+  // If no filters, use fast SQL-only counting
+  if (enabledFilters.length === 0) {
+    const total = db.prepare('SELECT COUNT(*) as count FROM articles WHERE is_read = 0').get() as {
+      count: number;
+    };
 
-  const byFolder = db
+    const byFolder = db
+      .prepare(
+        `
+      SELECT f.folder_id, COUNT(*) as count
+      FROM articles a
+      JOIN feeds f ON f.id = a.feed_id
+      WHERE a.is_read = 0 AND f.folder_id IS NOT NULL
+      GROUP BY f.folder_id
+    `
+      )
+      .all() as { folder_id: number; count: number }[];
+
+    const byFeed = db
+      .prepare(
+        `
+      SELECT feed_id, COUNT(*) as count
+      FROM articles
+      WHERE is_read = 0
+      GROUP BY feed_id
+    `
+      )
+      .all() as { feed_id: number; count: number }[];
+
+    return {
+      total: total.count,
+      by_folder: Object.fromEntries(byFolder.map((r) => [r.folder_id, r.count])),
+      by_feed: Object.fromEntries(byFeed.map((r) => [r.feed_id, r.count]))
+    };
+  }
+
+  // With filters, we need to check each article
+  const articles = db
     .prepare(
       `
-    SELECT f.folder_id, COUNT(*) as count
+    SELECT a.id, a.title, a.rss_content, a.full_content, a.feed_id, f.folder_id
     FROM articles a
     JOIN feeds f ON f.id = a.feed_id
-    WHERE a.is_read = 0 AND f.folder_id IS NOT NULL
-    GROUP BY f.folder_id
+    WHERE a.is_read = 0
   `
     )
-    .all() as { folder_id: number; count: number }[];
+    .all() as {
+    id: number;
+    title: string;
+    rss_content: string | null;
+    full_content: string | null;
+    feed_id: number;
+    folder_id: number | null;
+  }[];
 
-  const byFeed = db
-    .prepare(
-      `
-    SELECT feed_id, COUNT(*) as count
-    FROM articles
-    WHERE is_read = 0
-    GROUP BY feed_id
-  `
-    )
-    .all() as { feed_id: number; count: number }[];
+  let total = 0;
+  const byFolder: Record<number, number> = {};
+  const byFeed: Record<number, number> = {};
 
-  return {
-    total: total.count,
-    by_folder: Object.fromEntries(byFolder.map((r) => [r.folder_id, r.count])),
-    by_feed: Object.fromEntries(byFeed.map((r) => [r.feed_id, r.count]))
-  };
+  for (const article of articles) {
+    // Skip articles that match hide filters
+    if (articleMatchesFilters(article, enabledFilters)) {
+      continue;
+    }
+
+    total++;
+
+    if (article.folder_id !== null) {
+      byFolder[article.folder_id] = (byFolder[article.folder_id] || 0) + 1;
+    }
+
+    byFeed[article.feed_id] = (byFeed[article.feed_id] || 0) + 1;
+  }
+
+  return { total, by_folder: byFolder, by_feed: byFeed };
 }
 
 export function deleteOldArticles(daysToKeep: number = 30): number {
