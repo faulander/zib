@@ -2,7 +2,7 @@
   import type { Article } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
   import { cn } from '$lib/utils';
-  import { BookmarkPlus } from '@lucide/svelte';
+  import { BookmarkPlus, Loader2 } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
 
   interface Props {
@@ -105,12 +105,16 @@
   {#if appStore.instapaperEnabled}
     <button
       type="button"
-      class="shrink-0 p-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100"
+      class="shrink-0 p-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100 disabled:opacity-40"
       onclick={saveToInstapaper}
       title="Save to Instapaper"
       disabled={isSaving}
     >
-      <BookmarkPlus class={cn('h-4 w-4', isSaving && 'animate-pulse')} />
+      {#if isSaving}
+        <Loader2 class="h-4 w-4 animate-spin" />
+      {:else}
+        <BookmarkPlus class="h-4 w-4" />
+      {/if}
     </button>
   {/if}
 

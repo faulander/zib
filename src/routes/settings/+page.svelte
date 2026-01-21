@@ -4,14 +4,27 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Switch } from '$lib/components/ui/switch';
-  import { Separator } from '$lib/components/ui/separator';
   import FilterEditor from '$lib/components/filter-editor.svelte';
   import FeedEditDialog from '$lib/components/feed-edit-dialog.svelte';
-  import { ArrowLeft, Plus, Pencil, Trash2, Upload, Download, AlertTriangle, RefreshCw, X, Clock, Rss, FileText, Info, AlertCircle, Share2, Eye, EyeOff } from '@lucide/svelte';
+  import { ArrowLeft, Plus, Pencil, Trash2, Upload, Download, AlertTriangle, RefreshCw, X, Clock, Rss, FileText, Info, AlertCircle, Share2, Eye, EyeOff, Settings, Filter as FilterIcon, FolderInput } from '@lucide/svelte';
   import { Label } from '$lib/components/ui/label';
   import { goto } from '$app/navigation';
   import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
+  import { cn } from '$lib/utils';
+
+  type SettingsSection = 'general' | 'sharing' | 'import-export' | 'feeds' | 'filters' | 'logs';
+
+  let activeSection = $state<SettingsSection>('general');
+
+  const sections = [
+    { id: 'general' as const, label: 'General', icon: Settings },
+    { id: 'sharing' as const, label: 'Sharing', icon: Share2 },
+    { id: 'import-export' as const, label: 'Import / Export', icon: FolderInput },
+    { id: 'feeds' as const, label: 'Feeds', icon: Rss },
+    { id: 'filters' as const, label: 'Filters', icon: FilterIcon },
+    { id: 'logs' as const, label: 'Logs', icon: FileText },
+  ];
 
   let { data }: { data: PageData } = $props();
 
@@ -353,19 +366,47 @@
   }
 </script>
 
-<div class="min-h-screen bg-background">
-  <div class="max-w-2xl mx-auto p-6">
-    <div class="flex items-center gap-4 mb-6">
+<div class="min-h-screen bg-background flex">
+  <!-- Sidebar -->
+  <aside class="w-56 border-r bg-muted/30 p-4 flex flex-col">
+    <div class="flex items-center gap-2 mb-6">
       <Button variant="ghost" size="icon" onclick={() => goto('/')}>
         <ArrowLeft class="h-5 w-5" />
       </Button>
-      <h1 class="text-2xl font-bold">Settings</h1>
+      <h1 class="text-lg font-bold">Settings</h1>
     </div>
 
-    <Separator class="mb-6" />
+    <nav class="space-y-1">
+      {#each sections as section}
+        <button
+          type="button"
+          class={cn(
+            'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left',
+            activeSection === section.id
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+          )}
+          onclick={() => (activeSection = section.id)}
+        >
+          <section.icon class="h-4 w-4" />
+          {section.label}
+          {#if section.id === 'feeds' && errorFeeds.length > 0}
+            <span class="ml-auto text-xs bg-yellow-500 text-yellow-950 rounded-full px-1.5">
+              {errorFeeds.length}
+            </span>
+          {/if}
+        </button>
+      {/each}
+    </nav>
+  </aside>
 
+  <!-- Main content -->
+  <main class="flex-1 p-6 overflow-y-auto">
+    <div class="max-w-2xl">
+
+    {#if activeSection === 'general'}
     <!-- General Settings Section -->
-    <section class="mb-8">
+    <section>
       <div class="mb-4">
         <h2 class="text-lg font-semibold">General</h2>
         <p class="text-sm text-muted-foreground">Display preferences</p>
