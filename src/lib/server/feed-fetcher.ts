@@ -5,12 +5,63 @@ import { createArticle } from './articles';
 import { updateFeedFetchStatus, getFeedById } from './feeds';
 import { logger } from './logger';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RssItem = any;
+
 const parser = new Parser({
   timeout: 10000, // 10 second timeout for feed fetching
   headers: {
     'User-Agent': 'Mozilla/5.0 (compatible; RSSReader/1.0)'
+  },
+  customFields: {
+    item: [
+      ['media:content', 'media:content', { keepArray: true }],
+      ['media:thumbnail', 'media:thumbnail'],
+      ['enclosure', 'enclosure']
+    ]
   }
 });
+
+/**
+ * Extract image URL from various RSS item fields
+ * Priority: enclosure (image) > media:content > media:thumbnail > first img in content
+ */
+function extractImageUrl(item: RssItem): string | undefined {
+  // 1. Check enclosure (common in RSS 2.0)
+  if (item.enclosure?.url && item.enclosure.type?.startsWith('image/')) {
+    return item.enclosure.url;
+  }
+
+  // 2. Check media:content (Media RSS)
+  if (item['media:content']) {
+    const mediaContent = Array.isArray(item['media:content'])
+      ? item['media:content']
+      : [item['media:content']];
+    for (const media of mediaContent) {
+      if (media.$?.url && (!media.$.medium || media.$.medium === 'image')) {
+        return media.$.url;
+      }
+    }
+  }
+
+  // 3. Check media:thumbnail
+  if (item['media:thumbnail']?.$?.url) {
+    return item['media:thumbnail'].$.url;
+  }
+
+  // 4. Extract first image from content
+  const content = item.content || item['content:encoded'] || '';
+  const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (imgMatch?.[1]) {
+    // Skip tracking pixels and tiny images
+    const src = imgMatch[1];
+    if (!src.includes('pixel') && !src.includes('tracker') && !src.includes('1x1')) {
+      return src;
+    }
+  }
+
+  return undefined;
+}
 
 export interface FetchedFeed {
   title: string;
@@ -27,6 +78,7 @@ export interface FetchedItem {
   pubDate?: string;
   content?: string;
   contentSnippet?: string;
+  imageUrl?: string;
 }
 
 export async function fetchFeed(feedUrl: string): Promise<FetchedFeed> {
@@ -36,15 +88,19 @@ export async function fetchFeed(feedUrl: string): Promise<FetchedFeed> {
     title: feed.title || feedUrl,
     description: feed.description,
     link: feed.link,
-    items: (feed.items || []).map((item) => ({
-      guid: item.guid || item.link || item.title || '',
-      title: item.title || 'Untitled',
-      link: item.link,
-      author: item.creator || item.author,
-      pubDate: item.pubDate || item.isoDate,
-      content: item.content || item['content:encoded'] || item.contentSnippet,
-      contentSnippet: item.contentSnippet
-    }))
+    items: (feed.items || []).map((item) => {
+      const rssItem = item as RssItem;
+      return {
+        guid: item.guid || item.link || item.title || '',
+        title: item.title || 'Untitled',
+        link: item.link,
+        author: item.creator || rssItem.author,
+        pubDate: item.pubDate || item.isoDate,
+        content: item.content || rssItem['content:encoded'] || item.contentSnippet,
+        contentSnippet: item.contentSnippet,
+        imageUrl: extractImageUrl(rssItem)
+      };
+    })
   };
 }
 
@@ -112,7 +168,8 @@ export async function refreshFeed(
         author: item.author,
         published_at: item.pubDate ? new Date(item.pubDate).toISOString() : undefined,
         rss_content: item.content,
-        full_content: fullContent || undefined
+        full_content: fullContent || undefined,
+        image_url: item.imageUrl
       });
 
       if (article) {

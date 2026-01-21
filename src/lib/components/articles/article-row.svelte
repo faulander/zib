@@ -2,12 +2,15 @@
   import type { Article } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
   import { cn } from '$lib/utils';
+  import { BookmarkPlus } from '@lucide/svelte';
+  import { toast } from 'svelte-sonner';
 
   interface Props {
     article: Article;
   }
 
   let { article }: Props = $props();
+  let isSaving = $state(false);
 
   function formatDate(dateStr: string | null | undefined): string {
     if (!dateStr) return '';
@@ -55,6 +58,29 @@
 
     appStore.selectArticle(article.id);
   }
+
+  async function saveToInstapaper(e: MouseEvent) {
+    e.stopPropagation();
+    if (isSaving) return;
+
+    isSaving = true;
+    try {
+      const res = await fetch(`/api/articles/${article.id}/instapaper`, {
+        method: 'POST'
+      });
+
+      if (res.ok) {
+        toast.success('Saved to Instapaper');
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to save');
+      }
+    } catch {
+      toast.error('Failed to save to Instapaper');
+    } finally {
+      isSaving = false;
+    }
+  }
 </script>
 
 <div
@@ -75,6 +101,18 @@
   <h3 class={cn('text-sm truncate flex-1 min-w-0', !article.is_read && 'font-semibold')}>
     {article.title}
   </h3>
+
+  {#if appStore.instapaperEnabled}
+    <button
+      type="button"
+      class="shrink-0 p-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100"
+      onclick={saveToInstapaper}
+      title="Save to Instapaper"
+      disabled={isSaving}
+    >
+      <BookmarkPlus class={cn('h-4 w-4', isSaving && 'animate-pulse')} />
+    </button>
+  {/if}
 
   <span class="text-xs opacity-60 shrink-0 w-16 text-right">{publishedDate}</span>
 </div>

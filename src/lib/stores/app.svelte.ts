@@ -5,6 +5,7 @@ let hideReadArticles = $state(false);
 let compactListView = $state(false);
 let highlightColorLight = $state('#fef3c7');
 let highlightColorDark = $state('#422006');
+let instapaperEnabled = $state(false);
 
 // View state
 let viewMode = $state<'list' | 'cards'>('list');
@@ -148,16 +149,22 @@ function setHighlightColorDark(value: string) {
   highlightColorDark = value;
 }
 
+function setInstapaperEnabled(value: boolean) {
+  instapaperEnabled = value;
+}
+
 function initSettings(settings: {
   hideReadArticles: boolean;
   compactListView: boolean;
   highlightColorLight: string;
   highlightColorDark: string;
+  instapaperEnabled?: boolean;
 }) {
   hideReadArticles = settings.hideReadArticles;
   compactListView = settings.compactListView;
   highlightColorLight = settings.highlightColorLight;
   highlightColorDark = settings.highlightColorDark;
+  instapaperEnabled = settings.instapaperEnabled ?? false;
 }
 
 // Export reactive getters and setters
@@ -174,6 +181,9 @@ export const appStore = {
   },
   get highlightColorDark() {
     return highlightColorDark;
+  },
+  get instapaperEnabled() {
+    return instapaperEnabled;
   },
   get viewMode() {
     return viewMode;
@@ -258,5 +268,6 @@ export const appStore = {
   setCompactListView,
   setHighlightColorLight,
   setHighlightColorDark,
+  setInstapaperEnabled,
   initSettings
 };

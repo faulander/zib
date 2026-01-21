@@ -34,6 +34,7 @@ export interface ArticleRow {
   published_at: string | null;
   rss_content: string | null;
   full_content: string | null;
+  image_url: string | null;
   is_read: number;
   is_starred: number;
   created_at: string;

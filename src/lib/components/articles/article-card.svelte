@@ -1,9 +1,7 @@
 <script lang="ts">
   import type { Article } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
-  import * as Card from '$lib/components/ui/card';
-  import { Button } from '$lib/components/ui/button';
-  import { Star, Circle } from '@lucide/svelte';
+  import { Rss } from '@lucide/svelte';
   import { cn } from '$lib/utils';
 
   interface Props {
@@ -11,51 +9,18 @@
   }
 
   let { article }: Props = $props();
+  let imageError = $state(false);
 
   const publishedDate = $derived(
     article.published_at
       ? new Date(article.published_at).toLocaleDateString(undefined, {
           month: 'short',
-          day: 'numeric',
-          year: 'numeric'
+          day: 'numeric'
         })
       : ''
   );
 
-  // Extract a snippet from content
-  const snippet = $derived(() => {
-    const content = article.full_content || article.rss_content || '';
-    // Strip HTML tags and get first 150 chars
-    const text = content.replace(/<[^>]*>/g, '').trim();
-    return text.length > 150 ? text.slice(0, 150) + '...' : text;
-  });
-
-  async function toggleRead(e: MouseEvent) {
-    e.stopPropagation();
-    const newValue = !article.is_read;
-
-    await fetch(`/api/articles/${article.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_read: newValue })
-    });
-
-    appStore.updateArticleInList(article.id, { is_read: newValue });
-    window.dispatchEvent(new CustomEvent('reload-counts'));
-  }
-
-  async function toggleStar(e: MouseEvent) {
-    e.stopPropagation();
-    const newValue = !article.is_starred;
-
-    await fetch(`/api/articles/${article.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_starred: newValue })
-    });
-
-    appStore.updateArticleInList(article.id, { is_starred: newValue });
-  }
+  const showImage = $derived(article.image_url && !imageError);
 
   function handleClick() {
     if (!article.is_read) {
@@ -70,64 +35,49 @@
 
     appStore.selectArticle(article.id);
   }
+
+  function handleImageError() {
+    imageError = true;
+  }
 </script>
 
-<Card.Root
+<div
   class={cn(
-    'cursor-pointer hover:shadow-md transition-shadow',
+    'bg-card text-card-foreground rounded-xl border shadow-sm cursor-pointer overflow-hidden h-[280px] flex flex-col transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:border-primary/50',
     !article.is_read && 'border-l-4 border-l-primary'
   )}
   onclick={handleClick}
+  onkeydown={(e) => e.key === 'Enter' && handleClick()}
+  role="button"
+  tabindex="0"
 >
-  <Card.Header class="pb-2">
-    <div class="flex items-start justify-between gap-2">
-      <Card.Title class="text-base line-clamp-2">{article.title}</Card.Title>
-      <div class="flex shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-7 w-7"
-          onclick={toggleRead}
-          title={article.is_read ? 'Mark as unread' : 'Mark as read'}
-        >
-          <Circle
-            class={cn(
-              'h-3 w-3',
-              article.is_read ? 'text-muted-foreground' : 'fill-primary text-primary'
-            )}
-          />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-7 w-7"
-          onclick={toggleStar}
-          title={article.is_starred ? 'Remove star' : 'Star'}
-        >
-          <Star
-            class={cn(
-              'h-4 w-4',
-              article.is_starred && 'fill-yellow-400 text-yellow-400'
-            )}
-          />
-        </Button>
+  <!-- Image area - fixed height -->
+  <div class="relative w-full h-40 shrink-0 overflow-hidden bg-muted">
+    {#if showImage}
+      <img
+        src={article.image_url}
+        alt=""
+        class="w-full h-full object-cover"
+        loading="lazy"
+        onerror={handleImageError}
+      />
+    {:else}
+      <div class="w-full h-full flex items-center justify-center bg-muted/50">
+        <Rss class="h-12 w-12 text-muted-foreground/30" />
       </div>
-    </div>
-    <Card.Description class="text-xs">
-      {#if article.feed_title}
-        <span>{article.feed_title}</span>
-        {#if publishedDate}
-          <span> · {publishedDate}</span>
-        {/if}
-      {:else if publishedDate}
-        <span>{publishedDate}</span>
-      {/if}
-    </Card.Description>
-  </Card.Header>
+    {/if}
+  </div>
 
-  {#if snippet()}
-    <Card.Content class="pt-0">
-      <p class="text-sm text-muted-foreground line-clamp-3">{snippet()}</p>
-    </Card.Content>
-  {/if}
-</Card.Root>
+  <!-- Content area -->
+  <div class="flex flex-col flex-1 p-3">
+    <h3 class="text-sm font-semibold line-clamp-2">{article.title}</h3>
+    <div class="text-xs text-muted-foreground mt-auto">
+      {#if article.feed_title}
+        <div class="truncate">{article.feed_title}</div>
+      {/if}
+      {#if publishedDate}
+        <div>{publishedDate}</div>
+      {/if}
+    </div>
+  </div>
+</div>

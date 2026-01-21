@@ -194,6 +194,7 @@ export function createArticle(data: {
   published_at?: string;
   rss_content?: string;
   full_content?: string;
+  image_url?: string;
 }): Article | null {
   const db = getDb();
 
@@ -201,8 +202,8 @@ export function createArticle(data: {
     const result = db
       .prepare(
         `
-      INSERT INTO articles (feed_id, guid, title, url, author, published_at, rss_content, full_content)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO articles (feed_id, guid, title, url, author, published_at, rss_content, full_content, image_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
       )
       .run(
@@ -213,7 +214,8 @@ export function createArticle(data: {
         data.author ?? null,
         data.published_at ?? null,
         data.rss_content ?? null,
-        data.full_content ?? null
+        data.full_content ?? null,
+        data.image_url ?? null
       );
 
     return getArticleById(result.lastInsertRowid as number);

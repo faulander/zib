@@ -1,10 +1,18 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getAllSettings, setSetting, type AppSettings } from '$lib/server/settings';
+import {
+  getAllSettings,
+  setSetting,
+  isInstapaperConfigured,
+  type AppSettings
+} from '$lib/server/settings';
 
 export const GET: RequestHandler = async () => {
   const settings = getAllSettings();
-  return json(settings);
+  return json({
+    ...settings,
+    instapaperEnabled: isInstapaperConfigured()
+  });
 };
 
 export const PATCH: RequestHandler = async ({ request }) => {
@@ -26,6 +34,17 @@ export const PATCH: RequestHandler = async ({ request }) => {
     setSetting('highlightColorDark', updates.highlightColorDark);
   }
 
+  if (updates.instapaperUsername !== undefined) {
+    setSetting('instapaperUsername', updates.instapaperUsername);
+  }
+
+  if (updates.instapaperPassword !== undefined) {
+    setSetting('instapaperPassword', updates.instapaperPassword);
+  }
+
   const settings = getAllSettings();
-  return json(settings);
+  return json({
+    ...settings,
+    instapaperEnabled: isInstapaperConfigured()
+  });
 };

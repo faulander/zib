@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS articles (
   published_at TEXT,
   rss_content TEXT,
   full_content TEXT,
+  image_url TEXT,
   is_read INTEGER DEFAULT 0,
   is_starred INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,

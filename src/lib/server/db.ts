@@ -43,6 +43,17 @@ function runMigrations(database: Database.Database): void {
     database.exec('ALTER TABLE feeds ADD COLUMN last_new_article_at TEXT');
     console.log('[DB] Migration: Added last_new_article_at column to feeds table');
   }
+
+  // Migration: Add image_url column to articles table
+  const articlesColumns = database.prepare('PRAGMA table_info(articles)').all() as {
+    name: string;
+  }[];
+  const hasImageUrl = articlesColumns.some((col) => col.name === 'image_url');
+
+  if (!hasImageUrl) {
+    database.exec('ALTER TABLE articles ADD COLUMN image_url TEXT');
+    console.log('[DB] Migration: Added image_url column to articles table');
+  }
 }
 
 export function closeDb(): void {
