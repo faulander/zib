@@ -23,16 +23,18 @@
           body: formData
         });
 
+        const result = await res.json();
+
         if (res.ok) {
-          const result = await res.json();
           toast.success(`Imported ${result.feeds_created || 0} feeds`);
           window.dispatchEvent(new CustomEvent('reload-data'));
         } else {
-          toast.error('Import failed');
+          console.error('Import failed:', result);
+          toast.error(result.error || 'Import failed');
         }
       } catch (err) {
         console.error('Import failed:', err);
-        toast.error('Import failed');
+        toast.error('Import failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
       } finally {
         isImporting = false;
       }
@@ -51,9 +53,7 @@
     <div class="flex items-center gap-4 p-4 border rounded-lg">
       <div class="flex-1">
         <div class="font-medium">Import OPML</div>
-        <div class="text-sm text-muted-foreground">
-          Import feeds and folders from an OPML file
-        </div>
+        <div class="text-sm text-muted-foreground">Import feeds and folders from an OPML file</div>
       </div>
       <Button onclick={handleImportClick} disabled={isImporting}>
         <Upload class="h-4 w-4 mr-2" />
