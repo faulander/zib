@@ -122,6 +122,21 @@
       </Button>
     </div>
 
+    <!-- Refresh -->
+    <Button
+      variant="ghost"
+      size="icon"
+      onclick={handleRefresh}
+      disabled={appStore.isRefreshing}
+      title={appStore.selectedFeedId
+        ? 'Refresh this feed'
+        : appStore.selectedFolderId
+          ? 'Refresh feeds in this folder'
+          : 'Refresh all feeds'}
+    >
+      <RefreshCw class="h-4 w-4 {appStore.isRefreshing ? 'animate-spin' : ''}" />
+    </Button>
+
     <!-- Mark read dropdown -->
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
@@ -152,16 +167,5 @@
         </DropdownMenu.Item>
       </DropdownMenu.Content>
     </DropdownMenu.Root>
-
-    <!-- Refresh -->
-    <Button
-      variant="ghost"
-      size="icon"
-      onclick={handleRefresh}
-      disabled={appStore.isRefreshing}
-      title="Refresh"
-    >
-      <RefreshCw class="h-4 w-4 {appStore.isRefreshing ? 'animate-spin' : ''}" />
-    </Button>
   </div>
 </div>
