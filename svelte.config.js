@@ -9,10 +9,10 @@ const config = {
 
   kit: {
     adapter: adapter(),
-    // Disable CSRF origin check - this is a single-user app without authentication
+    // Trust all origins - this is a single-user app without authentication
     // and runs behind a reverse proxy which may change the Origin header
     csrf: {
-      checkOrigin: false
+      trustedOrigins: ['*']
     }
   }
 };
