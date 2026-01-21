@@ -18,6 +18,14 @@ export const PATCH: RequestHandler = async ({ request }) => {
     setSetting('compactListView', updates.compactListView);
   }
 
+  if (updates.highlightColorLight !== undefined) {
+    setSetting('highlightColorLight', updates.highlightColorLight);
+  }
+
+  if (updates.highlightColorDark !== undefined) {
+    setSetting('highlightColorDark', updates.highlightColorDark);
+  }
+
   const settings = getAllSettings();
   return json(settings);
 };

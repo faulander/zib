@@ -3,6 +3,8 @@ import type { Folder, Feed, Article, UnreadCounts } from '$lib/types';
 // Settings (persisted)
 let hideReadArticles = $state(false);
 let compactListView = $state(false);
+let highlightColorLight = $state('#fef3c7');
+let highlightColorDark = $state('#422006');
 
 // View state
 let viewMode = $state<'list' | 'cards'>('list');
@@ -138,9 +140,24 @@ function setCompactListView(value: boolean) {
   compactListView = value;
 }
 
-function initSettings(settings: { hideReadArticles: boolean; compactListView: boolean }) {
+function setHighlightColorLight(value: string) {
+  highlightColorLight = value;
+}
+
+function setHighlightColorDark(value: string) {
+  highlightColorDark = value;
+}
+
+function initSettings(settings: {
+  hideReadArticles: boolean;
+  compactListView: boolean;
+  highlightColorLight: string;
+  highlightColorDark: string;
+}) {
   hideReadArticles = settings.hideReadArticles;
   compactListView = settings.compactListView;
+  highlightColorLight = settings.highlightColorLight;
+  highlightColorDark = settings.highlightColorDark;
 }
 
 // Export reactive getters and setters
@@ -151,6 +168,12 @@ export const appStore = {
   },
   get compactListView() {
     return compactListView;
+  },
+  get highlightColorLight() {
+    return highlightColorLight;
+  },
+  get highlightColorDark() {
+    return highlightColorDark;
   },
   get viewMode() {
     return viewMode;
@@ -233,5 +256,7 @@ export const appStore = {
   removeArticleFromList,
   setHideReadArticles,
   setCompactListView,
+  setHighlightColorLight,
+  setHighlightColorDark,
   initSettings
 };

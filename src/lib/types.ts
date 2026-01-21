@@ -15,6 +15,7 @@ export interface FeedRow {
   description: string | null;
   favicon_url: string | null;
   last_fetched_at: string | null;
+  last_new_article_at: string | null;
   last_error: string | null;
   error_count: number;
   fetch_priority: number;
@@ -152,4 +153,21 @@ export interface UnreadCounts {
   total: number;
   by_folder: Record<number, number>;
   by_feed: Record<number, number>;
+}
+
+// Feed statistics for adaptive refresh rates
+export interface FeedStatistics {
+  feed_id: number;
+  avg_articles_per_day: number;
+  articles_last_7_days: number;
+  articles_last_30_days: number;
+  avg_publish_gap_hours: number | null;
+  total_articles_fetched: number;
+  total_articles_read: number;
+  total_articles_starred: number;
+  read_rate: number;
+  calculated_ttl_minutes: number | null;
+  ttl_override_minutes: number | null;
+  ttl_calculation_reason: string | null;
+  last_calculated_at: string | null;
 }

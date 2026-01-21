@@ -59,7 +59,7 @@
 
 <div
   class={cn(
-    'w-full text-left px-4 hover:bg-muted/50 transition-colors flex items-center gap-3 cursor-pointer',
+    'w-full text-left px-4 transition-colors flex items-center gap-3 cursor-pointer article-row-hover',
     appStore.compactListView ? 'py-1' : 'py-2',
     article.is_read && 'text-muted-foreground'
   )}

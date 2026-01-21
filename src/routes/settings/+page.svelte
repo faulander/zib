@@ -2,31 +2,62 @@
   import type { PageData } from './$types';
   import type { Filter, Feed } from '$lib/types';
   import { Button } from '$lib/components/ui/button';
+  import { Input } from '$lib/components/ui/input';
   import { Switch } from '$lib/components/ui/switch';
   import { Separator } from '$lib/components/ui/separator';
   import FilterEditor from '$lib/components/filter-editor.svelte';
   import FeedEditDialog from '$lib/components/feed-edit-dialog.svelte';
-  import { ArrowLeft, Plus, Pencil, Trash2, Upload, Download, AlertTriangle, RefreshCw, X } from '@lucide/svelte';
+  import { ArrowLeft, Plus, Pencil, Trash2, Upload, Download, AlertTriangle, RefreshCw, X, Clock, Rss } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
 
   let { data }: { data: PageData } = $props();
 
+  interface FeedWithTTL extends Feed {
+    effective_ttl_minutes: number;
+    effective_ttl_display: string;
+    statistics: {
+      avg_articles_per_day: number;
+      read_rate: number;
+      calculated_ttl_minutes: number | null;
+      ttl_override_minutes: number | null;
+      ttl_calculation_reason: string | null;
+    } | null;
+  }
+
   let filters = $state<Filter[]>([]);
   let errorFeeds = $state<Feed[]>([]);
+  let allFeeds = $state<FeedWithTTL[]>([]);
   let hideReadArticles = $state(false);
   let compactListView = $state(false);
+  let highlightColorLight = $state('#fef3c7');
+  let highlightColorDark = $state('#422006');
+  let feedSearchQuery = $state('');
 
   // Initialize from server data
   $effect(() => {
     filters = data.filters;
     errorFeeds = data.errorFeeds;
+    allFeeds = data.allFeeds as FeedWithTTL[];
     hideReadArticles = data.settings.hideReadArticles;
     compactListView = data.settings.compactListView;
+    highlightColorLight = data.settings.highlightColorLight;
+    highlightColorDark = data.settings.highlightColorDark;
   });
 
-  async function updateSetting(key: 'hideReadArticles' | 'compactListView', value: boolean) {
+  const filteredFeeds = $derived(
+    feedSearchQuery.trim()
+      ? allFeeds.filter((f) =>
+          f.title.toLowerCase().includes(feedSearchQuery.toLowerCase())
+        )
+      : allFeeds
+  );
+
+  async function updateSetting(
+    key: 'hideReadArticles' | 'compactListView' | 'highlightColorLight' | 'highlightColorDark',
+    value: boolean | string
+  ) {
     try {
       const res = await fetch('/api/settings', {
         method: 'PATCH',
@@ -36,9 +67,13 @@
 
       if (res.ok) {
         if (key === 'hideReadArticles') {
-          appStore.setHideReadArticles(value);
+          appStore.setHideReadArticles(value as boolean);
         } else if (key === 'compactListView') {
-          appStore.setCompactListView(value);
+          appStore.setCompactListView(value as boolean);
+        } else if (key === 'highlightColorLight') {
+          appStore.setHighlightColorLight(value as string);
+        } else if (key === 'highlightColorDark') {
+          appStore.setHighlightColorDark(value as string);
         }
       }
     } catch (err) {
@@ -110,12 +145,29 @@
     showFeedEditor = true;
   }
 
-  function handleFeedSaved(updatedFeed: Feed) {
+  async function handleFeedSaved(updatedFeed: Feed) {
     // If the feed was successfully saved and tested, it might not have errors anymore
     // Refresh the error feeds list
     errorFeeds = errorFeeds.map((f) =>
       f.id === updatedFeed.id ? updatedFeed : f
     ).filter((f) => f.last_error);
+
+    // Reload the feed with full stats from server
+    try {
+      const res = await fetch(`/api/feeds/${updatedFeed.id}`);
+      if (res.ok) {
+        const feedWithStats = await res.json();
+        allFeeds = allFeeds.map((f) =>
+          f.id === updatedFeed.id ? feedWithStats : f
+        );
+      }
+    } catch {
+      // Ignore errors, just update with what we have
+      allFeeds = allFeeds.map((f) =>
+        f.id === updatedFeed.id ? { ...f, ...updatedFeed } : f
+      );
+    }
+
     showFeedEditor = false;
     editingFeed = null;
   }
@@ -246,6 +298,93 @@
             }}
           />
         </div>
+
+        <div class="p-4 border rounded-lg space-y-4">
+          <div>
+            <div class="font-medium">Highlight color</div>
+            <div class="text-sm text-muted-foreground">
+              Color used for hover states on articles
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label for="highlight-light" class="text-sm font-medium">Light mode</label>
+              <div class="flex gap-2">
+                <input
+                  type="color"
+                  id="highlight-light-picker"
+                  value={highlightColorLight}
+                  onchange={(e) => {
+                    highlightColorLight = e.currentTarget.value;
+                    updateSetting('highlightColorLight', e.currentTarget.value);
+                  }}
+                  class="w-10 h-10 rounded border cursor-pointer"
+                />
+                <Input
+                  id="highlight-light"
+                  type="text"
+                  value={highlightColorLight}
+                  oninput={(e) => {
+                    const val = e.currentTarget.value;
+                    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                      highlightColorLight = val;
+                      updateSetting('highlightColorLight', val);
+                    } else {
+                      highlightColorLight = val;
+                    }
+                  }}
+                  onblur={(e) => {
+                    const val = e.currentTarget.value;
+                    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                      updateSetting('highlightColorLight', val);
+                    }
+                  }}
+                  placeholder="#fef3c7"
+                  class="flex-1 font-mono"
+                />
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <label for="highlight-dark" class="text-sm font-medium">Dark mode</label>
+              <div class="flex gap-2">
+                <input
+                  type="color"
+                  id="highlight-dark-picker"
+                  value={highlightColorDark}
+                  onchange={(e) => {
+                    highlightColorDark = e.currentTarget.value;
+                    updateSetting('highlightColorDark', e.currentTarget.value);
+                  }}
+                  class="w-10 h-10 rounded border cursor-pointer"
+                />
+                <Input
+                  id="highlight-dark"
+                  type="text"
+                  value={highlightColorDark}
+                  oninput={(e) => {
+                    const val = e.currentTarget.value;
+                    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                      highlightColorDark = val;
+                      updateSetting('highlightColorDark', val);
+                    } else {
+                      highlightColorDark = val;
+                    }
+                  }}
+                  onblur={(e) => {
+                    const val = e.currentTarget.value;
+                    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                      updateSetting('highlightColorDark', val);
+                    }
+                  }}
+                  placeholder="#422006"
+                  class="flex-1 font-mono"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -286,6 +425,91 @@
             </Button>
           </a>
         </div>
+      </div>
+    </section>
+
+    <Separator class="mb-6" />
+
+    <!-- Manage Feeds Section -->
+    <section class="mb-8">
+      <div class="mb-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2">
+          <Rss class="h-5 w-5" />
+          Manage Feeds
+        </h2>
+        <p class="text-sm text-muted-foreground">
+          {allFeeds.length} feed{allFeeds.length === 1 ? '' : 's'} - Edit feeds and adjust refresh intervals
+        </p>
+      </div>
+
+      <div class="mb-3">
+        <Input
+          type="search"
+          placeholder="Search feeds..."
+          bind:value={feedSearchQuery}
+          class="max-w-sm"
+        />
+      </div>
+
+      <div class="border rounded-lg divide-y max-h-96 overflow-y-auto">
+        {#if filteredFeeds.length === 0}
+          <div class="p-4 text-center text-muted-foreground">
+            {feedSearchQuery ? 'No feeds match your search' : 'No feeds yet'}
+          </div>
+        {:else}
+          {#each filteredFeeds as feed (feed.id)}
+            <div class="p-3 flex items-center gap-3 hover:bg-muted/50 group">
+              <!-- Feed icon -->
+              <div class="shrink-0">
+                {#if feed.favicon_url}
+                  <img
+                    src={feed.favicon_url}
+                    alt=""
+                    class="h-5 w-5 rounded"
+                    onerror={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                {:else}
+                  <Rss class="h-5 w-5 text-muted-foreground" />
+                {/if}
+              </div>
+
+              <!-- Feed info -->
+              <div class="flex-1 min-w-0">
+                <div class="font-medium truncate">{feed.title}</div>
+                <div class="flex items-center gap-3 text-xs text-muted-foreground">
+                  {#if feed.folder_name}
+                    <span>{feed.folder_name}</span>
+                  {/if}
+                  <span class="flex items-center gap-1">
+                    <Clock class="h-3 w-3" />
+                    {feed.effective_ttl_display}
+                    {#if feed.statistics?.ttl_override_minutes !== null && feed.statistics?.ttl_override_minutes !== undefined}
+                      <span class="text-blue-500">(custom)</span>
+                    {/if}
+                  </span>
+                  {#if feed.statistics}
+                    <span>{feed.statistics.avg_articles_per_day.toFixed(1)}/day</span>
+                    <span>{Math.round(feed.statistics.read_rate * 100)}% read</span>
+                  {/if}
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onclick={() => editFeed(feed)}
+                  title="Edit feed"
+                >
+                  <Pencil class="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          {/each}
+        {/if}
       </div>
     </section>
 

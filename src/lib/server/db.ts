@@ -29,6 +29,20 @@ function initializeSchema(database: Database.Database): void {
   const schemaPath = join(__dirname, 'schema.sql');
   const schema = readFileSync(schemaPath, 'utf-8');
   database.exec(schema);
+
+  // Run migrations for existing databases
+  runMigrations(database);
+}
+
+function runMigrations(database: Database.Database): void {
+  // Migration: Add last_new_article_at column to feeds table
+  const feedsColumns = database.prepare('PRAGMA table_info(feeds)').all() as { name: string }[];
+  const hasLastNewArticleAt = feedsColumns.some((col) => col.name === 'last_new_article_at');
+
+  if (!hasLastNewArticleAt) {
+    database.exec('ALTER TABLE feeds ADD COLUMN last_new_article_at TEXT');
+    console.log('[DB] Migration: Added last_new_article_at column to feeds table');
+  }
 }
 
 export function closeDb(): void {

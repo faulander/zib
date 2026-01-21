@@ -140,10 +140,12 @@ export async function refreshFeed(
       }
     }
 
+    const now = new Date().toISOString();
     updateFeedFetchStatus(feedId, {
-      last_fetched_at: new Date().toISOString(),
+      last_fetched_at: now,
       last_error: null,
-      error_count: 0
+      error_count: 0,
+      last_new_article_at: added > 0 ? now : undefined
     });
 
     console.log(`[Refresh] Done: ${feed.title} (+${added} new)`);

@@ -3,11 +3,15 @@ import { getDb } from './db';
 export interface AppSettings {
   hideReadArticles: boolean;
   compactListView: boolean;
+  highlightColorLight: string;
+  highlightColorDark: string;
 }
 
 const DEFAULTS: AppSettings = {
   hideReadArticles: false,
-  compactListView: false
+  compactListView: false,
+  highlightColorLight: '#fef3c7', // amber-100
+  highlightColorDark: '#422006' // amber-950
 };
 
 export function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] {
@@ -39,6 +43,8 @@ export function setSetting<K extends keyof AppSettings>(key: K, value: AppSettin
 export function getAllSettings(): AppSettings {
   return {
     hideReadArticles: getSetting('hideReadArticles'),
-    compactListView: getSetting('compactListView')
+    compactListView: getSetting('compactListView'),
+    highlightColorLight: getSetting('highlightColorLight'),
+    highlightColorDark: getSetting('highlightColorDark')
   };
 }

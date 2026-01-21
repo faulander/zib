@@ -122,10 +122,41 @@
     window.addEventListener('reload-counts', handleReloadCounts);
     window.addEventListener('load-more-articles', handleLoadMore);
 
+    // Connect to Server-Sent Events for real-time updates
+    let eventSource: EventSource | null = null;
+
+    function connectSSE() {
+      eventSource = new EventSource('/api/events');
+
+      eventSource.addEventListener('connected', () => {
+        console.log('[SSE] Connected to server events');
+      });
+
+      eventSource.addEventListener('feeds-refreshed', (event) => {
+        const data = JSON.parse(event.data);
+        console.log(`[SSE] Feeds refreshed, ${data.added} new articles`);
+        loadData();
+      });
+
+      eventSource.addEventListener('articles-updated', () => {
+        console.log('[SSE] Articles updated');
+        loadData();
+      });
+
+      eventSource.onerror = () => {
+        console.log('[SSE] Connection error, reconnecting in 5s...');
+        eventSource?.close();
+        setTimeout(connectSSE, 5000);
+      };
+    }
+
+    connectSSE();
+
     return () => {
       window.removeEventListener('reload-data', handleReload);
       window.removeEventListener('reload-counts', handleReloadCounts);
       window.removeEventListener('load-more-articles', handleLoadMore);
+      eventSource?.close();
     };
   });
 </script>

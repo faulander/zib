@@ -33,7 +33,7 @@
 <div class="group">
   <Button
     variant={isSelected ? 'secondary' : 'ghost'}
-    class="w-full justify-start gap-1 pr-1"
+    class="w-full justify-start gap-1 pr-1 {isSelected ? '' : 'sidebar-item-hover'}"
     onclick={() => appStore.selectFolder(folder.id)}
   >
     <button

@@ -119,3 +119,23 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom highlight colors */
+.article-row-hover:hover,
+.sidebar-item-hover:hover {
+  background-color: var(--highlight-color-light, #fef3c7) !important;
+}
+
+.dark .article-row-hover:hover,
+.dark .sidebar-item-hover:hover {
+  background-color: var(--highlight-color-dark, #422006) !important;
+}
+
+/* Ensure text is visible on hover regardless of read state */
+.article-row-hover:hover,
+.article-row-hover:hover *,
+.sidebar-item-hover:hover,
+.sidebar-item-hover:hover * {
+  color: var(--foreground) !important;
+  opacity: 1 !important;
+}

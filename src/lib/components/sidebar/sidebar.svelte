@@ -12,6 +12,10 @@
 
   const uncategorizedFeeds = $derived(appStore.feeds.filter((f) => f.folder_id === null));
 
+  const isAllSelected = $derived(
+    !appStore.selectedFolderId && !appStore.selectedFeedId && !appStore.showStarredOnly
+  );
+
   async function handleRefreshAll() {
     appStore.setIsRefreshing(true);
     try {
@@ -26,7 +30,7 @@
 
 <div class="flex h-full flex-col">
   <div class="flex items-center justify-between p-4">
-    <h2 class="text-lg font-semibold">Feeds</h2>
+    <h2 class="text-lg font-semibold">ZIB</h2>
     <div class="flex gap-1">
       <Button
         variant="ghost"
@@ -49,10 +53,8 @@
     <div class="p-2">
       <!-- All Items -->
       <Button
-        variant={!appStore.selectedFolderId && !appStore.selectedFeedId && !appStore.showStarredOnly
-          ? 'secondary'
-          : 'ghost'}
-        class="w-full justify-start gap-2"
+        variant={isAllSelected ? 'secondary' : 'ghost'}
+        class="w-full justify-start gap-2 {isAllSelected ? '' : 'sidebar-item-hover'}"
         onclick={() => {
           appStore.selectFolder(null);
           appStore.selectFeed(null);

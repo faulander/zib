@@ -4,8 +4,27 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { Switch } from '$lib/components/ui/switch';
+  import { Separator } from '$lib/components/ui/separator';
   import { toast } from 'svelte-sonner';
-  import { CheckCircle, XCircle, Loader2 } from '@lucide/svelte';
+  import { CheckCircle, XCircle, Loader2, Clock } from '@lucide/svelte';
+
+  interface FeedStatistics {
+    avg_articles_per_day: number;
+    articles_last_7_days: number;
+    articles_last_30_days: number;
+    read_rate: number;
+    calculated_ttl_minutes: number | null;
+    ttl_override_minutes: number | null;
+    ttl_calculation_reason: string | null;
+    last_calculated_at: string | null;
+  }
+
+  interface FeedWithStats extends Feed {
+    statistics: FeedStatistics | null;
+    effective_ttl_minutes: number;
+    effective_ttl_display: string;
+  }
 
   interface Props {
     open: boolean;
@@ -20,16 +39,45 @@
   let feedUrl = $state('');
   let isSaving = $state(false);
   let isTesting = $state(false);
+  let isLoading = $state(false);
   let testResult = $state<{ success: boolean; message: string } | null>(null);
 
-  // Reset form when feed changes
+  // TTL override state
+  let useCustomTTL = $state(false);
+  let customTTL = $state<number>(30);
+  let feedStats = $state<FeedWithStats | null>(null);
+
+  // Reset form and load feed data when feed changes
   $effect(() => {
-    if (feed) {
+    if (feed && open) {
       title = feed.title;
       feedUrl = feed.feed_url;
       testResult = null;
+      loadFeedWithStats(feed.id);
     }
   });
+
+  async function loadFeedWithStats(feedId: number) {
+    isLoading = true;
+    try {
+      const res = await fetch(`/api/feeds/${feedId}`);
+      if (res.ok) {
+        feedStats = await res.json();
+        // Initialize TTL override state
+        if (feedStats?.statistics?.ttl_override_minutes !== null && feedStats?.statistics?.ttl_override_minutes !== undefined) {
+          useCustomTTL = true;
+          customTTL = feedStats.statistics.ttl_override_minutes;
+        } else {
+          useCustomTTL = false;
+          customTTL = feedStats?.effective_ttl_minutes ?? 30;
+        }
+      }
+    } catch {
+      // Ignore errors loading stats
+    } finally {
+      isLoading = false;
+    }
+  }
 
   async function testFeedUrl() {
     if (!feedUrl.trim()) {
@@ -60,7 +108,7 @@
           message: data.error || 'Failed to fetch feed'
         };
       }
-    } catch (err) {
+    } catch {
       testResult = {
         success: false,
         message: 'Failed to test feed'
@@ -83,13 +131,23 @@
     isSaving = true;
 
     try {
+      const payload: Record<string, unknown> = {
+        title: title.trim(),
+        feed_url: feedUrl.trim()
+      };
+
+      // Include TTL override if custom is enabled
+      if (useCustomTTL) {
+        payload.ttl_override_minutes = customTTL;
+      } else if (feedStats?.statistics?.ttl_override_minutes !== null) {
+        // Clear override if it was set but now disabled
+        payload.ttl_override_minutes = null;
+      }
+
       const res = await fetch(`/api/feeds/${feed.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          feed_url: feedUrl.trim()
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
@@ -102,7 +160,7 @@
       toast.success('Feed updated');
       onSave?.(updatedFeed);
       open = false;
-    } catch (err) {
+    } catch {
       toast.error('Failed to update feed');
     } finally {
       isSaving = false;
@@ -112,6 +170,10 @@
   function handleCancel() {
     onCancel?.();
     open = false;
+  }
+
+  function formatReadRate(rate: number): string {
+    return `${Math.round(rate * 100)}%`;
   }
 </script>
 
@@ -183,6 +245,77 @@
           <div>{feed.last_error}</div>
         </div>
       {/if}
+
+      <Separator />
+
+      <!-- Refresh Settings -->
+      <div class="space-y-3">
+        <div class="flex items-center gap-2">
+          <Clock class="h-4 w-4 text-muted-foreground" />
+          <Label class="font-medium">Refresh Settings</Label>
+        </div>
+
+        {#if isLoading}
+          <div class="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 class="h-4 w-4 animate-spin" />
+            Loading statistics...
+          </div>
+        {:else if feedStats}
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-muted-foreground">Current refresh interval:</span>
+              <span class="font-medium">{feedStats.effective_ttl_display}</span>
+            </div>
+
+            {#if feedStats.statistics}
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Articles/day (avg):</span>
+                <span>{feedStats.statistics.avg_articles_per_day.toFixed(1)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Read rate:</span>
+                <span>{formatReadRate(feedStats.statistics.read_rate)}</span>
+              </div>
+              {#if feedStats.statistics.ttl_calculation_reason}
+                <div class="text-xs text-muted-foreground">
+                  Based on: {feedStats.statistics.ttl_calculation_reason}
+                </div>
+              {/if}
+            {:else}
+              <div class="text-xs text-muted-foreground">
+                Statistics will be calculated after more articles are fetched.
+              </div>
+            {/if}
+          </div>
+
+          <div class="flex items-center gap-2 pt-2">
+            <Switch
+              id="use-custom-ttl"
+              checked={useCustomTTL}
+              onCheckedChange={(checked) => {
+                useCustomTTL = checked;
+                if (checked && feedStats) {
+                  customTTL = feedStats.effective_ttl_minutes;
+                }
+              }}
+            />
+            <Label for="use-custom-ttl" class="text-sm">Override with custom interval</Label>
+          </div>
+
+          {#if useCustomTTL}
+            <div class="flex items-center gap-2 pl-8">
+              <Input
+                type="number"
+                min="5"
+                max="1440"
+                bind:value={customTTL}
+                class="w-24"
+              />
+              <span class="text-sm text-muted-foreground">minutes (5 min - 24 hr)</span>
+            </div>
+          {/if}
+        {/if}
+      </div>
 
       <Dialog.Footer>
         <Button type="button" variant="outline" onclick={handleCancel}>

@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS feeds (
   description TEXT,
   favicon_url TEXT,
   last_fetched_at TEXT,
+  last_new_article_at TEXT,
   last_error TEXT,
   error_count INTEGER DEFAULT 0,
   fetch_priority INTEGER DEFAULT 5,
@@ -53,6 +54,31 @@ CREATE TABLE IF NOT EXISTS filters (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Feed statistics for adaptive TTL calculation
+CREATE TABLE IF NOT EXISTS feed_statistics (
+  feed_id INTEGER PRIMARY KEY REFERENCES feeds(id) ON DELETE CASCADE,
+
+  -- Publication frequency
+  avg_articles_per_day REAL DEFAULT 0,
+  articles_last_7_days INTEGER DEFAULT 0,
+  articles_last_30_days INTEGER DEFAULT 0,
+  avg_publish_gap_hours REAL,
+
+  -- User engagement
+  total_articles_fetched INTEGER DEFAULT 0,
+  total_articles_read INTEGER DEFAULT 0,
+  total_articles_starred INTEGER DEFAULT 0,
+  read_rate REAL DEFAULT 0,
+
+  -- Calculated TTL
+  calculated_ttl_minutes INTEGER,
+  ttl_override_minutes INTEGER,
+  ttl_calculation_reason TEXT,
+
+  last_calculated_at TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_articles_feed_id ON articles(feed_id);
 CREATE INDEX IF NOT EXISTS idx_articles_is_read ON articles(is_read);
@@ -60,3 +86,4 @@ CREATE INDEX IF NOT EXISTS idx_articles_is_starred ON articles(is_starred);
 CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at);
 CREATE INDEX IF NOT EXISTS idx_feeds_folder_id ON feeds(folder_id);
 CREATE INDEX IF NOT EXISTS idx_feeds_last_fetched ON feeds(last_fetched_at);
+CREATE INDEX IF NOT EXISTS idx_feed_statistics_calculated_at ON feed_statistics(last_calculated_at);

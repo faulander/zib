@@ -162,17 +162,38 @@ export function updateFeed(id: number, data: UpdateFeed): Feed | null {
 
 export function updateFeedFetchStatus(
   id: number,
-  status: { last_fetched_at: string; last_error?: string | null; error_count?: number }
+  status: {
+    last_fetched_at: string;
+    last_error?: string | null;
+    error_count?: number;
+    last_new_article_at?: string;
+  }
 ): void {
   const db = getDb();
 
-  db.prepare(
+  if (status.last_new_article_at) {
+    db.prepare(
+      `
+      UPDATE feeds
+      SET last_fetched_at = ?, last_error = ?, error_count = COALESCE(?, error_count), last_new_article_at = ?
+      WHERE id = ?
     `
-    UPDATE feeds
-    SET last_fetched_at = ?, last_error = ?, error_count = COALESCE(?, error_count)
-    WHERE id = ?
-  `
-  ).run(status.last_fetched_at, status.last_error ?? null, status.error_count ?? null, id);
+    ).run(
+      status.last_fetched_at,
+      status.last_error ?? null,
+      status.error_count ?? null,
+      status.last_new_article_at,
+      id
+    );
+  } else {
+    db.prepare(
+      `
+      UPDATE feeds
+      SET last_fetched_at = ?, last_error = ?, error_count = COALESCE(?, error_count)
+      WHERE id = ?
+    `
+    ).run(status.last_fetched_at, status.last_error ?? null, status.error_count ?? null, id);
+  }
 }
 
 export function deleteFeed(id: number): boolean {
@@ -207,16 +228,22 @@ export function clearFeedError(id: number): void {
 export function getFeedsNeedingRefresh(limit?: number): FeedRow[] {
   const db = getDb();
 
-  // Priority-based refresh: higher priority feeds, feeds not fetched recently,
-  // and feeds with fewer errors get refreshed first
+  // Priority-based refresh using adaptive TTL:
+  // 1. Use ttl_override_minutes if set (user manual override)
+  // 2. Fall back to calculated_ttl_minutes from feed_statistics
+  // 3. Fall back to ttl_minutes from feed settings
+  // 4. Default to 30 minutes
   const query = `
-    SELECT * FROM feeds
-    WHERE last_fetched_at IS NULL
-       OR datetime(last_fetched_at, '+' || COALESCE(ttl_minutes, 30) || ' minutes') < datetime('now')
+    SELECT f.* FROM feeds f
+    LEFT JOIN feed_statistics fs ON fs.feed_id = f.id
+    WHERE f.last_fetched_at IS NULL
+       OR datetime(f.last_fetched_at, '+' ||
+          COALESCE(fs.ttl_override_minutes, fs.calculated_ttl_minutes, f.ttl_minutes, 30)
+          || ' minutes') < datetime('now')
     ORDER BY
-      error_count ASC,
-      fetch_priority DESC,
-      last_fetched_at ASC NULLS FIRST
+      f.error_count ASC,
+      f.fetch_priority DESC,
+      f.last_fetched_at ASC NULLS FIRST
     ${limit ? 'LIMIT ?' : ''}
   `;
 

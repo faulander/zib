@@ -41,11 +41,13 @@
 <div class="group">
   <Button
     variant={isSelected ? 'secondary' : 'ghost'}
-    class="w-full justify-start gap-2 pr-1 h-8 text-sm"
+    class="w-full justify-start gap-2 pr-1 h-8 text-sm {isSelected ? '' : 'sidebar-item-hover'}"
     onclick={() => appStore.selectFeed(feed.id)}
   >
     {#if hasError}
-      <AlertTriangle class="h-4 w-4 text-yellow-500" title={feed.last_error} />
+      <span title={feed.last_error ?? ''}>
+        <AlertTriangle class="h-4 w-4 text-yellow-500" />
+      </span>
     {:else if feed.favicon_url}
       <img
         src={feed.favicon_url}
