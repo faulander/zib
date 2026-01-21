@@ -7,7 +7,14 @@ const config = {
   // for more information about preprocessors
   preprocess: vitePreprocess(),
 
-  kit: { adapter: adapter() }
+  kit: {
+    adapter: adapter(),
+    // Disable CSRF origin check - this is a single-user app without authentication
+    // and runs behind a reverse proxy which may change the Origin header
+    csrf: {
+      checkOrigin: false
+    }
+  }
 };
 
 export default config;
