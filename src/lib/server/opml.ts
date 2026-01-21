@@ -1,6 +1,6 @@
 import { JSDOM } from 'jsdom';
-import { createFolder } from './folders';
-import { createFeed, getFeedByUrl } from './feeds';
+import { createFolder, getAllFolders } from './folders';
+import { createFeed, getFeedByUrl, getAllFeeds } from './feeds';
 import type { OPMLOutline } from '$lib/types';
 
 export function parseOPML(opmlContent: string): OPMLOutline[] {
@@ -120,9 +120,6 @@ async function processOutline(
 }
 
 export function generateOPML(title: string = 'RSS Subscriptions'): string {
-  const { getAllFolders } = require('./folders');
-  const { getAllFeeds } = require('./feeds');
-
   const folders = getAllFolders();
   const feeds = getAllFeeds();
 

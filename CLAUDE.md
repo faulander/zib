@@ -7,18 +7,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A single-user RSS reader web application with the following features:
 
 ### Implemented Features
-- **OPML Import** - Import feeds from other RSS readers
+- **OPML Import/Export** - Import and export feeds as OPML (in Settings)
 - **Folders** - Organize feeds into folders
 - **Article Views** - Switchable list/card views
 - **Reading Modal** - Full article display with lazy content extraction
 - **Full Content Fetching** - Extracts article content using Mozilla Readability
 - **Auto-Refresh** - Background job refreshes feeds every 15 minutes (smart scheduling for 500+ feeds)
 - **Mark Read/Unread** - Per article, per folder, or "older than X" bulk actions
-- **Star/Favorite** - Mark important articles
 - **Instapaper Export** - Send articles to Instapaper
-- **Article Filters** - Hide articles matching keyword rules (OR/AND logic)
+- **Article Filters** - Hide articles matching keyword rules (OR/AND logic), counts respect filters
 - **Mobile Responsive** - Sidebar as slide-out drawer on mobile
 - **Delete Feeds** - Red X on hover to remove individual feeds
+- **Feed Testing** - Test feed URLs before adding or editing
+- **Feed Error Management** - Settings page shows feeds with errors, allows editing/retrying/deleting
+- **Infinite Scroll** - Article list loads more articles as you scroll
+- **Settings**:
+  - Hide read articles (global toggle)
+  - Compact list view (reduced spacing)
+  - OPML import
+  - Feed error management
+  - Article filters
 
 ### Database (SQLite with better-sqlite3)
 - `folders` - Feed organization
@@ -28,38 +36,46 @@ A single-user RSS reader web application with the following features:
 - `settings` - App configuration (key/value)
 
 ### Key Server Files
-- `src/lib/server/db.ts` - SQLite connection (WAL mode)
-- `src/lib/server/feeds.ts` - Feed CRUD
+- `src/lib/server/db.ts` - SQLite connection (WAL mode), auto-creates data directory
+- `src/lib/server/feeds.ts` - Feed CRUD, error tracking
 - `src/lib/server/articles.ts` - Article CRUD with filter application
 - `src/lib/server/folders.ts` - Folder CRUD
 - `src/lib/server/filters.ts` - Filter CRUD and rule matching
+- `src/lib/server/settings.ts` - App settings (hideReadArticles, compactListView)
 - `src/lib/server/feed-fetcher.ts` - RSS parsing + content extraction
 - `src/lib/server/scheduler.ts` - Cron jobs for auto-refresh
 - `src/lib/server/opml.ts` - OPML import/export
 - `src/lib/server/instapaper.ts` - Instapaper API client
 
 ### Key UI Components
-- `src/lib/components/sidebar/` - Navigation with folders/feeds
-- `src/lib/components/articles/` - List, card, and modal views
+- `src/lib/components/sidebar/` - Navigation with folders/feeds (error indicators)
+- `src/lib/components/articles/` - List (with infinite scroll), card, and modal views
 - `src/lib/components/tools-panel.svelte` - View toggle, mark-read actions
 - `src/lib/components/filter-editor.svelte` - Filter rule editor
+- `src/lib/components/feed-edit-dialog.svelte` - Edit feed with URL testing
+- `src/lib/components/add-feed-dialog.svelte` - Add feed with URL testing
 
 ### API Endpoints
 - `/api/folders` - Folder CRUD
-- `/api/feeds` - Feed CRUD
-- `/api/articles` - Article listing with filters
+- `/api/feeds` - Feed CRUD (POST auto-fetches articles)
+- `/api/feeds/[id]` - Feed GET/PUT/PATCH/DELETE
+- `/api/feeds/[id]/refresh` - Refresh single feed
+- `/api/feeds/test` - Test feed URL validity
+- `/api/articles` - Article listing with filters, infinite scroll support
 - `/api/articles/[id]` - Article read/star updates
 - `/api/articles/[id]/extract` - Lazy full content extraction
 - `/api/articles/[id]/instapaper` - Send to Instapaper
 - `/api/filters` - Filter CRUD
 - `/api/filters/test` - Test filter rule
+- `/api/settings` - App settings GET/PATCH
 - `/api/mark-read` - Bulk mark read
 - `/api/import/opml` - OPML import
+- `/api/export/opml` - OPML export (download)
 - `/api/refresh` - Manual feed refresh
 
 ### Routes
 - `/` - Main feed reader view
-- `/settings` - Settings page with filter management
+- `/settings` - Settings (general, import/export, feed errors, filters)
 
 ## Development Commands
 
