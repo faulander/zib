@@ -1,34 +1,20 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getArticleById } from '$lib/server/articles';
 import { getSetting } from '$lib/server/settings';
 import { logger } from '$lib/server/logger';
 
-export const POST: RequestHandler = async ({ params }) => {
-  const id = parseInt(params.id);
+export const POST: RequestHandler = async ({ request }) => {
+  const { url, title } = await request.json();
 
-  if (isNaN(id)) {
-    return json({ error: 'Invalid article ID' }, { status: 400 });
-  }
-
-  const article = getArticleById(id);
-
-  if (!article) {
-    return json({ error: 'Article not found' }, { status: 404 });
-  }
-
-  if (!article.url) {
-    return json({ error: 'Article has no URL' }, { status: 400 });
+  if (!url) {
+    return json({ error: 'URL is required' }, { status: 400 });
   }
 
   const username = getSetting('instapaperUsername');
   const password = getSetting('instapaperPassword');
 
   if (!username) {
-    return json(
-      { error: 'Instapaper is not configured. Go to Settings to add your credentials.' },
-      { status: 400 }
-    );
+    return json({ error: 'Instapaper is not configured' }, { status: 400 });
   }
 
   try {
@@ -37,8 +23,10 @@ export const POST: RequestHandler = async ({ params }) => {
     if (password) {
       params.append('password', password);
     }
-    params.append('url', article.url);
-    params.append('title', article.title);
+    params.append('url', url);
+    if (title) {
+      params.append('title', title);
+    }
 
     const response = await fetch('https://www.instapaper.com/api/add', {
       method: 'POST',
@@ -49,7 +37,7 @@ export const POST: RequestHandler = async ({ params }) => {
     });
 
     if (response.status === 201) {
-      logger.info('system', `Saved to Instapaper: ${article.title}`);
+      logger.info('system', `Saved to Instapaper: ${title || url}`);
       return json({ success: true });
     } else if (response.status === 403) {
       logger.error('system', 'Instapaper authentication failed');

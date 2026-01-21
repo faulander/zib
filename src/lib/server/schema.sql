@@ -54,6 +54,20 @@ CREATE TABLE IF NOT EXISTS filters (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Application logs
+CREATE TABLE IF NOT EXISTS logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  level TEXT NOT NULL,
+  category TEXT NOT NULL,
+  message TEXT NOT NULL,
+  details TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
+CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category);
+
 -- Feed statistics for adaptive TTL calculation
 CREATE TABLE IF NOT EXISTS feed_statistics (
   feed_id INTEGER PRIMARY KEY REFERENCES feeds(id) ON DELETE CASCADE,

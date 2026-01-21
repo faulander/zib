@@ -5,13 +5,18 @@ export interface AppSettings {
   compactListView: boolean;
   highlightColorLight: string;
   highlightColorDark: string;
+  // Instapaper integration
+  instapaperUsername: string;
+  instapaperPassword: string;
 }
 
 const DEFAULTS: AppSettings = {
   hideReadArticles: false,
   compactListView: false,
   highlightColorLight: '#fef3c7', // amber-100
-  highlightColorDark: '#422006' // amber-950
+  highlightColorDark: '#422006', // amber-950
+  instapaperUsername: '',
+  instapaperPassword: ''
 };
 
 export function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] {
@@ -45,6 +50,16 @@ export function getAllSettings(): AppSettings {
     hideReadArticles: getSetting('hideReadArticles'),
     compactListView: getSetting('compactListView'),
     highlightColorLight: getSetting('highlightColorLight'),
-    highlightColorDark: getSetting('highlightColorDark')
+    highlightColorDark: getSetting('highlightColorDark'),
+    instapaperUsername: getSetting('instapaperUsername'),
+    instapaperPassword: getSetting('instapaperPassword')
   };
+}
+
+/**
+ * Check if Instapaper is configured
+ */
+export function isInstapaperConfigured(): boolean {
+  const username = getSetting('instapaperUsername');
+  return username !== '';
 }

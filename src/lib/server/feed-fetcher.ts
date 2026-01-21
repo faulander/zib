@@ -3,6 +3,7 @@ import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
 import { createArticle } from './articles';
 import { updateFeedFetchStatus, getFeedById } from './feeds';
+import { logger } from './logger';
 
 const parser = new Parser({
   timeout: 10000, // 10 second timeout for feed fetching
@@ -29,13 +30,7 @@ export interface FetchedItem {
 }
 
 export async function fetchFeed(feedUrl: string): Promise<FetchedFeed> {
-  console.log(`[Feed] Fetching: ${feedUrl}`);
-  const start = performance.now();
-
   const feed = await parser.parseURL(feedUrl);
-  const duration = (performance.now() - start).toFixed(0);
-
-  console.log(`[Feed] Fetched ${feed.items?.length || 0} items from ${feedUrl} (${duration}ms)`);
 
   return {
     title: feed.title || feedUrl,
@@ -54,9 +49,6 @@ export async function fetchFeed(feedUrl: string): Promise<FetchedFeed> {
 }
 
 export async function extractFullContent(url: string): Promise<string | null> {
-  console.log(`[Extract] Fetching content from: ${url}`);
-  const start = performance.now();
-
   try {
     const response = await fetch(url, {
       headers: {
@@ -66,7 +58,6 @@ export async function extractFullContent(url: string): Promise<string | null> {
     });
 
     if (!response.ok) {
-      console.log(`[Extract] Failed (HTTP ${response.status}): ${url}`);
       return null;
     }
 
@@ -75,17 +66,8 @@ export async function extractFullContent(url: string): Promise<string | null> {
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
 
-    const duration = (performance.now() - start).toFixed(0);
-    const contentLength = article?.content?.length || 0;
-    console.log(`[Extract] Extracted ${contentLength} chars from ${url} (${duration}ms)`);
-
     return article?.content || null;
-  } catch (err) {
-    const duration = (performance.now() - start).toFixed(0);
-    console.log(
-      `[Extract] Error after ${duration}ms for ${url}:`,
-      err instanceof Error ? err.message : err
-    );
+  } catch {
     return null;
   }
 }
@@ -97,11 +79,9 @@ export async function refreshFeed(
   const feed = getFeedById(feedId);
 
   if (!feed) {
-    console.log(`[Refresh] Feed ${feedId} not found`);
     return { added: 0, errors: ['Feed not found'] };
   }
 
-  console.log(`[Refresh] Starting: ${feed.title}`);
   const errors: string[] = [];
   let added = 0;
 
@@ -148,7 +128,9 @@ export async function refreshFeed(
       last_new_article_at: added > 0 ? now : undefined
     });
 
-    console.log(`[Refresh] Done: ${feed.title} (+${added} new)`);
+    if (added > 0) {
+      logger.info('feed', `Refreshed "${feed.title}"`, { added });
+    }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     errors.push(errorMessage);
@@ -159,7 +141,7 @@ export async function refreshFeed(
       error_count: (feed.error_count || 0) + 1
     });
 
-    console.log(`[Refresh] Error: ${feed.title} - ${errorMessage}`);
+    logger.error('feed', `Failed to refresh "${feed.title}"`, { error: errorMessage });
   }
 
   return { added, errors };
@@ -176,18 +158,12 @@ export async function refreshAllFeeds(feedIds?: number[]): Promise<{
     ? feedIds.map((id) => getFeedById(id)).filter((f): f is NonNullable<typeof f> => f !== null)
     : getAllFeeds();
 
-  console.log(`[RefreshAll] Starting refresh of ${feeds.length} feeds`);
-  const start = performance.now();
-
   const feedResults: Record<number, { added: number; errors: string[] }> = {};
   let totalAdded = 0;
   let errorCount = 0;
 
   // Process feeds sequentially to avoid overwhelming servers
-  for (let i = 0; i < feeds.length; i++) {
-    const feed = feeds[i];
-    console.log(`[RefreshAll] (${i + 1}/${feeds.length}) ${feed.title}`);
-
+  for (const feed of feeds) {
     const result = await refreshFeed(feed.id);
     feedResults[feed.id] = result;
     totalAdded += result.added;
@@ -196,11 +172,6 @@ export async function refreshAllFeeds(feedIds?: number[]): Promise<{
     // Small delay between feeds to be polite
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-
-  const duration = ((performance.now() - start) / 1000).toFixed(1);
-  console.log(
-    `[RefreshAll] Completed in ${duration}s: ${totalAdded} new articles, ${errorCount} errors`
-  );
 
   return { total_added: totalAdded, feed_results: feedResults };
 }
@@ -214,17 +185,11 @@ export async function refreshScheduledFeeds(limit?: number): Promise<{
 
   const feeds = getFeedsNeedingRefresh(limit);
 
-  console.log(`[ScheduledRefresh] Starting refresh of ${feeds.length} feeds`);
-  const start = performance.now();
-
   const feedResults: Record<number, { added: number; errors: string[] }> = {};
   let totalAdded = 0;
   let errorCount = 0;
 
-  for (let i = 0; i < feeds.length; i++) {
-    const feed = feeds[i];
-    console.log(`[ScheduledRefresh] (${i + 1}/${feeds.length}) ${feed.title}`);
-
+  for (const feed of feeds) {
     const result = await refreshFeed(feed.id);
     feedResults[feed.id] = result;
     totalAdded += result.added;
@@ -232,11 +197,6 @@ export async function refreshScheduledFeeds(limit?: number): Promise<{
 
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-
-  const duration = ((performance.now() - start) / 1000).toFixed(1);
-  console.log(
-    `[ScheduledRefresh] Completed in ${duration}s: ${totalAdded} new articles, ${errorCount} errors`
-  );
 
   return { total_added: totalAdded, feed_results: feedResults };
 }

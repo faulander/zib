@@ -7,7 +7,8 @@
   import { Separator } from '$lib/components/ui/separator';
   import FilterEditor from '$lib/components/filter-editor.svelte';
   import FeedEditDialog from '$lib/components/feed-edit-dialog.svelte';
-  import { ArrowLeft, Plus, Pencil, Trash2, Upload, Download, AlertTriangle, RefreshCw, X, Clock, Rss } from '@lucide/svelte';
+  import { ArrowLeft, Plus, Pencil, Trash2, Upload, Download, AlertTriangle, RefreshCw, X, Clock, Rss, FileText, Info, AlertCircle, Share2, Eye, EyeOff } from '@lucide/svelte';
+  import { Label } from '$lib/components/ui/label';
   import { goto } from '$app/navigation';
   import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
@@ -26,25 +27,51 @@
     } | null;
   }
 
+  interface LogEntry {
+    id: number;
+    level: 'info' | 'warn' | 'error';
+    category: string;
+    message: string;
+    details: string | null;
+    created_at: string;
+  }
+
   let filters = $state<Filter[]>([]);
   let errorFeeds = $state<Feed[]>([]);
   let allFeeds = $state<FeedWithTTL[]>([]);
+  let logs = $state<LogEntry[]>([]);
+  let logCount = $state(0);
   let hideReadArticles = $state(false);
   let compactListView = $state(false);
   let highlightColorLight = $state('#fef3c7');
   let highlightColorDark = $state('#422006');
   let feedSearchQuery = $state('');
+  let logFilter = $state<'all' | 'info' | 'warn' | 'error'>('all');
+
+  // Instapaper settings
+  let instapaperUsername = $state('');
+  let instapaperPassword = $state('');
+  let showInstapaperPassword = $state(false);
+  let isSavingInstapaper = $state(false);
 
   // Initialize from server data
   $effect(() => {
     filters = data.filters;
     errorFeeds = data.errorFeeds;
     allFeeds = data.allFeeds as FeedWithTTL[];
+    logs = data.logs as LogEntry[];
+    logCount = data.logCount;
     hideReadArticles = data.settings.hideReadArticles;
     compactListView = data.settings.compactListView;
     highlightColorLight = data.settings.highlightColorLight;
     highlightColorDark = data.settings.highlightColorDark;
+    instapaperUsername = data.settings.instapaperUsername;
+    instapaperPassword = data.settings.instapaperPassword;
   });
+
+  const filteredLogs = $derived(
+    logFilter === 'all' ? logs : logs.filter((l) => l.level === logFilter)
+  );
 
   const filteredFeeds = $derived(
     feedSearchQuery.trim()
@@ -139,6 +166,54 @@
   let retryingFeedId = $state<number | null>(null);
   let editingFeed = $state<Feed | null>(null);
   let showFeedEditor = $state(false);
+  let isClearingLogs = $state(false);
+
+  async function clearLogs() {
+    if (!confirm('Clear all logs?')) return;
+
+    isClearingLogs = true;
+    try {
+      const res = await fetch('/api/logs', { method: 'DELETE' });
+      if (res.ok) {
+        logs = [];
+        logCount = 0;
+        toast.success('Logs cleared');
+      }
+    } catch {
+      toast.error('Failed to clear logs');
+    } finally {
+      isClearingLogs = false;
+    }
+  }
+
+  function formatLogTime(isoDate: string): string {
+    const date = new Date(isoDate);
+    return date.toLocaleString();
+  }
+
+  async function saveInstapaperSettings() {
+    isSavingInstapaper = true;
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instapaperUsername,
+          instapaperPassword
+        })
+      });
+
+      if (res.ok) {
+        toast.success('Instapaper settings saved');
+      } else {
+        toast.error('Failed to save settings');
+      }
+    } catch {
+      toast.error('Failed to save settings');
+    } finally {
+      isSavingInstapaper = false;
+    }
+  }
 
   function editFeed(feed: Feed) {
     editingFeed = feed;
@@ -390,6 +465,74 @@
 
     <Separator class="mb-6" />
 
+    <!-- Sharing Section -->
+    <section class="mb-8">
+      <div class="mb-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2">
+          <Share2 class="h-5 w-5" />
+          Sharing
+        </h2>
+        <p class="text-sm text-muted-foreground">Save articles to read-later services</p>
+      </div>
+
+      <div class="p-4 border rounded-lg space-y-4">
+        <div>
+          <div class="font-medium">Instapaper</div>
+          <div class="text-sm text-muted-foreground">
+            Save articles to your Instapaper account
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <div class="space-y-1.5">
+            <Label for="instapaper-username">Username or Email</Label>
+            <Input
+              id="instapaper-username"
+              type="text"
+              placeholder="your@email.com"
+              bind:value={instapaperUsername}
+            />
+          </div>
+
+          <div class="space-y-1.5">
+            <Label for="instapaper-password">Password (optional)</Label>
+            <div class="relative">
+              <Input
+                id="instapaper-password"
+                type={showInstapaperPassword ? 'text' : 'password'}
+                placeholder="Leave empty if not set"
+                bind:value={instapaperPassword}
+                class="pr-10"
+              />
+              <button
+                type="button"
+                class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                onclick={() => (showInstapaperPassword = !showInstapaperPassword)}
+              >
+                {#if showInstapaperPassword}
+                  <EyeOff class="h-4 w-4" />
+                {:else}
+                  <Eye class="h-4 w-4" />
+                {/if}
+              </button>
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Only needed if you set a password in Instapaper
+            </p>
+          </div>
+
+          <Button
+            onclick={saveInstapaperSettings}
+            disabled={isSavingInstapaper}
+          >
+            {isSavingInstapaper ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
+      </div>
+    </section>
+
+    <Separator class="mb-6" />
+
     <!-- Import/Export Section -->
     <section class="mb-8">
       <div class="mb-4">
@@ -622,6 +765,111 @@
           {/each}
         </div>
       {/if}
+    </section>
+
+    <Separator class="mb-6" />
+
+    <!-- Logs Section -->
+    <section class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold flex items-center gap-2">
+            <FileText class="h-5 w-5" />
+            Logs
+          </h2>
+          <p class="text-sm text-muted-foreground">
+            {logCount} log entries
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <a href="/api/logs/export" download>
+            <Button variant="outline" size="sm">
+              <Download class="h-4 w-4 mr-2" />
+              Download
+            </Button>
+          </a>
+          <Button
+            variant="outline"
+            size="sm"
+            onclick={clearLogs}
+            disabled={isClearingLogs || logCount === 0}
+          >
+            <Trash2 class="h-4 w-4 mr-2" />
+            Clear
+          </Button>
+        </div>
+      </div>
+
+      <!-- Log filter tabs -->
+      <div class="flex gap-1 mb-3">
+        <Button
+          variant={logFilter === 'all' ? 'secondary' : 'ghost'}
+          size="sm"
+          onclick={() => (logFilter = 'all')}
+        >
+          All
+        </Button>
+        <Button
+          variant={logFilter === 'info' ? 'secondary' : 'ghost'}
+          size="sm"
+          onclick={() => (logFilter = 'info')}
+        >
+          <Info class="h-3 w-3 mr-1" />
+          Info
+        </Button>
+        <Button
+          variant={logFilter === 'warn' ? 'secondary' : 'ghost'}
+          size="sm"
+          onclick={() => (logFilter = 'warn')}
+        >
+          <AlertTriangle class="h-3 w-3 mr-1" />
+          Warn
+        </Button>
+        <Button
+          variant={logFilter === 'error' ? 'secondary' : 'ghost'}
+          size="sm"
+          onclick={() => (logFilter = 'error')}
+        >
+          <AlertCircle class="h-3 w-3 mr-1" />
+          Error
+        </Button>
+      </div>
+
+      <div class="border rounded-lg max-h-80 overflow-y-auto">
+        {#if filteredLogs.length === 0}
+          <div class="p-4 text-center text-muted-foreground">
+            No logs to display
+          </div>
+        {:else}
+          <div class="divide-y text-sm font-mono">
+            {#each filteredLogs as log (log.id)}
+              <div class="p-2 hover:bg-muted/50 {log.level === 'error' ? 'bg-red-500/5' : log.level === 'warn' ? 'bg-yellow-500/5' : ''}">
+                <div class="flex items-start gap-2">
+                  <span class="shrink-0 w-4">
+                    {#if log.level === 'error'}
+                      <AlertCircle class="h-4 w-4 text-red-500" />
+                    {:else if log.level === 'warn'}
+                      <AlertTriangle class="h-4 w-4 text-yellow-500" />
+                    {:else}
+                      <Info class="h-4 w-4 text-blue-500" />
+                    {/if}
+                  </span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{formatLogTime(log.created_at)}</span>
+                      <span class="px-1.5 py-0.5 rounded bg-muted">{log.category}</span>
+                    </div>
+                    <div class="mt-0.5 break-words">{log.message}</div>
+                    {#if log.details}
+                      <div class="mt-1 text-xs text-muted-foreground break-all">{log.details}</div>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
     </section>
   </div>
 </div>

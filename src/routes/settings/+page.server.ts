@@ -4,6 +4,7 @@ import { getAllSettings } from '$lib/server/settings';
 import { getFeedsWithErrors, getAllFeeds } from '$lib/server/feeds';
 import { getAllFeedStatistics } from '$lib/server/feed-stats';
 import { getEffectiveTTL, formatTTL } from '$lib/server/adaptive-ttl';
+import { getLogs, getLogCount } from '$lib/server/logger';
 
 export const load: PageServerLoad = async () => {
   const filters = getAllFilters();
@@ -35,10 +36,16 @@ export const load: PageServerLoad = async () => {
     };
   });
 
+  // Get recent logs
+  const logs = getLogs({ limit: 50 });
+  const logCount = getLogCount();
+
   return {
     filters,
     settings,
     errorFeeds,
-    allFeeds: feedsWithTTL
+    allFeeds: feedsWithTTL,
+    logs,
+    logCount
   };
 };
