@@ -204,14 +204,12 @@ export function clearFeedError(id: number): void {
   db.prepare('UPDATE feeds SET last_error = NULL, error_count = 0 WHERE id = ?').run(id);
 }
 
-export function getFeedsNeedingRefresh(limit: number = 50): FeedRow[] {
+export function getFeedsNeedingRefresh(limit?: number): FeedRow[] {
   const db = getDb();
 
   // Priority-based refresh: higher priority feeds, feeds not fetched recently,
   // and feeds with fewer errors get refreshed first
-  const feeds = db
-    .prepare(
-      `
+  const query = `
     SELECT * FROM feeds
     WHERE last_fetched_at IS NULL
        OR datetime(last_fetched_at, '+' || COALESCE(ttl_minutes, 30) || ' minutes') < datetime('now')
@@ -219,10 +217,12 @@ export function getFeedsNeedingRefresh(limit: number = 50): FeedRow[] {
       error_count ASC,
       fetch_priority DESC,
       last_fetched_at ASC NULLS FIRST
-    LIMIT ?
-  `
-    )
-    .all(limit) as FeedRow[];
+    ${limit ? 'LIMIT ?' : ''}
+  `;
+
+  const feeds = limit
+    ? (db.prepare(query).all(limit) as FeedRow[])
+    : (db.prepare(query).all() as FeedRow[]);
 
   return feeds;
 }

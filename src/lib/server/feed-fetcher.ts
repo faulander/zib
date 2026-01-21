@@ -204,7 +204,7 @@ export async function refreshAllFeeds(feedIds?: number[]): Promise<{
 }
 
 // Scheduled refresh: only refresh feeds that need it (based on TTL and priority)
-export async function refreshScheduledFeeds(limit: number = 100): Promise<{
+export async function refreshScheduledFeeds(limit?: number): Promise<{
   total_added: number;
   feed_results: Record<number, { added: number; errors: string[] }>;
 }> {
@@ -212,7 +212,7 @@ export async function refreshScheduledFeeds(limit: number = 100): Promise<{
 
   const feeds = getFeedsNeedingRefresh(limit);
 
-  console.log(`[ScheduledRefresh] Starting refresh of ${feeds.length} feeds (limit: ${limit})`);
+  console.log(`[ScheduledRefresh] Starting refresh of ${feeds.length} feeds`);
   const start = performance.now();
 
   const feedResults: Record<number, { added: number; errors: string[] }> = {};
