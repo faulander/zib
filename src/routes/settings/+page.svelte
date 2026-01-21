@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import type { Filter } from '$lib/types';
+  import type { Filter, Feed } from '$lib/types';
   import { Button } from '$lib/components/ui/button';
   import { Switch } from '$lib/components/ui/switch';
   import { Separator } from '$lib/components/ui/separator';
   import FilterEditor from '$lib/components/filter-editor.svelte';
-  import { ArrowLeft, Plus, Pencil, Trash2, Upload } from '@lucide/svelte';
+  import FeedEditDialog from '$lib/components/feed-edit-dialog.svelte';
+  import { ArrowLeft, Plus, Pencil, Trash2, Upload, AlertTriangle, RefreshCw, X } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
@@ -13,12 +14,14 @@
   let { data }: { data: PageData } = $props();
 
   let filters = $state<Filter[]>([]);
+  let errorFeeds = $state<Feed[]>([]);
   let hideReadArticles = $state(false);
   let compactListView = $state(false);
 
   // Initialize from server data
   $effect(() => {
     filters = data.filters;
+    errorFeeds = data.errorFeeds;
     hideReadArticles = data.settings.hideReadArticles;
     compactListView = data.settings.compactListView;
   });
@@ -98,6 +101,65 @@
   }
 
   let isImporting = $state(false);
+  let retryingFeedId = $state<number | null>(null);
+  let editingFeed = $state<Feed | null>(null);
+  let showFeedEditor = $state(false);
+
+  function editFeed(feed: Feed) {
+    editingFeed = feed;
+    showFeedEditor = true;
+  }
+
+  function handleFeedSaved(updatedFeed: Feed) {
+    // If the feed was successfully saved and tested, it might not have errors anymore
+    // Refresh the error feeds list
+    errorFeeds = errorFeeds.map((f) =>
+      f.id === updatedFeed.id ? updatedFeed : f
+    ).filter((f) => f.last_error);
+    showFeedEditor = false;
+    editingFeed = null;
+  }
+
+  function handleFeedEditCancel() {
+    showFeedEditor = false;
+    editingFeed = null;
+  }
+
+  async function retryFeed(feed: Feed) {
+    retryingFeedId = feed.id;
+    try {
+      const res = await fetch(`/api/feeds/${feed.id}/refresh`, { method: 'POST' });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.error) {
+          toast.error(`Still failing: ${result.error}`);
+        } else {
+          toast.success(`Refreshed ${feed.title}`);
+          errorFeeds = errorFeeds.filter((f) => f.id !== feed.id);
+        }
+      }
+    } catch (err) {
+      toast.error('Failed to retry feed');
+    } finally {
+      retryingFeedId = null;
+    }
+  }
+
+  async function deleteFeed(feed: Feed) {
+    if (!confirm(`Delete feed "${feed.title}"? This will also delete all its articles.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/feeds/${feed.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success(`Deleted ${feed.title}`);
+        errorFeeds = errorFeeds.filter((f) => f.id !== feed.id);
+      }
+    } catch (err) {
+      toast.error('Failed to delete feed');
+    }
+  }
 
   function handleImportClick() {
     const input = document.createElement('input');
@@ -212,6 +274,70 @@
 
     <Separator class="mb-6" />
 
+    <!-- Feed Errors Section -->
+    {#if errorFeeds.length > 0}
+      <section class="mb-8">
+        <div class="mb-4">
+          <h2 class="text-lg font-semibold flex items-center gap-2">
+            <AlertTriangle class="h-5 w-5 text-yellow-500" />
+            Feed Errors
+          </h2>
+          <p class="text-sm text-muted-foreground">
+            {errorFeeds.length} feed{errorFeeds.length === 1 ? '' : 's'} with errors
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          {#each errorFeeds as feed (feed.id)}
+            <div class="p-4 border rounded-lg border-yellow-500/30 bg-yellow-500/5">
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium">{feed.title}</div>
+                  {#if feed.folder_name}
+                    <div class="text-xs text-muted-foreground">{feed.folder_name}</div>
+                  {/if}
+                  <div class="text-sm text-red-500 mt-1">{feed.last_error}</div>
+                  <div class="text-xs text-muted-foreground mt-1">
+                    Failed {feed.error_count} time{feed.error_count === 1 ? '' : 's'}
+                  </div>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onclick={() => editFeed(feed)}
+                    title="Edit feed"
+                  >
+                    <Pencil class="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onclick={() => retryFeed(feed)}
+                    disabled={retryingFeedId === feed.id}
+                    title="Retry"
+                  >
+                    <RefreshCw class="h-4 w-4 {retryingFeedId === feed.id ? 'animate-spin' : ''}" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                    onclick={() => deleteFeed(feed)}
+                    title="Delete feed"
+                  >
+                    <X class="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </section>
+
+      <Separator class="mb-6" />
+    {/if}
+
     <!-- Filters Section -->
     <section>
       <div class="flex items-center justify-between mb-4">
@@ -264,4 +390,11 @@
   filter={editingFilter}
   onSave={handleSave}
   onCancel={handleCancel}
+/>
+
+<FeedEditDialog
+  bind:open={showFeedEditor}
+  feed={editingFeed}
+  onSave={handleFeedSaved}
+  onCancel={handleFeedEditCancel}
 />

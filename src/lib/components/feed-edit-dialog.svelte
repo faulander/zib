@@ -1,28 +1,34 @@
 <script lang="ts">
+  import type { Feed } from '$lib/types';
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import { appStore } from '$lib/stores/app.svelte';
   import { toast } from 'svelte-sonner';
   import { CheckCircle, XCircle, Loader2 } from '@lucide/svelte';
 
   interface Props {
     open: boolean;
+    feed: Feed | null;
+    onSave?: (feed: Feed) => void;
+    onCancel?: () => void;
   }
 
-  let { open = $bindable() }: Props = $props();
+  let { open = $bindable(), feed, onSave, onCancel }: Props = $props();
 
+  let title = $state('');
   let feedUrl = $state('');
-  let folderId = $state<number | null>(null);
-  let isSubmitting = $state(false);
+  let isSaving = $state(false);
   let isTesting = $state(false);
-  let testResult = $state<{ success: boolean; title?: string; message: string } | null>(null);
+  let testResult = $state<{ success: boolean; message: string } | null>(null);
 
-  // Reset test result when URL changes
+  // Reset form when feed changes
   $effect(() => {
-    feedUrl;
-    testResult = null;
+    if (feed) {
+      title = feed.title;
+      feedUrl = feed.feed_url;
+      testResult = null;
+    }
   });
 
   async function testFeedUrl() {
@@ -46,7 +52,6 @@
       if (data.success) {
         testResult = {
           success: true,
-          title: data.title,
           message: `Found "${data.title}" with ${data.itemCount} items`
         };
       } else {
@@ -68,64 +73,69 @@
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
 
-    if (!feedUrl.trim()) {
-      toast.error('Please enter a feed URL');
+    if (!feed) return;
+
+    if (!title.trim() || !feedUrl.trim()) {
+      toast.error('Title and URL are required');
       return;
     }
 
-    // Test first if not already tested successfully
-    if (!testResult?.success) {
-      await testFeedUrl();
-      if (!testResult?.success) {
-        return;
-      }
-    }
-
-    isSubmitting = true;
+    isSaving = true;
 
     try {
-      const res = await fetch('/api/feeds', {
-        method: 'POST',
+      const res = await fetch(`/api/feeds/${feed.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          feed_url: feedUrl.trim(),
-          folder_id: folderId
+          title: title.trim(),
+          feed_url: feedUrl.trim()
         })
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        toast.error(data.error || 'Failed to add feed');
+        const data = await res.json();
+        toast.error(data.error || 'Failed to update feed');
         return;
       }
 
-      toast.success('Feed added successfully');
-      feedUrl = '';
-      folderId = null;
-      testResult = null;
+      const updatedFeed = await res.json();
+      toast.success('Feed updated');
+      onSave?.(updatedFeed);
       open = false;
-
-      // Trigger data reload
-      window.dispatchEvent(new CustomEvent('reload-data'));
     } catch (err) {
-      toast.error('Failed to add feed');
+      toast.error('Failed to update feed');
     } finally {
-      isSubmitting = false;
+      isSaving = false;
     }
+  }
+
+  function handleCancel() {
+    onCancel?.();
+    open = false;
   }
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Content class="sm:max-w-md">
+  <Dialog.Content class="sm:max-w-lg">
     <Dialog.Header>
-      <Dialog.Title>Add Feed</Dialog.Title>
+      <Dialog.Title>Edit Feed</Dialog.Title>
       <Dialog.Description>
-        Enter the URL of the RSS or Atom feed you want to subscribe to.
+        Update the feed details. Test the URL to verify it works.
       </Dialog.Description>
     </Dialog.Header>
 
     <form onsubmit={handleSubmit} class="space-y-4">
+      <div class="space-y-2">
+        <Label for="feed-title">Title</Label>
+        <Input
+          id="feed-title"
+          type="text"
+          placeholder="Feed title"
+          bind:value={title}
+          required
+        />
+      </div>
+
       <div class="space-y-2">
         <Label for="feed-url">Feed URL</Label>
         <div class="flex gap-2">
@@ -167,26 +177,19 @@
         </div>
       {/if}
 
-      <div class="space-y-2">
-        <Label for="folder">Folder (optional)</Label>
-        <select
-          id="folder"
-          class="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-          bind:value={folderId}
-        >
-          <option value={null}>No folder</option>
-          {#each appStore.folders as folder (folder.id)}
-            <option value={folder.id}>{folder.name}</option>
-          {/each}
-        </select>
-      </div>
+      {#if feed?.last_error}
+        <div class="p-3 rounded-md bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-sm">
+          <div class="font-medium">Last error:</div>
+          <div>{feed.last_error}</div>
+        </div>
+      {/if}
 
       <Dialog.Footer>
-        <Button type="button" variant="outline" onclick={() => (open = false)}>
+        <Button type="button" variant="outline" onclick={handleCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting || isTesting}>
-          {isSubmitting ? 'Adding...' : 'Add Feed'}
+        <Button type="submit" disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save'}
         </Button>
       </Dialog.Footer>
     </form>

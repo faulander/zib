@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getAllFeeds, createFeed, getFeedByUrl } from '$lib/server/feeds';
-import { fetchFeed } from '$lib/server/feed-fetcher';
+import { fetchFeed, refreshFeed } from '$lib/server/feed-fetcher';
 import type { CreateFeed } from '$lib/types';
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -44,5 +44,11 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 
   const feed = createFeed(data);
+
+  // Immediately fetch articles for the new feed
+  refreshFeed(feed.id).catch((err) => {
+    console.error(`[AddFeed] Failed to fetch articles for ${feed.title}:`, err);
+  });
+
   return json(feed, { status: 201 });
 };

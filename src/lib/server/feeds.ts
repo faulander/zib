@@ -25,8 +25,9 @@ export function getAllFeeds(): Feed[] {
 export function getFeedsByFolder(folderId: number | null): Feed[] {
   const db = getDb();
 
-  const query = folderId === null
-    ? `
+  const query =
+    folderId === null
+      ? `
       SELECT f.*,
              COALESCE(SUM(CASE WHEN a.is_read = 0 THEN 1 ELSE 0 END), 0) as unread_count
       FROM feeds f
@@ -35,7 +36,7 @@ export function getFeedsByFolder(folderId: number | null): Feed[] {
       GROUP BY f.id
       ORDER BY f.position, f.title
     `
-    : `
+      : `
       SELECT f.*,
              COALESCE(SUM(CASE WHEN a.is_read = 0 THEN 1 ELSE 0 END), 0) as unread_count
       FROM feeds f
@@ -45,9 +46,7 @@ export function getFeedsByFolder(folderId: number | null): Feed[] {
       ORDER BY f.position, f.title
     `;
 
-  const feeds = folderId === null
-    ? db.prepare(query).all()
-    : db.prepare(query).all(folderId);
+  const feeds = folderId === null ? db.prepare(query).all() : db.prepare(query).all(folderId);
 
   return feeds as Feed[];
 }
@@ -76,9 +75,9 @@ export function getFeedById(id: number): Feed | null {
 export function getFeedByUrl(feedUrl: string): Feed | null {
   const db = getDb();
 
-  const feed = db
-    .prepare('SELECT * FROM feeds WHERE feed_url = ?')
-    .get(feedUrl) as FeedRow | undefined;
+  const feed = db.prepare('SELECT * FROM feeds WHERE feed_url = ?').get(feedUrl) as
+    | FeedRow
+    | undefined;
 
   return feed || null;
 }
@@ -87,7 +86,9 @@ export function createFeed(data: CreateFeed): Feed {
   const db = getDb();
 
   const maxPosition = db
-    .prepare('SELECT COALESCE(MAX(position), -1) + 1 as next_position FROM feeds WHERE folder_id IS ?')
+    .prepare(
+      'SELECT COALESCE(MAX(position), -1) + 1 as next_position FROM feeds WHERE folder_id IS ?'
+    )
     .get(data.folder_id ?? null) as { next_position: number };
 
   const result = db
@@ -178,6 +179,29 @@ export function deleteFeed(id: number): boolean {
   const db = getDb();
   const result = db.prepare('DELETE FROM feeds WHERE id = ?').run(id);
   return result.changes > 0;
+}
+
+export function getFeedsWithErrors(): Feed[] {
+  const db = getDb();
+
+  const feeds = db
+    .prepare(
+      `
+    SELECT f.*, fo.name as folder_name
+    FROM feeds f
+    LEFT JOIN folders fo ON fo.id = f.folder_id
+    WHERE f.last_error IS NOT NULL AND f.last_error != ''
+    ORDER BY f.error_count DESC, f.title
+  `
+    )
+    .all() as (FeedRow & { folder_name: string | null })[];
+
+  return feeds;
+}
+
+export function clearFeedError(id: number): void {
+  const db = getDb();
+  db.prepare('UPDATE feeds SET last_error = NULL, error_count = 0 WHERE id = ?').run(id);
 }
 
 export function getFeedsNeedingRefresh(limit: number = 50): FeedRow[] {

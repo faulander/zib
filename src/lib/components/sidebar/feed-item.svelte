@@ -2,7 +2,7 @@
   import type { Feed } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
   import { Button } from '$lib/components/ui/button';
-  import { Rss, CheckCheck, X } from '@lucide/svelte';
+  import { Rss, CheckCheck, X, AlertTriangle } from '@lucide/svelte';
 
   interface Props {
     feed: Feed;
@@ -11,6 +11,7 @@
   let { feed }: Props = $props();
 
   const unreadCount = $derived(appStore.unreadCounts.by_feed[feed.id] || 0);
+  const hasError = $derived(!!feed.last_error);
 
   const isSelected = $derived(appStore.selectedFeedId === feed.id);
 
@@ -43,7 +44,9 @@
     class="w-full justify-start gap-2 pr-1 h-8 text-sm"
     onclick={() => appStore.selectFeed(feed.id)}
   >
-    {#if feed.favicon_url}
+    {#if hasError}
+      <AlertTriangle class="h-4 w-4 text-yellow-500" title={feed.last_error} />
+    {:else if feed.favicon_url}
       <img
         src={feed.favicon_url}
         alt=""

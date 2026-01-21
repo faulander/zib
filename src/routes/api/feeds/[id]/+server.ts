@@ -36,6 +36,23 @@ export const PUT: RequestHandler = async ({ params, request }) => {
   return json(feed);
 };
 
+export const PATCH: RequestHandler = async ({ params, request }) => {
+  const id = parseInt(params.id);
+
+  if (isNaN(id)) {
+    return json({ error: 'Invalid feed ID' }, { status: 400 });
+  }
+
+  const data: UpdateFeed = await request.json();
+  const feed = updateFeed(id, data);
+
+  if (!feed) {
+    return json({ error: 'Feed not found' }, { status: 404 });
+  }
+
+  return json(feed);
+};
+
 export const DELETE: RequestHandler = async ({ params }) => {
   const id = parseInt(params.id);
 

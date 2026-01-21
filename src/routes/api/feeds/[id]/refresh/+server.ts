@@ -11,8 +11,9 @@ export const POST: RequestHandler = async ({ params }) => {
 
   const result = await refreshFeed(id);
 
-  if (result.errors.length > 0 && result.added === 0) {
-    return json({ error: result.errors[0], ...result }, { status: 500 });
+  // Return error in body but 200 status so frontend can handle it
+  if (result.errors.length > 0) {
+    return json({ error: result.errors[0], ...result });
   }
 
   return json(result);
