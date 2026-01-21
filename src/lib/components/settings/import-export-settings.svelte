@@ -23,7 +23,18 @@
           body: formData
         });
 
-        const result = await res.json();
+        const text = await res.text();
+        console.log('[Import] Response status:', res.status);
+        console.log('[Import] Response text:', text);
+
+        let result;
+        try {
+          result = JSON.parse(text);
+        } catch {
+          console.error('[Import] Failed to parse JSON:', text);
+          toast.error('Server returned invalid response');
+          return;
+        }
 
         if (res.ok) {
           toast.success(`Imported ${result.feeds_created || 0} feeds`);

@@ -4,16 +4,24 @@ import { createFeed, getFeedByUrl, getAllFeeds } from './feeds';
 import type { OPMLOutline } from '$lib/types';
 
 export function parseOPML(opmlContent: string): OPMLOutline[] {
-  const dom = new JSDOM(opmlContent, { contentType: 'text/xml' });
-  const doc = dom.window.document;
+  console.log('[OPML] Parsing content, length:', opmlContent.length);
 
-  const body = doc.querySelector('body');
-  if (!body) {
-    throw new Error('Invalid OPML: no body element found');
+  try {
+    const dom = new JSDOM(opmlContent, { contentType: 'text/xml' });
+    const doc = dom.window.document;
+
+    const body = doc.querySelector('body');
+    if (!body) {
+      throw new Error('Invalid OPML: no body element found');
+    }
+
+    const outlines = body.querySelectorAll(':scope > outline');
+    console.log('[OPML] Found', outlines.length, 'top-level outlines');
+    return Array.from(outlines).map(parseOutline);
+  } catch (err) {
+    console.error('[OPML] Parse error:', err);
+    throw err;
   }
-
-  const outlines = body.querySelectorAll(':scope > outline');
-  return Array.from(outlines).map(parseOutline);
 }
 
 function parseOutline(element: Element): OPMLOutline {
