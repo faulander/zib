@@ -2,8 +2,6 @@
 
 A modern, self-hosted RSS reader built with SvelteKit. Clean interface, fast performance, and all the features you need to stay on top of your feeds.
 
-![ZIB Screenshot](screenshot.png)
-
 ## Features
 
 - **Folder Organization** - Group your feeds into folders for easy navigation
@@ -55,17 +53,6 @@ ZIB stores all data in a SQLite database. By default, this is located at `data/r
 ```bash
 DATABASE_PATH=/path/to/your/rss.db
 ```
-
-## Screenshots
-
-### List View
-Clean, information-dense list view for power users.
-
-### Card View
-Visual card layout with article images - great for browsing.
-
-### Settings
-Manage feeds, configure filters, view logs, and set up integrations.
 
 ## License
 
