@@ -105,6 +105,16 @@ npm run format:check # Check formatting without changes
 - **Linting:** ESLint with Svelte and TypeScript plugins
 - **Formatting:** Prettier with Svelte plugin
 
+## Code Organization Guidelines
+
+### Component Extraction
+When a page or component exceeds a readable limit (~200-300 lines), extract logical sections into separate components. This improves:
+- Readability and maintainability
+- Reusability across the application
+- Testing and debugging
+
+Example: The settings page uses separate components for each section (`general-settings.svelte`, `sharing-settings.svelte`, etc.) in `src/lib/components/settings/`.
+
 ## Architecture
 
 ### Project Structure
