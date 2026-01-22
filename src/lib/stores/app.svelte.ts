@@ -3,6 +3,7 @@ import type { Folder, Feed, Article, UnreadCounts } from '$lib/types';
 // Settings (persisted)
 let hideReadArticles = $state(false);
 let compactListView = $state(false);
+let autoMarkAsRead = $state(false);
 let highlightColorLight = $state('#fef3c7');
 let highlightColorDark = $state('#422006');
 let instapaperEnabled = $state(false);
@@ -149,6 +150,10 @@ function setCompactListView(value: boolean) {
   compactListView = value;
 }
 
+function setAutoMarkAsRead(value: boolean) {
+  autoMarkAsRead = value;
+}
+
 function setHighlightColorLight(value: string) {
   highlightColorLight = value;
 }
@@ -164,12 +169,14 @@ function setInstapaperEnabled(value: boolean) {
 function initSettings(settings: {
   hideReadArticles: boolean;
   compactListView: boolean;
+  autoMarkAsRead?: boolean;
   highlightColorLight: string;
   highlightColorDark: string;
   instapaperEnabled?: boolean;
 }) {
   hideReadArticles = settings.hideReadArticles;
   compactListView = settings.compactListView;
+  autoMarkAsRead = settings.autoMarkAsRead ?? false;
   highlightColorLight = settings.highlightColorLight;
   highlightColorDark = settings.highlightColorDark;
   instapaperEnabled = settings.instapaperEnabled ?? false;
@@ -183,6 +190,9 @@ export const appStore = {
   },
   get compactListView() {
     return compactListView;
+  },
+  get autoMarkAsRead() {
+    return autoMarkAsRead;
   },
   get highlightColorLight() {
     return highlightColorLight;
@@ -274,6 +284,7 @@ export const appStore = {
   removeArticleFromList,
   setHideReadArticles,
   setCompactListView,
+  setAutoMarkAsRead,
   setHighlightColorLight,
   setHighlightColorDark,
   setInstapaperEnabled,

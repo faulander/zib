@@ -2,7 +2,15 @@
   import type { PageData } from './$types';
   import type { Filter, Feed } from '$lib/types';
   import { Button } from '$lib/components/ui/button';
-  import { ArrowLeft, Settings, Share2, FolderInput, Rss, Filter as FilterIcon, FileText } from '@lucide/svelte';
+  import {
+    ArrowLeft,
+    Settings,
+    Share2,
+    FolderInput,
+    Rss,
+    Filter as FilterIcon,
+    FileText
+  } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { cn } from '$lib/utils';
 
@@ -58,6 +66,7 @@
   let logCount = $state(0);
   let hideReadArticles = $state(false);
   let compactListView = $state(false);
+  let autoMarkAsRead = $state(false);
   let highlightColorLight = $state('#fef3c7');
   let highlightColorDark = $state('#422006');
   let instapaperUsername = $state('');
@@ -72,6 +81,7 @@
     logCount = data.logCount;
     hideReadArticles = data.settings.hideReadArticles;
     compactListView = data.settings.compactListView;
+    autoMarkAsRead = data.settings.autoMarkAsRead;
     highlightColorLight = data.settings.highlightColorLight;
     highlightColorDark = data.settings.highlightColorDark;
     instapaperUsername = data.settings.instapaperUsername;
@@ -115,26 +125,25 @@
 
   <!-- Main content -->
   <main class="flex-1 p-6 overflow-y-auto">
-    <div class={activeSection === 'feeds' || activeSection === 'logs' || activeSection === 'filters' ? '' : 'max-w-2xl'}>
+    <div
+      class={activeSection === 'feeds' || activeSection === 'logs' || activeSection === 'filters'
+        ? ''
+        : 'max-w-2xl'}
+    >
       {#if activeSection === 'general'}
         <GeneralSettings
           bind:hideReadArticles
           bind:compactListView
+          bind:autoMarkAsRead
           bind:highlightColorLight
           bind:highlightColorDark
         />
       {:else if activeSection === 'sharing'}
-        <SharingSettings
-          bind:instapaperUsername
-          bind:instapaperPassword
-        />
+        <SharingSettings bind:instapaperUsername bind:instapaperPassword />
       {:else if activeSection === 'import-export'}
         <ImportExportSettings />
       {:else if activeSection === 'feeds'}
-        <FeedsSettings
-          bind:allFeeds
-          bind:errorFeeds
-        />
+        <FeedsSettings bind:allFeeds bind:errorFeeds />
       {:else if activeSection === 'filters'}
         <FiltersSettings bind:filters />
       {:else if activeSection === 'logs'}

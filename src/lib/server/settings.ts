@@ -3,6 +3,7 @@ import { getDb } from './db';
 export interface AppSettings {
   hideReadArticles: boolean;
   compactListView: boolean;
+  autoMarkAsRead: boolean;
   highlightColorLight: string;
   highlightColorDark: string;
   // Instapaper integration
@@ -13,6 +14,7 @@ export interface AppSettings {
 const DEFAULTS: AppSettings = {
   hideReadArticles: false,
   compactListView: false,
+  autoMarkAsRead: false,
   highlightColorLight: '#fef3c7', // amber-100
   highlightColorDark: '#422006', // amber-950
   instapaperUsername: '',
@@ -49,6 +51,7 @@ export function getAllSettings(): AppSettings {
   return {
     hideReadArticles: getSetting('hideReadArticles'),
     compactListView: getSetting('compactListView'),
+    autoMarkAsRead: getSetting('autoMarkAsRead'),
     highlightColorLight: getSetting('highlightColorLight'),
     highlightColorDark: getSetting('highlightColorDark'),
     instapaperUsername: getSetting('instapaperUsername'),

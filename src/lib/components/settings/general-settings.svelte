@@ -7,6 +7,7 @@
   interface Props {
     hideReadArticles: boolean;
     compactListView: boolean;
+    autoMarkAsRead: boolean;
     highlightColorLight: string;
     highlightColorDark: string;
   }
@@ -14,12 +15,18 @@
   let {
     hideReadArticles = $bindable(),
     compactListView = $bindable(),
+    autoMarkAsRead = $bindable(),
     highlightColorLight = $bindable(),
     highlightColorDark = $bindable()
   }: Props = $props();
 
   async function updateSetting(
-    key: 'hideReadArticles' | 'compactListView' | 'highlightColorLight' | 'highlightColorDark',
+    key:
+      | 'hideReadArticles'
+      | 'compactListView'
+      | 'autoMarkAsRead'
+      | 'highlightColorLight'
+      | 'highlightColorDark',
     value: boolean | string
   ) {
     try {
@@ -34,6 +41,8 @@
           appStore.setHideReadArticles(value as boolean);
         } else if (key === 'compactListView') {
           appStore.setCompactListView(value as boolean);
+        } else if (key === 'autoMarkAsRead') {
+          appStore.setAutoMarkAsRead(value as boolean);
         } else if (key === 'highlightColorLight') {
           appStore.setHighlightColorLight(value as string);
         } else if (key === 'highlightColorDark') {
@@ -73,9 +82,7 @@
     <div class="flex items-center justify-between p-4 border rounded-lg">
       <div>
         <div class="font-medium">Compact list view</div>
-        <div class="text-sm text-muted-foreground">
-          Reduce vertical spacing in list view
-        </div>
+        <div class="text-sm text-muted-foreground">Reduce vertical spacing in list view</div>
       </div>
       <Switch
         checked={compactListView}
@@ -86,12 +93,26 @@
       />
     </div>
 
+    <div class="flex items-center justify-between p-4 border rounded-lg">
+      <div>
+        <div class="font-medium">Auto-mark as read</div>
+        <div class="text-sm text-muted-foreground">
+          Automatically mark articles as read when scrolling past them
+        </div>
+      </div>
+      <Switch
+        checked={autoMarkAsRead}
+        onCheckedChange={(checked) => {
+          autoMarkAsRead = checked;
+          updateSetting('autoMarkAsRead', checked);
+        }}
+      />
+    </div>
+
     <div class="p-4 border rounded-lg space-y-4">
       <div>
         <div class="font-medium">Highlight color</div>
-        <div class="text-sm text-muted-foreground">
-          Color used for hover states on articles
-        </div>
+        <div class="text-sm text-muted-foreground">Color used for hover states on articles</div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">

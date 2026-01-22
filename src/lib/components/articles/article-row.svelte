@@ -85,6 +85,8 @@
 
 <!-- Desktop layout: single row -->
 <div
+  data-article-id={article.id}
+  data-is-read={article.is_read}
   class={cn(
     'w-full text-left px-4 transition-colors cursor-pointer article-row-hover hidden sm:flex items-center gap-3',
     appStore.compactListView ? 'py-1' : 'py-2',
@@ -124,6 +126,8 @@
 
 <!-- Mobile layout: stacked rows -->
 <div
+  data-article-id={article.id}
+  data-is-read={article.is_read}
   class={cn(
     'w-full text-left px-4 transition-colors cursor-pointer article-row-hover flex sm:hidden flex-col gap-0.5',
     appStore.compactListView ? 'py-1.5' : 'py-2',

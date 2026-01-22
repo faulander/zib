@@ -26,6 +26,10 @@ export const PATCH: RequestHandler = async ({ request }) => {
     setSetting('compactListView', updates.compactListView);
   }
 
+  if (updates.autoMarkAsRead !== undefined) {
+    setSetting('autoMarkAsRead', updates.autoMarkAsRead);
+  }
+
   if (updates.highlightColorLight !== undefined) {
     setSetting('highlightColorLight', updates.highlightColorLight);
   }
