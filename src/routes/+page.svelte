@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { appStore } from '$lib/stores/app.svelte';
-  import { Sheet, SheetContent, SheetTrigger } from '$lib/components/ui/sheet';
+  import { Sheet, SheetContent } from '$lib/components/ui/sheet';
   import { Button } from '$lib/components/ui/button';
   import Sidebar from '$lib/components/sidebar/sidebar.svelte';
   import ArticleList from '$lib/components/articles/article-list.svelte';
@@ -166,23 +166,21 @@
 <div class="h-screen flex flex-col">
   <!-- Mobile header -->
   <header class="lg:hidden flex items-center justify-between px-4 py-2 border-b">
-    <Sheet>
-      <SheetTrigger>
-        {#snippet child({ props })}
-          <Button variant="ghost" size="icon" {...props}>
-            <Menu class="h-5 w-5" />
-          </Button>
-        {/snippet}
-      </SheetTrigger>
-      <SheetContent side="left" class="w-72 p-0">
-        <Sidebar />
-      </SheetContent>
-    </Sheet>
+    <Button variant="ghost" size="icon" onclick={() => appStore.setSidebarOpen(true)}>
+      <Menu class="h-5 w-5" />
+    </Button>
 
     <h1 class="font-semibold">RSS Reader</h1>
 
     <ThemeToggle />
   </header>
+
+  <!-- Mobile sidebar sheet -->
+  <Sheet open={appStore.sidebarOpen} onOpenChange={(open) => appStore.setSidebarOpen(open)}>
+    <SheetContent side="left" class="w-72 p-0">
+      <Sidebar />
+    </SheetContent>
+  </Sheet>
 
   <div class="flex flex-1 overflow-hidden">
     <!-- Desktop sidebar -->

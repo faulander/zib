@@ -95,9 +95,10 @@
       size="sm"
       onclick={() => appStore.setShowUnreadOnly(!appStore.showUnreadOnly)}
       title="Show unread only"
+      class="px-2 sm:px-3"
     >
-      <Filter class="h-4 w-4 mr-1" />
-      Unread
+      <Filter class="h-4 w-4 sm:mr-1" />
+      <span class="hidden sm:inline">Unread</span>
     </Button>
 
     <!-- View toggle -->
@@ -141,9 +142,9 @@
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         {#snippet child({ props })}
-          <Button variant="ghost" size="sm" {...props}>
-            <CheckCheck class="h-4 w-4 mr-1" />
-            Mark Read
+          <Button variant="ghost" size="sm" class="px-2 sm:px-3" {...props}>
+            <CheckCheck class="h-4 w-4 sm:mr-1" />
+            <span class="hidden sm:inline">Mark Read</span>
           </Button>
         {/snippet}
       </DropdownMenu.Trigger>

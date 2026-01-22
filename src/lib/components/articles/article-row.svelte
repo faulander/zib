@@ -83,9 +83,10 @@
   }
 </script>
 
+<!-- Desktop layout: single row -->
 <div
   class={cn(
-    'w-full text-left px-4 transition-colors flex items-center gap-3 cursor-pointer article-row-hover',
+    'w-full text-left px-4 transition-colors cursor-pointer article-row-hover hidden sm:flex items-center gap-3',
     appStore.compactListView ? 'py-1' : 'py-2',
     article.is_read && 'text-muted-foreground'
   )}
@@ -119,4 +120,42 @@
   {/if}
 
   <span class="text-xs opacity-60 shrink-0 w-16 text-right">{publishedDate}</span>
+</div>
+
+<!-- Mobile layout: stacked rows -->
+<div
+  class={cn(
+    'w-full text-left px-4 transition-colors cursor-pointer article-row-hover flex sm:hidden flex-col gap-0.5',
+    appStore.compactListView ? 'py-1.5' : 'py-2',
+    article.is_read && 'text-muted-foreground'
+  )}
+  role="button"
+  tabindex="0"
+  onclick={handleClick}
+  onkeydown={(e) => e.key === 'Enter' && handleClick()}
+>
+  <div class="flex items-center gap-2">
+    {#if article.feed_title}
+      <span class="text-xs opacity-60 truncate flex-1">{article.feed_title}</span>
+    {/if}
+    <span class="text-xs opacity-60 shrink-0">{publishedDate}</span>
+    {#if appStore.instapaperEnabled}
+      <button
+        type="button"
+        class="shrink-0 p-1 -m-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100 disabled:opacity-40"
+        onclick={saveToInstapaper}
+        title="Save to Instapaper"
+        disabled={isSaving}
+      >
+        {#if isSaving}
+          <Loader2 class="h-4 w-4 animate-spin" />
+        {:else}
+          <BookmarkPlus class="h-4 w-4" />
+        {/if}
+      </button>
+    {/if}
+  </div>
+  <h3 class={cn('text-sm', !article.is_read && 'font-semibold')}>
+    {article.title}
+  </h3>
 </div>

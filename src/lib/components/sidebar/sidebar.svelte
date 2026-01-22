@@ -29,7 +29,7 @@
 </script>
 
 <div class="flex h-full flex-col">
-  <div class="flex items-center justify-between p-4">
+  <div class="flex items-center justify-between p-4 pr-12 lg:pr-4">
     <h2 class="text-lg font-semibold">ZIB</h2>
     <div class="flex gap-1">
       <Button

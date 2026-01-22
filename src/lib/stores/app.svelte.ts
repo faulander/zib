@@ -14,7 +14,7 @@ let selectedFeedId = $state<number | null>(null);
 let selectedArticleId = $state<number | null>(null);
 let showUnreadOnly = $state(false);
 let showStarredOnly = $state(false);
-let sidebarOpen = $state(true);
+let sidebarOpen = $state(false);
 let articleModalOpen = $state(false);
 
 // Data
@@ -51,11 +51,19 @@ function selectFolder(id: number | null) {
   selectedFolderId = id;
   selectedFeedId = null;
   showStarredOnly = false;
+  // Close sidebar on mobile
+  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    sidebarOpen = false;
+  }
 }
 
 function selectFeed(id: number | null) {
   selectedFeedId = id;
   showStarredOnly = false;
+  // Close sidebar on mobile
+  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    sidebarOpen = false;
+  }
 }
 
 function selectArticle(id: number | null) {
