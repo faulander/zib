@@ -46,7 +46,7 @@
 
   const ARTICLES_PER_PAGE = 50;
 
-  function buildArticleParams(offset: number = 0): URLSearchParams {
+  function buildArticleParams(cursor?: { date: string; id: number }): URLSearchParams {
     const params = new URLSearchParams();
 
     if (appStore.selectedFeedId) {
@@ -64,13 +64,18 @@
     }
 
     params.set('limit', String(ARTICLES_PER_PAGE));
-    params.set('offset', String(offset));
+
+    // Cursor-based pagination
+    if (cursor) {
+      params.set('before_date', cursor.date);
+      params.set('before_id', String(cursor.id));
+    }
 
     return params;
   }
 
   async function loadArticles() {
-    const params = buildArticleParams(0);
+    const params = buildArticleParams();
     const res = await fetch(`/api/articles?${params}`);
     const articles = await res.json();
     appStore.setArticles(articles);
@@ -80,9 +85,17 @@
   async function loadMoreArticles() {
     if (appStore.isLoadingMore || !appStore.hasMoreArticles) return;
 
+    // Get the last article to use as cursor
+    const lastArticle = appStore.articles[appStore.articles.length - 1];
+    if (!lastArticle) return;
+
     appStore.setIsLoadingMore(true);
     try {
-      const params = buildArticleParams(appStore.articles.length);
+      const cursor = {
+        date: lastArticle.published_at || lastArticle.created_at,
+        id: lastArticle.id
+      };
+      const params = buildArticleParams(cursor);
       const res = await fetch(`/api/articles?${params}`);
       const newArticles = await res.json();
       appStore.appendArticles(newArticles);

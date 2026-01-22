@@ -21,8 +21,12 @@ export const GET: RequestHandler = async ({ url }) => {
   const limit = url.searchParams.get('limit');
   if (limit) filters.limit = parseInt(limit);
 
-  const offset = url.searchParams.get('offset');
-  if (offset) filters.offset = parseInt(offset);
+  // Cursor-based pagination
+  const beforeDate = url.searchParams.get('before_date');
+  if (beforeDate) filters.before_date = beforeDate;
+
+  const beforeId = url.searchParams.get('before_id');
+  if (beforeId) filters.before_id = parseInt(beforeId);
 
   // Special endpoint for counts
   if (url.searchParams.get('counts') === 'true') {

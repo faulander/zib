@@ -98,7 +98,9 @@ export interface ArticleFilters {
   is_read?: boolean;
   is_starred?: boolean;
   limit?: number;
-  offset?: number;
+  offset?: number; // deprecated, use cursor-based pagination
+  before_date?: string; // cursor: fetch articles before this date
+  before_id?: number; // cursor: for tie-breaking when dates are equal
 }
 
 export interface MarkReadFilters {

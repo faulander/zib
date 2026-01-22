@@ -44,11 +44,16 @@ export function getArticles(filters: ArticleFilters = {}): Article[] {
     values.push(filters.is_starred ? 1 : 0);
   }
 
+  // Cursor-based pagination: fetch articles older than the cursor
+  if (filters.before_date) {
+    conditions.push('(a.published_at < ? OR (a.published_at = ? AND a.id < ?))');
+    values.push(filters.before_date, filters.before_date, filters.before_id || 0);
+  }
+
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   // Get more articles than requested to account for filtering
   const requestedLimit = filters.limit || 50;
-  const offset = filters.offset || 0;
   // Fetch extra to account for filtered articles
   const fetchLimit = requestedLimit * 3;
 
@@ -59,11 +64,11 @@ export function getArticles(filters: ArticleFilters = {}): Article[] {
     FROM articles a
     JOIN feeds f ON f.id = a.feed_id
     ${whereClause}
-    ORDER BY a.published_at DESC, a.created_at DESC
-    LIMIT ? OFFSET ?
+    ORDER BY a.published_at DESC, a.id DESC
+    LIMIT ?
   `
     )
-    .all(...values, fetchLimit, offset) as (ArticleRow & {
+    .all(...values, fetchLimit) as (ArticleRow & {
     feed_title: string;
     feed_favicon: string | null;
   })[];
