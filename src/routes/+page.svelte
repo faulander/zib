@@ -174,7 +174,7 @@
   });
 </script>
 
-<Seo title="RSS Reader" description="A modern RSS reader" />
+<Seo title="ZiB" description="ZiB - a modern RSS reader" />
 
 <div class="h-screen flex flex-col">
   <!-- Mobile header -->
@@ -183,7 +183,7 @@
       <Menu class="h-5 w-5" />
     </Button>
 
-    <h1 class="font-semibold">RSS Reader</h1>
+    <h1 class="font-semibold">ZiB</h1>
 
     <ThemeToggle />
   </header>
