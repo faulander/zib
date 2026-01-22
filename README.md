@@ -1,4 +1,7 @@
 # ZIB - RSS Reader
+<img width="2346" height="1329" alt="image" src="https://github.com/user-attachments/assets/a19e2294-a94d-4565-b538-6ac013e6f630" />
+<img width="390" height="844" alt="image" src="https://github.com/user-attachments/assets/acb10bf1-3873-4fdc-907f-bbbc6b424923" />
+<img width="390"  alt="image" src="https://github.com/user-attachments/assets/68ca567f-013c-4d59-b2df-9246ef5f7929" />
 
 A modern, self-hosted RSS reader built with SvelteKit. Clean interface, fast performance, and all the features you need to stay on top of your feeds.
 
