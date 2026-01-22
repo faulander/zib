@@ -3,14 +3,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { toast } from 'svelte-sonner';
-  import {
-    LayoutList,
-    LayoutGrid,
-    CheckCheck,
-    RefreshCw,
-    Filter,
-    Clock
-  } from '@lucide/svelte';
+  import { LayoutList, LayoutGrid, CheckCheck, RefreshCw, Filter, Clock } from '@lucide/svelte';
 
   async function markReadOlderThan(period: 'day' | 'week' | 'month' | 'all') {
     const filters: Record<string, unknown> = { older_than: period };
@@ -48,9 +41,7 @@
       const feedIds = appStore.selectedFeedId
         ? [appStore.selectedFeedId]
         : appStore.selectedFolderId
-          ? appStore.feeds
-              .filter((f) => f.folder_id === appStore.selectedFolderId)
-              .map((f) => f.id)
+          ? appStore.feeds.filter((f) => f.folder_id === appStore.selectedFolderId).map((f) => f.id)
           : undefined;
 
       await fetch('/api/refresh', {
@@ -84,7 +75,16 @@
     </h2>
 
     <span class="text-xs text-muted-foreground">
-      ({appStore.articles.length} articles)
+      {#if appStore.showStarredOnly}
+        ({appStore.articles.length} articles)
+      {:else}
+        {@const unreadCount = appStore.selectedFeedId
+          ? (appStore.unreadCounts.by_feed[appStore.selectedFeedId] ?? 0)
+          : appStore.selectedFolderId
+            ? (appStore.unreadCounts.by_folder[appStore.selectedFolderId] ?? 0)
+            : appStore.unreadCounts.total}
+        ({unreadCount} unread)
+      {/if}
     </span>
   </div>
 

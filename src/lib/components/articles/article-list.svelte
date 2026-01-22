@@ -3,12 +3,17 @@
   import ArticleRow from './article-row.svelte';
   import ArticleCard from './article-card.svelte';
   import Spinner from '$lib/components/spinner.svelte';
-  import { createAutoMarkReadObserver, resetMarkedIds } from './use-auto-mark-read.svelte';
+  import {
+    createAutoMarkReadObserver,
+    resetMarkedIds,
+    observeArticles
+  } from './use-auto-mark-read.svelte';
 
   const isEmpty = $derived(appStore.articles.length === 0 && !appStore.isLoading);
 
   let scrollContainer: HTMLDivElement;
   let observer: IntersectionObserver | null = null;
+  let lastArticleCount = 0;
 
   function handleScroll() {
     if (!scrollContainer || appStore.isLoadingMore || !appStore.hasMoreArticles) return;
@@ -20,22 +25,27 @@
     }
   }
 
-  function observeArticles() {
-    if (!observer || !scrollContainer) return;
-    const articleElements = scrollContainer.querySelectorAll('[data-article-id]');
-    articleElements.forEach((el) => observer?.observe(el));
-  }
-
   // Setup observer when autoMarkAsRead is enabled
   $effect(() => {
     const enabled = appStore.autoMarkAsRead;
 
-    if (scrollContainer && enabled) {
+    if (!scrollContainer || !enabled) {
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      return;
+    }
+
+    // Create observer only if we don't have one
+    if (!observer) {
       observer = createAutoMarkReadObserver(scrollContainer);
-      observeArticles();
-    } else if (observer) {
-      observer.disconnect();
-      observer = null;
+      // Initial observation after DOM has settled
+      setTimeout(() => {
+        if (observer && scrollContainer) {
+          observeArticles(observer, scrollContainer);
+        }
+      }, 150);
     }
 
     return () => {
@@ -44,23 +54,26 @@
     };
   });
 
-  // Re-observe when articles change
+  // Observe new articles when more are loaded (not when read status changes)
   $effect(() => {
-    const _articles = appStore.articles;
+    const articleCount = appStore.articles.length;
 
-    if (observer && scrollContainer) {
-      observer.disconnect();
-      // Small delay to ensure DOM is updated
+    // Only re-observe if new articles were added (count increased)
+    if (observer && scrollContainer && articleCount > lastArticleCount) {
       setTimeout(() => {
-        observeArticles();
-      }, 0);
+        if (observer && scrollContainer) {
+          observeArticles(observer, scrollContainer);
+        }
+      }, 50);
     }
+    lastArticleCount = articleCount;
   });
 
   // Reset marked IDs when filter changes
   $effect(() => {
     const _filter = appStore.currentFilter;
     resetMarkedIds();
+    lastArticleCount = 0; // Reset count so we re-observe on filter change
   });
 </script>
 
