@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getAllFilters } from '$lib/server/filters';
 import { getAllSettings } from '$lib/server/settings';
 import { getFeedsWithErrors, getAllFeeds } from '$lib/server/feeds';
+import { getAllFolders } from '$lib/server/folders';
 import { getAllFeedStatistics } from '$lib/server/feed-stats';
 import { getEffectiveTTL, formatTTL } from '$lib/server/adaptive-ttl';
 import { getLogs, getLogCount } from '$lib/server/logger';
@@ -11,6 +12,7 @@ export const load: PageServerLoad = async () => {
   const settings = getAllSettings();
   const errorFeeds = getFeedsWithErrors();
   const allFeeds = getAllFeeds();
+  const allFolders = getAllFolders();
   const allStats = getAllFeedStatistics();
 
   // Build a map of feed stats
@@ -45,6 +47,7 @@ export const load: PageServerLoad = async () => {
     settings,
     errorFeeds,
     allFeeds: feedsWithTTL,
+    allFolders,
     logs,
     logCount
   };

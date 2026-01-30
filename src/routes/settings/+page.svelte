@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import type { Filter, Feed } from '$lib/types';
+  import type { Filter, Feed, Folder } from '$lib/types';
   import { Button } from '$lib/components/ui/button';
   import {
     ArrowLeft,
@@ -9,7 +9,8 @@
     FolderInput,
     Rss,
     Filter as FilterIcon,
-    FileText
+    FileText,
+    Folder as FolderIcon
   } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { cn } from '$lib/utils';
@@ -18,11 +19,19 @@
   import GeneralSettings from '$lib/components/settings/general-settings.svelte';
   import SharingSettings from '$lib/components/settings/sharing-settings.svelte';
   import ImportExportSettings from '$lib/components/settings/import-export-settings.svelte';
+  import FoldersSettings from '$lib/components/settings/folders-settings.svelte';
   import FeedsSettings from '$lib/components/settings/feeds-settings.svelte';
   import FiltersSettings from '$lib/components/settings/filters-settings.svelte';
   import LogsSettings from '$lib/components/settings/logs-settings.svelte';
 
-  type SettingsSection = 'general' | 'sharing' | 'import-export' | 'feeds' | 'filters' | 'logs';
+  type SettingsSection =
+    | 'general'
+    | 'sharing'
+    | 'import-export'
+    | 'folders'
+    | 'feeds'
+    | 'filters'
+    | 'logs';
 
   let activeSection = $state<SettingsSection>('general');
 
@@ -30,6 +39,7 @@
     { id: 'general' as const, label: 'General', icon: Settings },
     { id: 'sharing' as const, label: 'Sharing', icon: Share2 },
     { id: 'import-export' as const, label: 'Import / Export', icon: FolderInput },
+    { id: 'folders' as const, label: 'Folders', icon: FolderIcon },
     { id: 'feeds' as const, label: 'Feeds', icon: Rss },
     { id: 'filters' as const, label: 'Filters', icon: FilterIcon },
     { id: 'logs' as const, label: 'Logs', icon: FileText }
@@ -62,6 +72,7 @@
   let filters = $state<Filter[]>([]);
   let errorFeeds = $state<Feed[]>([]);
   let allFeeds = $state<FeedWithTTL[]>([]);
+  let allFolders = $state<Folder[]>([]);
   let logs = $state<LogEntry[]>([]);
   let logCount = $state(0);
   let hideReadArticles = $state(false);
@@ -79,6 +90,7 @@
     filters = data.filters;
     errorFeeds = data.errorFeeds;
     allFeeds = data.allFeeds as FeedWithTTL[];
+    allFolders = data.allFolders;
     logs = data.logs as LogEntry[];
     logCount = data.logCount;
     hideReadArticles = data.settings.hideReadArticles;
@@ -130,7 +142,10 @@
   <!-- Main content -->
   <main class="flex-1 p-6 overflow-y-auto">
     <div
-      class={activeSection === 'feeds' || activeSection === 'logs' || activeSection === 'filters'
+      class={activeSection === 'feeds' ||
+      activeSection === 'logs' ||
+      activeSection === 'filters' ||
+      activeSection === 'folders'
         ? ''
         : 'max-w-2xl'}
     >
@@ -148,6 +163,8 @@
         <SharingSettings bind:instapaperUsername bind:instapaperPassword />
       {:else if activeSection === 'import-export'}
         <ImportExportSettings />
+      {:else if activeSection === 'folders'}
+        <FoldersSettings bind:folders={allFolders} bind:feeds={allFeeds} />
       {:else if activeSection === 'feeds'}
         <FeedsSettings bind:allFeeds bind:errorFeeds />
       {:else if activeSection === 'filters'}
