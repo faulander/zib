@@ -1,4 +1,4 @@
-import stringSimilarity from 'string-similarity';
+import { compareTwoStrings } from '$lib/utils/similarity';
 import type { Article } from '$lib/types';
 
 export interface ArticleGroup {
@@ -16,7 +16,10 @@ const TIME_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours
  * @param threshold - Similarity threshold (0.0 to 1.0), default 0.65
  * @returns Array of article groups
  */
-export function groupSimilarArticles(articles: Article[], threshold: number = 0.65): ArticleGroup[] {
+export function groupSimilarArticles(
+  articles: Article[],
+  threshold: number = 0.65
+): ArticleGroup[] {
   if (threshold <= 0) {
     // If threshold is 0 or negative, don't group anything
     return articles.map((article) => ({ main: article, similar: [] }));
@@ -43,15 +46,13 @@ export function groupSimilarArticles(articles: Article[], threshold: number = 0.
       if (candidate.id === article.id || used.has(candidate.id)) continue;
 
       // Check time window (48 hours)
-      const candidateDate = candidate.published_at
-        ? new Date(candidate.published_at).getTime()
-        : 0;
+      const candidateDate = candidate.published_at ? new Date(candidate.published_at).getTime() : 0;
 
       if (Math.abs(articleDate - candidateDate) > TIME_WINDOW_MS) continue;
 
       // Check title similarity
       const candidateTitle = candidate.title.toLowerCase().trim();
-      const score = stringSimilarity.compareTwoStrings(articleTitle, candidateTitle);
+      const score = compareTwoStrings(articleTitle, candidateTitle);
 
       if (score >= threshold) {
         similar.push(candidate);
