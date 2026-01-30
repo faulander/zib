@@ -83,9 +83,9 @@
   async function loadArticles() {
     const params = buildArticleParams();
     const res = await fetch(`/api/articles?${params}`);
-    const articles = await res.json();
-    appStore.setArticles(articles);
-    appStore.setHasMoreArticles(articles.length >= ARTICLES_PER_PAGE);
+    const data = await res.json();
+    appStore.setArticles(data.articles);
+    appStore.setHasMoreArticles(data.hasMore);
   }
 
   async function loadMoreArticles() {
@@ -103,9 +103,9 @@
       };
       const params = buildArticleParams(cursor);
       const res = await fetch(`/api/articles?${params}`);
-      const newArticles = await res.json();
-      appStore.appendArticles(newArticles);
-      appStore.setHasMoreArticles(newArticles.length >= ARTICLES_PER_PAGE);
+      const data = await res.json();
+      appStore.appendArticles(data.articles);
+      appStore.setHasMoreArticles(data.hasMore);
     } finally {
       appStore.setIsLoadingMore(false);
     }
