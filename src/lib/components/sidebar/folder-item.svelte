@@ -3,7 +3,13 @@
   import { appStore } from '$lib/stores/app.svelte';
   import { Button } from '$lib/components/ui/button';
   import FeedItem from './feed-item.svelte';
-  import { ChevronRight, ChevronDown, Folder as FolderIcon, CheckCheck, RefreshCw } from '@lucide/svelte';
+  import {
+    ChevronRight,
+    ChevronDown,
+    Folder as FolderIcon,
+    CheckCheck,
+    RefreshCw
+  } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
 
   interface Props {
@@ -61,7 +67,10 @@
   <Button
     variant={isSelected ? 'secondary' : 'ghost'}
     class="w-full justify-start gap-1 pr-1 {isSelected ? '' : 'sidebar-item-hover'}"
-    onclick={() => appStore.selectFolder(folder.id)}
+    onclick={() => {
+      appStore.selectFolder(folder.id);
+      appStore.setSidebarOpen(false);
+    }}
   >
     <button
       class="p-0.5 hover:bg-muted rounded"
@@ -82,7 +91,7 @@
       <span class="text-xs text-muted-foreground mr-1">{unreadCount}</span>
     {/if}
     <button
-      class="p-1 opacity-0 group-hover:opacity-100 hover:bg-muted rounded transition-opacity disabled:opacity-50"
+      class="p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:bg-muted rounded transition-opacity disabled:opacity-50"
       onclick={refreshFolder}
       disabled={isRefreshing}
       title="Refresh feeds in folder"
@@ -90,7 +99,7 @@
       <RefreshCw class="h-3 w-3 {isRefreshing ? 'animate-spin' : ''}" />
     </button>
     <button
-      class="p-1 opacity-0 group-hover:opacity-100 hover:bg-muted rounded transition-opacity"
+      class="p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:bg-muted rounded transition-opacity"
       onclick={markAllRead}
       title="Mark all as read"
     >

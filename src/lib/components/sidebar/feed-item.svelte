@@ -42,7 +42,10 @@
   <Button
     variant={isSelected ? 'secondary' : 'ghost'}
     class="w-full justify-start gap-2 pr-1 h-8 text-sm {isSelected ? '' : 'sidebar-item-hover'}"
-    onclick={() => appStore.selectFeed(feed.id)}
+    onclick={() => {
+      appStore.selectFeed(feed.id);
+      appStore.setSidebarOpen(false);
+    }}
   >
     {#if hasError}
       <span title={feed.last_error ?? ''}>
@@ -65,14 +68,14 @@
       <span class="text-xs text-muted-foreground mr-1">{unreadCount}</span>
     {/if}
     <button
-      class="p-1 opacity-0 group-hover:opacity-100 hover:bg-muted rounded transition-opacity"
+      class="p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:bg-muted rounded transition-opacity"
       onclick={markAllRead}
       title="Mark all as read"
     >
       <CheckCheck class="h-3 w-3" />
     </button>
     <button
-      class="p-1 opacity-0 group-hover:opacity-100 rounded transition-opacity text-red-500 hover:bg-red-500/20"
+      class="p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 rounded transition-opacity text-red-500 hover:bg-red-500/20"
       onclick={deleteFeed}
       title="Delete feed"
     >

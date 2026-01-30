@@ -59,6 +59,7 @@
           appStore.selectFolder(null);
           appStore.selectFeed(null);
           appStore.setShowStarredOnly(false);
+          appStore.setSidebarOpen(false);
         }}
       >
         <Inbox class="h-4 w-4" />
