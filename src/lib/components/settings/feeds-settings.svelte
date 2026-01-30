@@ -2,7 +2,19 @@
   import type { Feed } from '$lib/types';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import { Pencil, RefreshCw, X, Clock, Rss, AlertTriangle } from '@lucide/svelte';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import {
+    Pencil,
+    RefreshCw,
+    X,
+    Clock,
+    Rss,
+    AlertTriangle,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    Check
+  } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
   import FeedEditDialog from '$lib/components/feed-edit-dialog.svelte';
 
@@ -30,13 +42,58 @@
   let editingFeed = $state<Feed | null>(null);
   let showFeedEditor = $state(false);
 
-  const filteredFeeds = $derived(
-    feedSearchQuery.trim()
-      ? allFeeds.filter((f) =>
-          f.title.toLowerCase().includes(feedSearchQuery.toLowerCase())
-        )
-      : allFeeds
-  );
+  // Sort options
+  type SortField = 'name' | 'popularity' | 'frequency' | 'articles';
+  let sortField = $state<SortField>('name');
+  let sortAsc = $state(true);
+
+  const sortOptions: { value: SortField; label: string }[] = [
+    { value: 'name', label: 'Name' },
+    { value: 'popularity', label: 'Popularity (read rate)' },
+    { value: 'frequency', label: 'Post frequency' },
+    { value: 'articles', label: 'Total articles' }
+  ];
+
+  function sortFeeds(feeds: FeedWithTTL[]): FeedWithTTL[] {
+    const sorted = [...feeds].sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortField) {
+        case 'name':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'popularity':
+          const readRateA = a.statistics?.read_rate ?? 0;
+          const readRateB = b.statistics?.read_rate ?? 0;
+          comparison = readRateA - readRateB;
+          break;
+        case 'frequency':
+          const freqA = a.statistics?.avg_articles_per_day ?? 0;
+          const freqB = b.statistics?.avg_articles_per_day ?? 0;
+          comparison = freqA - freqB;
+          break;
+        case 'articles':
+          const countA = a.unread_count ?? 0;
+          const countB = b.unread_count ?? 0;
+          comparison = countA - countB;
+          break;
+      }
+
+      return sortAsc ? comparison : -comparison;
+    });
+
+    return sorted;
+  }
+
+  const filteredFeeds = $derived(() => {
+    let feeds = allFeeds;
+
+    if (feedSearchQuery.trim()) {
+      feeds = feeds.filter((f) => f.title.toLowerCase().includes(feedSearchQuery.toLowerCase()));
+    }
+
+    return sortFeeds(feeds);
+  });
 
   function editFeed(feed: Feed) {
     editingFeed = feed;
@@ -52,14 +109,10 @@
       const res = await fetch(`/api/feeds/${updatedFeed.id}`);
       if (res.ok) {
         const feedWithStats = await res.json();
-        allFeeds = allFeeds.map((f) =>
-          f.id === updatedFeed.id ? feedWithStats : f
-        );
+        allFeeds = allFeeds.map((f) => (f.id === updatedFeed.id ? feedWithStats : f));
       }
     } catch {
-      allFeeds = allFeeds.map((f) =>
-        f.id === updatedFeed.id ? { ...f, ...updatedFeed } : f
-      );
+      allFeeds = allFeeds.map((f) => (f.id === updatedFeed.id ? { ...f, ...updatedFeed } : f));
     }
 
     showFeedEditor = false;
@@ -125,7 +178,9 @@
   {#if errorFeeds.length > 0}
     <div class="mb-6">
       <div class="mb-3">
-        <h3 class="text-sm font-semibold flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+        <h3
+          class="text-sm font-semibold flex items-center gap-2 text-yellow-600 dark:text-yellow-400"
+        >
           <AlertTriangle class="h-4 w-4" />
           {errorFeeds.length} feed{errorFeeds.length === 1 ? '' : 's'} with errors
         </h3>
@@ -177,22 +232,56 @@
   {/if}
 
   <!-- All Feeds -->
-  <div class="mb-3">
+  <div class="mb-3 flex flex-wrap items-center gap-3">
     <Input
       type="search"
       placeholder="Search feeds..."
       bind:value={feedSearchQuery}
       class="max-w-sm"
     />
+
+    <div class="flex items-center gap-2">
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+          <Button variant="outline" class="w-48 justify-start">
+            <ArrowUpDown class="h-4 w-4 mr-2" />
+            {sortOptions.find((o) => o.value === sortField)?.label}
+          </Button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content>
+          {#each sortOptions as option}
+            <DropdownMenu.Item onclick={() => (sortField = option.value)}>
+              <Check
+                class="h-4 w-4 mr-2 {sortField === option.value ? 'opacity-100' : 'opacity-0'}"
+              />
+              {option.label}
+            </DropdownMenu.Item>
+          {/each}
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+
+      <Button
+        variant="outline"
+        size="icon"
+        onclick={() => (sortAsc = !sortAsc)}
+        title={sortAsc ? 'Ascending' : 'Descending'}
+      >
+        {#if sortAsc}
+          <ArrowUp class="h-4 w-4" />
+        {:else}
+          <ArrowDown class="h-4 w-4" />
+        {/if}
+      </Button>
+    </div>
   </div>
 
   <div class="border rounded-lg divide-y">
-    {#if filteredFeeds.length === 0}
+    {#if filteredFeeds().length === 0}
       <div class="p-4 text-center text-muted-foreground">
         {feedSearchQuery ? 'No feeds match your search' : 'No feeds yet'}
       </div>
     {:else}
-      {#each filteredFeeds as feed (feed.id)}
+      {#each filteredFeeds() as feed (feed.id)}
         <div class="p-3 flex items-center gap-3 hover:bg-muted/50 group">
           <div class="shrink-0">
             {#if feed.favicon_url}
@@ -230,12 +319,7 @@
           </div>
 
           <div class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onclick={() => editFeed(feed)}
-              title="Edit feed"
-            >
+            <Button variant="ghost" size="icon" onclick={() => editFeed(feed)} title="Edit feed">
               <Pencil class="h-4 w-4" />
             </Button>
             <Button
