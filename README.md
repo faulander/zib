@@ -9,6 +9,7 @@ A modern, self-hosted RSS reader built with SvelteKit. Clean interface, fast per
 
 - **Folder Organization** - Group your feeds into folders for easy navigation
 - **Dual View Modes** - Switch between compact list view and visual card view with images
+- **Similar Articles Grouping** - Automatically groups articles with similar titles together, with configurable similarity threshold
 - **Auto Mark as Read** - Automatically mark articles as read when scrolling past them
 - **Smart Refresh** - Adaptive per-feed refresh rates based on publication frequency and your reading habits
 - **Full Content Extraction** - Automatically fetches full article content using Mozilla Readability
