@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getArticles, getUnreadCounts } from '$lib/server/articles';
+import { groupSimilarArticles, flattenGroups } from '$lib/server/similarity';
 import type { ArticleFilters } from '$lib/types';
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -35,5 +36,17 @@ export const GET: RequestHandler = async ({ url }) => {
   }
 
   const articles = getArticles(filters);
+
+  // Group similar articles if requested
+  const groupSimilar = url.searchParams.get('group_similar');
+  const threshold = url.searchParams.get('similarity_threshold');
+
+  if (groupSimilar === 'true') {
+    const thresholdValue = threshold ? parseFloat(threshold) : 0.65;
+    const groups = groupSimilarArticles(articles, thresholdValue);
+    const flattenedArticles = flattenGroups(groups);
+    return json(flattenedArticles);
+  }
+
   return json(articles);
 };

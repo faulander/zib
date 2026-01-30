@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { Article } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
-  import { Rss } from '@lucide/svelte';
+  import { Rss, Layers } from '@lucide/svelte';
   import { cn } from '$lib/utils';
+  import { Badge } from '$lib/components/ui/badge';
 
   interface Props {
     article: Article;
@@ -67,6 +68,13 @@
       <div class="w-full h-full flex items-center justify-center bg-muted/50">
         <Rss class="h-12 w-12 text-muted-foreground/30" />
       </div>
+    {/if}
+
+    {#if article.similar_count && article.similar_count > 0}
+      <Badge variant="secondary" class="absolute top-2 right-2 gap-1 text-xs">
+        <Layers class="h-3 w-3" />
+        +{article.similar_count}
+      </Badge>
     {/if}
   </div>
 

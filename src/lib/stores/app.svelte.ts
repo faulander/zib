@@ -7,6 +7,7 @@ let autoMarkAsRead = $state(false);
 let highlightColorLight = $state('#fef3c7');
 let highlightColorDark = $state('#422006');
 let instapaperEnabled = $state(false);
+let similarityThreshold = $state(0.65);
 
 // View state
 let viewMode = $state<'list' | 'cards'>('list');
@@ -166,6 +167,10 @@ function setInstapaperEnabled(value: boolean) {
   instapaperEnabled = value;
 }
 
+function setSimilarityThreshold(value: number) {
+  similarityThreshold = value;
+}
+
 function initSettings(settings: {
   hideReadArticles: boolean;
   compactListView: boolean;
@@ -173,6 +178,7 @@ function initSettings(settings: {
   highlightColorLight: string;
   highlightColorDark: string;
   instapaperEnabled?: boolean;
+  similarityThreshold?: number;
 }) {
   hideReadArticles = settings.hideReadArticles;
   compactListView = settings.compactListView;
@@ -180,6 +186,7 @@ function initSettings(settings: {
   highlightColorLight = settings.highlightColorLight;
   highlightColorDark = settings.highlightColorDark;
   instapaperEnabled = settings.instapaperEnabled ?? false;
+  similarityThreshold = settings.similarityThreshold ?? 0.65;
 }
 
 // Export reactive getters and setters
@@ -202,6 +209,9 @@ export const appStore = {
   },
   get instapaperEnabled() {
     return instapaperEnabled;
+  },
+  get similarityThreshold() {
+    return similarityThreshold;
   },
   get viewMode() {
     return viewMode;
@@ -288,5 +298,6 @@ export const appStore = {
   setHighlightColorLight,
   setHighlightColorDark,
   setInstapaperEnabled,
+  setSimilarityThreshold,
   initSettings
 };

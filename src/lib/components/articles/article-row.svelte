@@ -2,8 +2,9 @@
   import type { Article } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
   import { cn } from '$lib/utils';
-  import { BookmarkPlus, Loader2 } from '@lucide/svelte';
+  import { BookmarkPlus, Loader2, Layers } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
+  import { Badge } from '$lib/components/ui/badge';
 
   interface Props {
     article: Article;
@@ -105,6 +106,13 @@
     {article.title}
   </h3>
 
+  {#if article.similar_count && article.similar_count > 0}
+    <Badge variant="secondary" class="shrink-0 gap-1 text-xs">
+      <Layers class="h-3 w-3" />
+      +{article.similar_count}
+    </Badge>
+  {/if}
+
   {#if appStore.instapaperEnabled}
     <button
       type="button"
@@ -159,7 +167,15 @@
       </button>
     {/if}
   </div>
-  <h3 class={cn('text-sm', !article.is_read && 'font-semibold')}>
-    {article.title}
-  </h3>
+  <div class="flex items-center gap-2">
+    <h3 class={cn('text-sm flex-1', !article.is_read && 'font-semibold')}>
+      {article.title}
+    </h3>
+    {#if article.similar_count && article.similar_count > 0}
+      <Badge variant="secondary" class="shrink-0 gap-1 text-xs">
+        <Layers class="h-3 w-3" />
+        +{article.similar_count}
+      </Badge>
+    {/if}
+  </div>
 </div>

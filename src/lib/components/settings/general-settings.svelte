@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Input } from '$lib/components/ui/input';
   import { Switch } from '$lib/components/ui/switch';
+  import { Slider } from '$lib/components/ui/slider';
   import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
 
@@ -10,6 +11,7 @@
     autoMarkAsRead: boolean;
     highlightColorLight: string;
     highlightColorDark: string;
+    similarityThreshold: number;
   }
 
   let {
@@ -17,8 +19,22 @@
     compactListView = $bindable(),
     autoMarkAsRead = $bindable(),
     highlightColorLight = $bindable(),
-    highlightColorDark = $bindable()
+    highlightColorDark = $bindable(),
+    similarityThreshold = $bindable()
   }: Props = $props();
+
+  // Slider value (single number for type="single")
+  let sliderValue = $state(similarityThreshold);
+
+  // Sync slider value when prop changes
+  $effect(() => {
+    sliderValue = similarityThreshold;
+  });
+
+  function handleSliderCommit(value: number) {
+    similarityThreshold = value;
+    updateSetting('similarityThreshold', value);
+  }
 
   async function updateSetting(
     key:
@@ -26,8 +42,9 @@
       | 'compactListView'
       | 'autoMarkAsRead'
       | 'highlightColorLight'
-      | 'highlightColorDark',
-    value: boolean | string
+      | 'highlightColorDark'
+      | 'similarityThreshold',
+    value: boolean | string | number
   ) {
     try {
       const res = await fetch('/api/settings', {
@@ -47,6 +64,8 @@
           appStore.setHighlightColorLight(value as string);
         } else if (key === 'highlightColorDark') {
           appStore.setHighlightColorDark(value as string);
+        } else if (key === 'similarityThreshold') {
+          appStore.setSimilarityThreshold(value as number);
         }
       }
     } catch (err) {
@@ -107,6 +126,34 @@
           updateSetting('autoMarkAsRead', checked);
         }}
       />
+    </div>
+
+    <div class="p-4 border rounded-lg space-y-4">
+      <div>
+        <div class="font-medium">Similar articles grouping</div>
+        <div class="text-sm text-muted-foreground">
+          Group articles with similar titles together. Set to 0 to disable.
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-sm">Similarity threshold</span>
+          <span class="text-sm font-mono tabular-nums">{Math.round(sliderValue * 100)}%</span>
+        </div>
+        <Slider
+          type="single"
+          bind:value={sliderValue}
+          min={0}
+          max={1}
+          step={0.05}
+          onValueCommit={handleSliderCommit}
+        />
+        <div class="flex justify-between text-xs text-muted-foreground">
+          <span>Off</span>
+          <span>Strict (90%+)</span>
+        </div>
+      </div>
     </div>
 
     <div class="p-4 border rounded-lg space-y-4">

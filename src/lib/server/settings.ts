@@ -9,6 +9,8 @@ export interface AppSettings {
   // Instapaper integration
   instapaperUsername: string;
   instapaperPassword: string;
+  // Similar articles grouping
+  similarityThreshold: number;
 }
 
 const DEFAULTS: AppSettings = {
@@ -18,7 +20,8 @@ const DEFAULTS: AppSettings = {
   highlightColorLight: '#fef3c7', // amber-100
   highlightColorDark: '#422006', // amber-950
   instapaperUsername: '',
-  instapaperPassword: ''
+  instapaperPassword: '',
+  similarityThreshold: 0.65
 };
 
 export function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] {
@@ -35,6 +38,9 @@ export function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] 
   const defaultValue = DEFAULTS[key];
   if (typeof defaultValue === 'boolean') {
     return (row.value === 'true') as AppSettings[K];
+  }
+  if (typeof defaultValue === 'number') {
+    return parseFloat(row.value) as AppSettings[K];
   }
 
   return row.value as AppSettings[K];
@@ -55,7 +61,8 @@ export function getAllSettings(): AppSettings {
     highlightColorLight: getSetting('highlightColorLight'),
     highlightColorDark: getSetting('highlightColorDark'),
     instapaperUsername: getSetting('instapaperUsername'),
-    instapaperPassword: getSetting('instapaperPassword')
+    instapaperPassword: getSetting('instapaperPassword'),
+    similarityThreshold: getSetting('similarityThreshold')
   };
 }
 

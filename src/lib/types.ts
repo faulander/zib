@@ -56,6 +56,15 @@ export interface Article extends Omit<ArticleRow, 'is_read' | 'is_starred'> {
   is_starred: boolean;
   feed_title?: string | null;
   feed_favicon?: string | null;
+  // Similarity grouping metadata (added when grouping is enabled)
+  similar_count?: number;
+  similar_ids?: number[];
+}
+
+// Similar articles grouping
+export interface ArticleGroup {
+  main: Article;
+  similar: Article[];
 }
 
 // Input types for creating/updating

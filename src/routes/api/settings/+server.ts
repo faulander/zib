@@ -46,6 +46,10 @@ export const PATCH: RequestHandler = async ({ request }) => {
     setSetting('instapaperPassword', updates.instapaperPassword);
   }
 
+  if (updates.similarityThreshold !== undefined) {
+    setSetting('similarityThreshold', updates.similarityThreshold);
+  }
+
   const settings = getAllSettings();
   return json({
     ...settings,

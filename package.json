@@ -25,6 +25,7 @@
     "@tailwindcss/vite": "^4.1.17",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jsdom": "^27.0.0",
+    "@types/string-similarity": "^4.0.2",
     "bits-ui": "^2.15.4",
     "clsx": "^2.1.1",
     "eslint": "^9.39.2",
@@ -51,6 +52,7 @@
     "jsdom": "^27.4.0",
     "node-cron": "^4.2.1",
     "rss-parser": "^3.13.0",
+    "string-similarity": "^4.0.4",
     "sveltekit-superforms": "^2.29.1",
     "zod": "^4.3.5"
   }

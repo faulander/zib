@@ -71,6 +71,12 @@
       params.set('before_id', String(cursor.id));
     }
 
+    // Similar articles grouping
+    if (appStore.similarityThreshold > 0) {
+      params.set('group_similar', 'true');
+      params.set('similarity_threshold', String(appStore.similarityThreshold));
+    }
+
     return params;
   }
 
@@ -119,6 +125,7 @@
     appStore.showUnreadOnly;
     appStore.showStarredOnly;
     appStore.hideReadArticles;
+    appStore.similarityThreshold;
 
     loadArticles();
   });

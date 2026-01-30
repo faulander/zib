@@ -11,15 +11,33 @@
     X,
     ChevronLeft,
     ChevronRight,
-    Circle
+    Circle,
+    Layers
   } from '@lucide/svelte';
   import { cn } from '$lib/utils';
+  import type { Article } from '$lib/types';
 
   const article = $derived(appStore.selectedArticle);
 
+  // Content state - use RSS content initially, then load full content
+  let extractedContent = $state<string | null>(null);
+  let isExtracting = $state(false);
+  let lastExtractedId = $state<number | null>(null);
+
+  // Similar articles state
+  let similarArticles = $state<Article[]>([]);
+  let isLoadingSimilar = $state(false);
+  let lastSimilarLoadedId = $state<number | null>(null);
+
+  // Store the current article data when viewing a similar article not in the main list
+  let currentSimilarArticle = $state<Article | null>(null);
+
+  // Use either the article from the main list or the similar article we're viewing
+  const displayArticle = $derived(article || currentSimilarArticle);
+
   const publishedDate = $derived(
-    article?.published_at
-      ? new Date(article.published_at).toLocaleDateString(undefined, {
+    displayArticle?.published_at
+      ? new Date(displayArticle.published_at).toLocaleDateString(undefined, {
           weekday: 'long',
           year: 'numeric',
           month: 'long',
@@ -28,20 +46,15 @@
       : ''
   );
 
-  // Content state - use RSS content initially, then load full content
-  let extractedContent = $state<string | null>(null);
-  let isExtracting = $state(false);
-  let lastExtractedId = $state<number | null>(null);
-
   const content = $derived(
-    extractedContent && lastExtractedId === article?.id
+    extractedContent && lastExtractedId === displayArticle?.id
       ? extractedContent
-      : article?.full_content || article?.rss_content || ''
+      : displayArticle?.full_content || displayArticle?.rss_content || ''
   );
 
   // Extract full content when modal opens with an article that doesn't have it
   $effect(() => {
-    const currentArticle = article;
+    const currentArticle = displayArticle;
     const isOpen = appStore.articleModalOpen;
 
     if (
@@ -52,6 +65,31 @@
       lastExtractedId !== currentArticle.id
     ) {
       extractFullContent(currentArticle.id);
+    }
+  });
+
+  // Load similar articles when modal opens
+  $effect(() => {
+    // Access reactive values to ensure effect tracks them
+    const currentArticle = displayArticle;
+    const isOpen = appStore.articleModalOpen;
+    const threshold = appStore.similarityThreshold;
+    const alreadyLoaded = lastSimilarLoadedId;
+
+    if (currentArticle && isOpen && threshold > 0 && alreadyLoaded !== currentArticle.id) {
+      // Check if we already have similar_ids from the grouping
+      if (currentArticle.similar_ids && currentArticle.similar_ids.length > 0) {
+        // Fetch the similar articles by their IDs
+        loadSimilarArticlesByIds(currentArticle.similar_ids);
+        lastSimilarLoadedId = currentArticle.id;
+      } else {
+        // Fall back to API search for similar articles
+        loadSimilarArticles(currentArticle.id, threshold);
+      }
+    } else if (!isOpen) {
+      similarArticles = [];
+      lastSimilarLoadedId = null;
+      currentSimilarArticle = null;
     }
   });
 
@@ -71,6 +109,63 @@
     } finally {
       isExtracting = false;
     }
+  }
+
+  async function loadSimilarArticlesByIds(ids: number[]) {
+    isLoadingSimilar = true;
+    try {
+      // Fetch each article by ID
+      const promises = ids.map((id) =>
+        fetch(`/api/articles/${id}`).then((res) => (res.ok ? res.json() : null))
+      );
+      const results = await Promise.all(promises);
+      similarArticles = results.filter((a): a is Article => a !== null);
+    } catch {
+      similarArticles = [];
+    } finally {
+      isLoadingSimilar = false;
+    }
+  }
+
+  async function loadSimilarArticles(articleId: number, threshold: number) {
+    isLoadingSimilar = true;
+    try {
+      const res = await fetch(`/api/articles/${articleId}/similar?threshold=${threshold}`);
+      if (res.ok) {
+        similarArticles = await res.json();
+        lastSimilarLoadedId = articleId;
+      }
+    } catch {
+      // Silently fail
+      similarArticles = [];
+    } finally {
+      isLoadingSimilar = false;
+    }
+  }
+
+  function openSimilarArticle(similarArticle: Article) {
+    // Mark as read
+    if (!similarArticle.is_read) {
+      fetch(`/api/articles/${similarArticle.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_read: true })
+      });
+      appStore.updateArticleInList(similarArticle.id, { is_read: true });
+      window.dispatchEvent(new CustomEvent('reload-counts'));
+    }
+
+    // Reset states for new article
+    extractedContent = null;
+    lastExtractedId = null;
+    similarArticles = [];
+    lastSimilarLoadedId = null;
+
+    // Store the similar article data since it might not be in the main list
+    currentSimilarArticle = { ...similarArticle, is_read: true };
+
+    // Also try to select it in the store (in case it IS in the main list)
+    appStore.selectArticle(similarArticle.id);
   }
 
   // Find prev/next article indices
@@ -123,37 +218,47 @@
   }
 
   async function toggleStar() {
-    if (!article) return;
-    const newValue = !article.is_starred;
+    if (!displayArticle) return;
+    const newValue = !displayArticle.is_starred;
 
-    await fetch(`/api/articles/${article.id}`, {
+    await fetch(`/api/articles/${displayArticle.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_starred: newValue })
     });
 
-    appStore.updateArticleInList(article.id, { is_starred: newValue });
+    appStore.updateArticleInList(displayArticle.id, { is_starred: newValue });
+
+    // Also update currentSimilarArticle if we're viewing one
+    if (currentSimilarArticle && currentSimilarArticle.id === displayArticle.id) {
+      currentSimilarArticle = { ...currentSimilarArticle, is_starred: newValue };
+    }
   }
 
   async function toggleRead() {
-    if (!article) return;
-    const newValue = !article.is_read;
+    if (!displayArticle) return;
+    const newValue = !displayArticle.is_read;
 
-    await fetch(`/api/articles/${article.id}`, {
+    await fetch(`/api/articles/${displayArticle.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_read: newValue })
     });
 
-    appStore.updateArticleInList(article.id, { is_read: newValue });
+    appStore.updateArticleInList(displayArticle.id, { is_read: newValue });
     window.dispatchEvent(new CustomEvent('reload-counts'));
+
+    // Also update currentSimilarArticle if we're viewing one
+    if (currentSimilarArticle && currentSimilarArticle.id === displayArticle.id) {
+      currentSimilarArticle = { ...currentSimilarArticle, is_read: newValue };
+    }
   }
 
   async function sendToInstapaper() {
-    if (!article) return;
+    if (!displayArticle) return;
 
     try {
-      const res = await fetch(`/api/articles/${article.id}/instapaper`, {
+      const res = await fetch(`/api/articles/${displayArticle.id}/instapaper`, {
         method: 'POST'
       });
 
@@ -196,7 +301,7 @@
     class="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden"
     showCloseButton={false}
   >
-    {#if article}
+    {#if displayArticle}
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
         <div class="flex items-center gap-2">
@@ -213,12 +318,12 @@
             variant="ghost"
             size="icon"
             onclick={toggleRead}
-            title={article.is_read ? 'Mark as unread' : 'Mark as read'}
+            title={displayArticle.is_read ? 'Mark as unread' : 'Mark as read'}
           >
             <Circle
               class={cn(
                 'h-4 w-4',
-                article.is_read ? 'text-muted-foreground' : 'fill-primary text-primary'
+                displayArticle.is_read ? 'text-muted-foreground' : 'fill-primary text-primary'
               )}
             />
           </Button>
@@ -226,18 +331,20 @@
             variant="ghost"
             size="icon"
             onclick={toggleStar}
-            title={article.is_starred ? 'Remove star' : 'Star'}
+            title={displayArticle.is_starred ? 'Remove star' : 'Star'}
           >
-            <Star class={cn('h-4 w-4', article.is_starred && 'fill-yellow-400 text-yellow-400')} />
+            <Star
+              class={cn('h-4 w-4', displayArticle.is_starred && 'fill-yellow-400 text-yellow-400')}
+            />
           </Button>
           <Button variant="ghost" size="icon" onclick={sendToInstapaper} title="Send to Instapaper">
             <BookmarkPlus class="h-4 w-4" />
           </Button>
-          {#if article.url}
+          {#if displayArticle.url}
             <Button
               variant="ghost"
               size="icon"
-              onclick={() => window.open(article.url!, '_blank')}
+              onclick={() => window.open(displayArticle.url!, '_blank')}
               title="Open original"
             >
               <ExternalLink class="h-4 w-4" />
@@ -253,14 +360,14 @@
       <div class="flex-1 overflow-y-auto">
         <article class="px-6 py-6 max-w-3xl mx-auto">
           <header class="mb-6">
-            <h1 class="text-2xl font-bold mb-2">{article.title}</h1>
+            <h1 class="text-2xl font-bold mb-2">{displayArticle.title}</h1>
             <div class="flex items-center gap-2 text-sm text-muted-foreground">
-              {#if article.feed_title}
-                <span>{article.feed_title}</span>
+              {#if displayArticle.feed_title}
+                <span>{displayArticle.feed_title}</span>
               {/if}
-              {#if article.author}
+              {#if displayArticle.author}
                 <span>·</span>
-                <span>{article.author}</span>
+                <span>{displayArticle.author}</span>
               {/if}
               {#if publishedDate}
                 <span>·</span>
@@ -282,6 +389,46 @@
               <div class="text-xs text-muted-foreground mt-4">Loading full article...</div>
             {/if}
           </div>
+
+          <!-- Similar Articles Section -->
+          {#if appStore.similarityThreshold > 0}
+            <div class="mt-8 pt-6 border-t">
+              <h2 class="flex items-center gap-2 text-lg font-semibold mb-4">
+                <Layers class="h-5 w-5" />
+                Similar Articles
+              </h2>
+
+              {#if isLoadingSimilar}
+                <div class="flex items-center gap-2 text-muted-foreground">
+                  <Spinner size="sm" />
+                  <span>Finding similar articles...</span>
+                </div>
+              {:else if similarArticles.length > 0}
+                <div class="space-y-2">
+                  {#each similarArticles as similar}
+                    <button
+                      type="button"
+                      class="w-full text-left p-3 rounded-lg border hover:bg-muted transition-colors"
+                      onclick={() => openSimilarArticle(similar)}
+                    >
+                      <div class="font-medium text-sm">{similar.title}</div>
+                      <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                        {#if similar.feed_title}
+                          <span>{similar.feed_title}</span>
+                        {/if}
+                        {#if similar.published_at}
+                          <span>·</span>
+                          <span>{new Date(similar.published_at).toLocaleDateString()}</span>
+                        {/if}
+                      </div>
+                    </button>
+                  {/each}
+                </div>
+              {:else}
+                <p class="text-muted-foreground text-sm">No similar articles found.</p>
+              {/if}
+            </div>
+          {/if}
         </article>
       </div>
     {/if}
