@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getArticleById } from '$lib/server/articles';
 import { getDb } from '$lib/server/db';
-import stringSimilarity from 'string-similarity';
+import { compareTwoStrings } from '$lib/utils/similarity';
 import type { ArticleRow, Article } from '$lib/types';
 
 function rowToArticle(
@@ -62,7 +62,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 
   for (const candidate of candidates) {
     const candidateTitle = candidate.title.toLowerCase().trim();
-    const score = stringSimilarity.compareTwoStrings(articleTitle, candidateTitle);
+    const score = compareTwoStrings(articleTitle, candidateTitle);
 
     if (score >= threshold) {
       similar.push(rowToArticle(candidate));
@@ -71,8 +71,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 
   // Sort by similarity score (highest first)
   similar.sort((a, b) => {
-    const scoreA = stringSimilarity.compareTwoStrings(articleTitle, a.title.toLowerCase().trim());
-    const scoreB = stringSimilarity.compareTwoStrings(articleTitle, b.title.toLowerCase().trim());
+    const scoreA = compareTwoStrings(articleTitle, a.title.toLowerCase().trim());
+    const scoreB = compareTwoStrings(articleTitle, b.title.toLowerCase().trim());
     return scoreB - scoreA;
   });
 
