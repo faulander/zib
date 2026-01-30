@@ -28,11 +28,12 @@ export function groupSimilarArticles(
   const groups: ArticleGroup[] = [];
   const used = new Set<number>();
 
-  // Sort by date DESC (most recent first)
+  // Sort by date DESC (most recent first), with ID as tiebreaker for stable sort
   const sorted = [...articles].sort((a, b) => {
     const dateA = a.published_at ? new Date(a.published_at).getTime() : 0;
     const dateB = b.published_at ? new Date(b.published_at).getTime() : 0;
-    return dateB - dateA;
+    if (dateB !== dateA) return dateB - dateA;
+    return b.id - a.id; // Higher ID first (more recent)
   });
 
   for (const article of sorted) {
