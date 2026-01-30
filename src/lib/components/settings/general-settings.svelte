@@ -2,8 +2,10 @@
   import { Input } from '$lib/components/ui/input';
   import { Switch } from '$lib/components/ui/switch';
   import { Slider } from '$lib/components/ui/slider';
+  import { Button } from '$lib/components/ui/button';
   import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
+  import { Minus, Plus } from '@lucide/svelte';
 
   interface Props {
     hideReadArticles: boolean;
@@ -12,6 +14,7 @@
     highlightColorLight: string;
     highlightColorDark: string;
     similarityThreshold: number;
+    fontSizeOffset: number;
   }
 
   let {
@@ -20,7 +23,8 @@
     autoMarkAsRead = $bindable(),
     highlightColorLight = $bindable(),
     highlightColorDark = $bindable(),
-    similarityThreshold = $bindable()
+    similarityThreshold = $bindable(),
+    fontSizeOffset = $bindable()
   }: Props = $props();
 
   // Slider value (single number for type="single")
@@ -43,7 +47,8 @@
       | 'autoMarkAsRead'
       | 'highlightColorLight'
       | 'highlightColorDark'
-      | 'similarityThreshold',
+      | 'similarityThreshold'
+      | 'fontSizeOffset',
     value: boolean | string | number
   ) {
     try {
@@ -66,6 +71,8 @@
           appStore.setHighlightColorDark(value as string);
         } else if (key === 'similarityThreshold') {
           appStore.setSimilarityThreshold(value as number);
+        } else if (key === 'fontSizeOffset') {
+          appStore.setFontSizeOffset(value as number);
         }
       }
     } catch (err) {
@@ -73,6 +80,20 @@
       toast.error('Failed to save setting');
     }
   }
+
+  function adjustFontSize(delta: number) {
+    const newValue = Math.max(-2, Math.min(2, fontSizeOffset + delta));
+    fontSizeOffset = newValue;
+    updateSetting('fontSizeOffset', newValue);
+  }
+
+  const fontSizeLabel = $derived(
+    fontSizeOffset === 0
+      ? 'Default'
+      : fontSizeOffset > 0
+        ? `+${fontSizeOffset}`
+        : `${fontSizeOffset}`
+  );
 </script>
 
 <section>
@@ -110,6 +131,34 @@
           updateSetting('compactListView', checked);
         }}
       />
+    </div>
+
+    <div class="flex items-center justify-between p-4 border rounded-lg">
+      <div>
+        <div class="font-medium">List font size</div>
+        <div class="text-sm text-muted-foreground">Adjust text size in article list</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8"
+          onclick={() => adjustFontSize(-1)}
+          disabled={fontSizeOffset <= -2}
+        >
+          <Minus class="h-4 w-4" />
+        </Button>
+        <span class="w-16 text-center font-mono text-sm">{fontSizeLabel}</span>
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8"
+          onclick={() => adjustFontSize(1)}
+          disabled={fontSizeOffset >= 2}
+        >
+          <Plus class="h-4 w-4" />
+        </Button>
+      </div>
     </div>
 
     <div class="flex items-center justify-between p-4 border rounded-lg">

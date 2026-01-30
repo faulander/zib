@@ -70,6 +70,7 @@
   let highlightColorLight = $state('#fef3c7');
   let highlightColorDark = $state('#422006');
   let similarityThreshold = $state(0.65);
+  let fontSizeOffset = $state(0);
   let instapaperUsername = $state('');
   let instapaperPassword = $state('');
 
@@ -86,6 +87,7 @@
     highlightColorLight = data.settings.highlightColorLight;
     highlightColorDark = data.settings.highlightColorDark;
     similarityThreshold = data.settings.similarityThreshold;
+    fontSizeOffset = data.settings.fontSizeOffset;
     instapaperUsername = data.settings.instapaperUsername;
     instapaperPassword = data.settings.instapaperPassword;
   });
@@ -140,6 +142,7 @@
           bind:highlightColorLight
           bind:highlightColorDark
           bind:similarityThreshold
+          bind:fontSizeOffset
         />
       {:else if activeSection === 'sharing'}
         <SharingSettings bind:instapaperUsername bind:instapaperPassword />

@@ -45,6 +45,24 @@
 
   const publishedDate = $derived(formatDate(article.published_at));
 
+  // Font size classes based on offset: -2, -1, 0, +1, +2
+  const fontSizeClass = $derived(() => {
+    switch (appStore.fontSizeOffset) {
+      case -2:
+        return 'text-xs'; // 12px
+      case -1:
+        return 'text-[13px]'; // 13px
+      case 0:
+        return 'text-sm'; // 14px (default)
+      case 1:
+        return 'text-[15px]'; // 15px
+      case 2:
+        return 'text-base'; // 16px
+      default:
+        return 'text-sm';
+    }
+  });
+
   function handleClick() {
     // Mark as read when opening
     if (!article.is_read) {
@@ -102,7 +120,7 @@
     <span class="text-xs opacity-60 truncate w-28 shrink-0">{article.feed_title}</span>
   {/if}
 
-  <h3 class={cn('text-sm truncate flex-1 min-w-0', !article.is_read && 'font-semibold')}>
+  <h3 class={cn(fontSizeClass(), 'truncate flex-1 min-w-0', !article.is_read && 'font-semibold')}>
     {article.title}
   </h3>
 
@@ -168,7 +186,7 @@
     {/if}
   </div>
   <div class="flex items-center gap-2">
-    <h3 class={cn('text-sm flex-1', !article.is_read && 'font-semibold')}>
+    <h3 class={cn(fontSizeClass(), 'flex-1', !article.is_read && 'font-semibold')}>
       {article.title}
     </h3>
     {#if article.similar_count && article.similar_count > 0}

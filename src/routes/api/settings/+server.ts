@@ -50,6 +50,10 @@ export const PATCH: RequestHandler = async ({ request }) => {
     setSetting('similarityThreshold', updates.similarityThreshold);
   }
 
+  if (updates.fontSizeOffset !== undefined) {
+    setSetting('fontSizeOffset', updates.fontSizeOffset);
+  }
+
   const settings = getAllSettings();
   return json({
     ...settings,

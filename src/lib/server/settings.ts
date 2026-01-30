@@ -11,6 +11,8 @@ export interface AppSettings {
   instapaperPassword: string;
   // Similar articles grouping
   similarityThreshold: number;
+  // Font size offset for list view (-2 to +2)
+  fontSizeOffset: number;
 }
 
 const DEFAULTS: AppSettings = {
@@ -21,7 +23,8 @@ const DEFAULTS: AppSettings = {
   highlightColorDark: '#422006', // amber-950
   instapaperUsername: '',
   instapaperPassword: '',
-  similarityThreshold: 0.65
+  similarityThreshold: 0.65,
+  fontSizeOffset: 0
 };
 
 export function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] {
@@ -62,7 +65,8 @@ export function getAllSettings(): AppSettings {
     highlightColorDark: getSetting('highlightColorDark'),
     instapaperUsername: getSetting('instapaperUsername'),
     instapaperPassword: getSetting('instapaperPassword'),
-    similarityThreshold: getSetting('similarityThreshold')
+    similarityThreshold: getSetting('similarityThreshold'),
+    fontSizeOffset: getSetting('fontSizeOffset')
   };
 }
 
