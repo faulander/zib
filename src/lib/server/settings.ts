@@ -13,6 +13,8 @@ export interface AppSettings {
   similarityThreshold: number;
   // Font size offset for list view (-2 to +2)
   fontSizeOffset: number;
+  // Skip age filter when refreshing feeds (allow old articles)
+  skipAgeFilter: boolean;
 }
 
 const DEFAULTS: AppSettings = {
@@ -24,7 +26,8 @@ const DEFAULTS: AppSettings = {
   instapaperUsername: '',
   instapaperPassword: '',
   similarityThreshold: 0.65,
-  fontSizeOffset: 0
+  fontSizeOffset: 0,
+  skipAgeFilter: false
 };
 
 export function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] {
@@ -66,7 +69,8 @@ export function getAllSettings(): AppSettings {
     instapaperUsername: getSetting('instapaperUsername'),
     instapaperPassword: getSetting('instapaperPassword'),
     similarityThreshold: getSetting('similarityThreshold'),
-    fontSizeOffset: getSetting('fontSizeOffset')
+    fontSizeOffset: getSetting('fontSizeOffset'),
+    skipAgeFilter: getSetting('skipAgeFilter')
   };
 }
 

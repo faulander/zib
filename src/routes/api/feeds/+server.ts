@@ -46,7 +46,8 @@ export const POST: RequestHandler = async ({ request }) => {
   const feed = createFeed(data);
 
   // Immediately fetch articles for the new feed
-  refreshFeed(feed.id).catch((err) => {
+  // Skip age filter for new feeds so users get historical articles on first import
+  refreshFeed(feed.id, false, { skipAgeFilter: true }).catch((err) => {
     console.error(`[AddFeed] Failed to fetch articles for ${feed.title}:`, err);
   });
 

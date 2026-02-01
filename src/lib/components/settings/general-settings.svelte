@@ -15,6 +15,7 @@
     highlightColorDark: string;
     similarityThreshold: number;
     fontSizeOffset: number;
+    skipAgeFilter: boolean;
   }
 
   let {
@@ -24,7 +25,8 @@
     highlightColorLight = $bindable(),
     highlightColorDark = $bindable(),
     similarityThreshold = $bindable(),
-    fontSizeOffset = $bindable()
+    fontSizeOffset = $bindable(),
+    skipAgeFilter = $bindable()
   }: Props = $props();
 
   // Slider value (single number for type="single")
@@ -48,7 +50,8 @@
       | 'highlightColorLight'
       | 'highlightColorDark'
       | 'similarityThreshold'
-      | 'fontSizeOffset',
+      | 'fontSizeOffset'
+      | 'skipAgeFilter',
     value: boolean | string | number
   ) {
     try {
@@ -173,6 +176,22 @@
         onCheckedChange={(checked) => {
           autoMarkAsRead = checked;
           updateSetting('autoMarkAsRead', checked);
+        }}
+      />
+    </div>
+
+    <div class="flex items-center justify-between p-4 border rounded-lg">
+      <div>
+        <div class="font-medium">Import old articles</div>
+        <div class="text-sm text-muted-foreground">
+          Allow importing articles older than 7 days when refreshing feeds
+        </div>
+      </div>
+      <Switch
+        checked={skipAgeFilter}
+        onCheckedChange={(checked) => {
+          skipAgeFilter = checked;
+          updateSetting('skipAgeFilter', checked);
         }}
       />
     </div>
