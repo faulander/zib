@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-19
+
+### Changed
+
+- Migrated runtime from Node.js to Bun
+- Replaced `better-sqlite3` with `bun:sqlite` (built-in, no native compilation)
+- Replaced `@sveltejs/adapter-node` with `svelte-adapter-bun`
+- Replaced `node-cron` with native `setInterval` scheduling
+- Dockerfile now uses `oven/bun` base images (smaller, no build toolchain needed)
+- Package manager switched from npm to bun
+
 ## [0.4.9] - 2026-02-01
 
 ### Added

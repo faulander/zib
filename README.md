@@ -3,7 +3,7 @@
 <img width="390" height="844" alt="image" src="https://github.com/user-attachments/assets/acb10bf1-3873-4fdc-907f-bbbc6b424923" />
 <img width="390"  alt="image" src="https://github.com/user-attachments/assets/68ca567f-013c-4d59-b2df-9246ef5f7929" />
 
-A modern, self-hosted RSS reader built with SvelteKit. Clean interface, fast performance, and all the features you need to stay on top of your feeds.
+A modern, self-hosted RSS reader built with SvelteKit and Bun. Clean interface, fast performance, and all the features you need to stay on top of your feeds.
 
 ## Features
 
@@ -24,7 +24,8 @@ A modern, self-hosted RSS reader built with SvelteKit. Clean interface, fast per
 ## Tech Stack
 
 - **Frontend**: SvelteKit 2, Svelte 5, TailwindCSS 4, shadcn-svelte
-- **Backend**: SvelteKit API routes, better-sqlite3
+- **Runtime**: Bun
+- **Backend**: SvelteKit API routes, bun:sqlite
 - **Database**: SQLite with WAL mode for performance
 
 ## Quick Start
@@ -33,10 +34,10 @@ A modern, self-hosted RSS reader built with SvelteKit. Clean interface, fast per
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Start development server
-npm run dev
+bun run dev
 ```
 
 ### Docker

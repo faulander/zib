@@ -1,19 +1,21 @@
-import cron, { type ScheduledTask } from 'node-cron';
 import { refreshScheduledFeeds } from './feed-fetcher';
 import { deleteOldArticles } from './articles';
 import { serverEvents, EVENTS } from './events';
 import { recalculateAllFeedTTLs } from './adaptive-ttl';
 import { logger, deleteOldLogs } from './logger';
 
-let refreshTask: ScheduledTask | null = null;
-let cleanupTask: ScheduledTask | null = null;
-let ttlRecalcTask: ScheduledTask | null = null;
+let refreshTimer: Timer | null = null;
+let cleanupTimer: Timer | null = null;
+let ttlRecalcTimer: Timer | null = null;
 let isRefreshing = false;
+
+const FIFTEEN_MINUTES = 15 * 60 * 1000;
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
 export function startScheduler() {
   // Refresh feeds every 15 minutes
-  if (!refreshTask) {
-    refreshTask = cron.schedule('*/15 * * * *', async () => {
+  if (!refreshTimer) {
+    refreshTimer = setInterval(async () => {
       if (isRefreshing) {
         logger.info('scheduler', 'Refresh already in progress, skipping');
         return;
@@ -40,14 +42,14 @@ export function startScheduler() {
       } finally {
         isRefreshing = false;
       }
-    });
+    }, FIFTEEN_MINUTES);
 
     logger.info('scheduler', 'Feed refresh scheduled (every 15 minutes)');
   }
 
-  // Clean up old read articles daily at 3am
-  if (!cleanupTask) {
-    cleanupTask = cron.schedule('0 3 * * *', async () => {
+  // Clean up old read articles daily
+  if (!cleanupTimer) {
+    cleanupTimer = setInterval(async () => {
       logger.info('scheduler', 'Starting article cleanup');
       try {
         const deleted = deleteOldArticles(30); // Keep 30 days
@@ -63,14 +65,14 @@ export function startScheduler() {
           error: err instanceof Error ? err.message : String(err)
         });
       }
-    });
+    }, TWENTY_FOUR_HOURS);
 
-    logger.info('scheduler', 'Article cleanup scheduled (daily at 3am)');
+    logger.info('scheduler', 'Article cleanup scheduled (every 24 hours)');
   }
 
-  // Recalculate adaptive TTL values daily at 4am
-  if (!ttlRecalcTask) {
-    ttlRecalcTask = cron.schedule('0 4 * * *', async () => {
+  // Recalculate adaptive TTL values daily
+  if (!ttlRecalcTimer) {
+    ttlRecalcTimer = setInterval(async () => {
       logger.info('ttl', 'Starting TTL recalculation');
       try {
         const result = await recalculateAllFeedTTLs();
@@ -80,26 +82,26 @@ export function startScheduler() {
           error: err instanceof Error ? err.message : String(err)
         });
       }
-    });
+    }, TWENTY_FOUR_HOURS);
 
-    logger.info('scheduler', 'TTL recalculation scheduled (daily at 4am)');
+    logger.info('scheduler', 'TTL recalculation scheduled (every 24 hours)');
   }
 }
 
 export function stopScheduler() {
-  if (refreshTask) {
-    refreshTask.stop();
-    refreshTask = null;
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
   }
 
-  if (cleanupTask) {
-    cleanupTask.stop();
-    cleanupTask = null;
+  if (cleanupTimer) {
+    clearInterval(cleanupTimer);
+    cleanupTimer = null;
   }
 
-  if (ttlRecalcTask) {
-    ttlRecalcTask.stop();
-    ttlRecalcTask = null;
+  if (ttlRecalcTimer) {
+    clearInterval(ttlRecalcTimer);
+    ttlRecalcTimer = null;
   }
 
   logger.info('scheduler', 'Scheduler stopped');

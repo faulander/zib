@@ -1,33 +1,27 @@
 # Build stage
-FROM node:22-alpine AS builder
+FROM oven/bun:latest AS builder
 
 WORKDIR /app
 
-# Install build dependencies for native modules (better-sqlite3)
-RUN apk add --no-cache python3 make g++
-
 # Copy package files
-COPY package*.json ./
+COPY package.json bun.lock* ./
 
 # Install dependencies
-RUN npm install
+RUN bun install
 
 # Copy source code
 COPY . .
 
 # Build the app
-RUN npm run build
-
-# Prune dev dependencies
-RUN npm prune --omit=dev
+RUN bun run build
 
 # Production stage
-FROM node:22-alpine AS production
+FROM oven/bun:latest AS production
 
 WORKDIR /app
 
 # Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data && chown -R appuser:appgroup /app/data
@@ -51,4 +45,4 @@ ENV PORT=3000
 ENV HOST=0.0.0.0
 ENV DATABASE_PATH=/app/data/rss.db
 
-CMD ["node", "build"]
+CMD ["bun", "build/index.js"]

@@ -1,21 +1,21 @@
-import Database from 'better-sqlite3';
-import { mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { Database } from 'bun:sqlite';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 const DB_PATH = process.env.DATABASE_PATH || 'data/rss.db';
 
-let db: Database.Database | null = null;
+let db: Database | null = null;
 
-export function getDb(): Database.Database {
+export function getDb(): Database {
   if (!db) {
     // Ensure the directory exists
     const dbDir = dirname(DB_PATH);
     if (dbDir && dbDir !== '.') {
       mkdirSync(dbDir, { recursive: true });
     }
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
+    db = new Database(DB_PATH, { create: true });
+    db.run('PRAGMA journal_mode = WAL');
+    db.run('PRAGMA foreign_keys = ON');
     initializeSchema(db);
   }
   return db;
@@ -122,20 +122,20 @@ CREATE INDEX IF NOT EXISTS idx_feeds_last_fetched ON feeds(last_fetched_at);
 CREATE INDEX IF NOT EXISTS idx_feed_statistics_calculated_at ON feed_statistics(last_calculated_at);
 `;
 
-function initializeSchema(database: Database.Database): void {
-  database.exec(SCHEMA);
+function initializeSchema(database: Database): void {
+  database.run(SCHEMA);
 
   // Run migrations for existing databases
   runMigrations(database);
 }
 
-function runMigrations(database: Database.Database): void {
+function runMigrations(database: Database): void {
   // Migration: Add last_new_article_at column to feeds table
   const feedsColumns = database.prepare('PRAGMA table_info(feeds)').all() as { name: string }[];
   const hasLastNewArticleAt = feedsColumns.some((col) => col.name === 'last_new_article_at');
 
   if (!hasLastNewArticleAt) {
-    database.exec('ALTER TABLE feeds ADD COLUMN last_new_article_at TEXT');
+    database.run('ALTER TABLE feeds ADD COLUMN last_new_article_at TEXT');
     console.log('[DB] Migration: Added last_new_article_at column to feeds table');
   }
 
@@ -146,7 +146,7 @@ function runMigrations(database: Database.Database): void {
   const hasImageUrl = articlesColumns.some((col) => col.name === 'image_url');
 
   if (!hasImageUrl) {
-    database.exec('ALTER TABLE articles ADD COLUMN image_url TEXT');
+    database.run('ALTER TABLE articles ADD COLUMN image_url TEXT');
     console.log('[DB] Migration: Added image_url column to articles table');
   }
 }

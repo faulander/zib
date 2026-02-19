@@ -28,7 +28,7 @@ A single-user RSS reader web application with the following features:
   - Feed error management
   - Article filters
 
-### Database (SQLite with better-sqlite3)
+### Database (SQLite with bun:sqlite)
 - `folders` - Feed organization
 - `feeds` - RSS feed subscriptions
 - `articles` - Fetched articles with content
@@ -43,7 +43,7 @@ A single-user RSS reader web application with the following features:
 - `src/lib/server/filters.ts` - Filter CRUD and rule matching
 - `src/lib/server/settings.ts` - App settings (hideReadArticles, compactListView)
 - `src/lib/server/feed-fetcher.ts` - RSS parsing + content extraction
-- `src/lib/server/scheduler.ts` - Cron jobs for auto-refresh
+- `src/lib/server/scheduler.ts` - setInterval-based scheduled tasks for auto-refresh
 - `src/lib/server/opml.ts` - OPML import/export
 - `src/lib/server/instapaper.ts` - Instapaper API client
 
@@ -80,27 +80,29 @@ A single-user RSS reader web application with the following features:
 ## Development Commands
 
 ```bash
-npm run dev          # Start development server
-npm run dev -- --open # Start dev server and open browser
-npm run build        # Build for production (outputs to /build)
-npm run preview      # Preview production build locally
-npm run check        # Run svelte-check for type errors
-npm run check:watch  # Run svelte-check in watch mode
-npm run lint         # Run ESLint
-npm run lint:fix     # Run ESLint with auto-fix
-npm run format       # Format code with Prettier
-npm run format:check # Check formatting without changes
+bun run dev          # Start development server
+bun run dev -- --open # Start dev server and open browser
+bun run build        # Build for production (outputs to /build)
+bun run preview      # Preview production build locally
+bun run check        # Run svelte-check for type errors
+bun run check:watch  # Run svelte-check in watch mode
+bun run lint         # Run ESLint
+bun run lint:fix     # Run ESLint with auto-fix
+bun run format       # Format code with Prettier
+bun run format:check # Check formatting without changes
 ```
 
 ## Tech Stack
 
+- **Runtime:** Bun
 - **Framework:** SvelteKit 2.x with Svelte 5 (uses runes syntax: `$state`, `$props`, `$derived`, etc.)
-- **UI Components:** shadcn-svelte (install via `npx shadcn-svelte@next add <component>`)
+- **Database:** SQLite via `bun:sqlite` (built-in, no native deps)
+- **UI Components:** shadcn-svelte (install via `bunx shadcn-svelte@next add <component>`)
 - **Styling:** TailwindCSS 4.x with tw-animate-css for animations
 - **Icons:** Lucide Svelte (`@lucide/svelte`)
 - **Forms:** Zod + sveltekit-superforms for validation
 - **Toasts:** Sonner (via shadcn-svelte)
-- **Adapter:** Node adapter (`@sveltejs/adapter-node`) for server deployment
+- **Adapter:** Bun adapter (`svelte-adapter-bun`) for server deployment
 - **Type Checking:** TypeScript with strict mode enabled
 - **Linting:** ESLint with Svelte and TypeScript plugins
 - **Formatting:** Prettier with Svelte plugin
@@ -256,7 +258,7 @@ docker build -t myapp .
 docker run -p 3000:3000 myapp
 ```
 
-The Dockerfile uses multi-stage builds for optimal image size and includes a health check at `/api/health`.
+The Dockerfile uses `oven/bun` base images with multi-stage builds for optimal image size. No native compilation dependencies needed (bun:sqlite is built-in).
 
 ## Svelte MCP Server
 
