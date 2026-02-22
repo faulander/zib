@@ -24,7 +24,7 @@ WORKDIR /app
 RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
 
 # Create data directory for SQLite database
-RUN mkdir -p /app/data && chown -R appuser:appgroup /app/data
+RUN mkdir -p /app/data
 
 # Copy built app and production dependencies
 COPY --from=builder /app/build ./build
@@ -33,8 +33,6 @@ COPY --from=builder /app/package.json ./
 
 # Set ownership
 RUN chown -R appuser:appgroup /app
-
-USER appuser
 
 # Expose port
 EXPOSE 3000
@@ -45,4 +43,5 @@ ENV PORT=3000
 ENV HOST=0.0.0.0
 ENV DATABASE_PATH=/app/data/rss.db
 
-CMD ["bun", "build/index.js"]
+# Fix volume permissions at runtime, then drop to non-root user
+CMD ["sh", "-c", "chown -R appuser:appgroup /app/data && exec su -s /bin/sh appuser -c 'bun build/index.js'"]
