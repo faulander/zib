@@ -14,7 +14,7 @@ A modern, self-hosted RSS reader built with SvelteKit and Bun. Clean interface, 
 - **Auto Mark as Read** - Automatically mark articles as read when scrolling past them
 - **Smart Refresh** - Adaptive per-feed refresh rates based on publication frequency and your reading habits
 - **Full Content Extraction** - Automatically fetches full article content using Mozilla Readability
-- **Article Filters** - Hide unwanted content with keyword-based rules (supports AND/OR logic)
+- **Article Filters** - Hide unwanted content with keyword-based rules and regex patterns (supports AND/OR logic)
 - **Instapaper Integration** - Save articles to read later with one click
 - **OPML Import/Export** - Easy migration from other RSS readers
 - **Dark Mode** - Full dark/light theme support

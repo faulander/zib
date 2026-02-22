@@ -118,11 +118,11 @@
         <Textarea
           id="rule"
           bind:value={rule}
-          placeholder={`"Rapid Wien" OR "Austria Wien" OR "Sturm Graz"`}
+          placeholder={`"Rapid Wien" OR "Austria Wien" OR /\\d+:\\d+/`}
           rows={3}
         />
         <p class="text-xs text-muted-foreground">
-          Use quotes for phrases. Combine with OR (match any) or AND (match all).
+          Use quotes for phrases, /regex/ for patterns. Combine with OR (match any) or AND (match all).
         </p>
       </div>
 

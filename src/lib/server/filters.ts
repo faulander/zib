@@ -109,6 +109,7 @@ export function deleteFilter(id: number): boolean {
  *
  * Rule syntax:
  * - Terms in quotes: "Rapid Wien"
+ * - Regex patterns: /\d+:\d+/ (always case-insensitive)
  * - OR: "Term A" OR "Term B" (match any)
  * - AND: "Term A" AND "Term B" (match all)
  * - Parentheses for grouping: ("A" OR "B") AND "C"
@@ -133,6 +134,7 @@ export function matchesRule(text: string, rule: string): boolean {
 
 type Token =
   | { type: 'term'; value: string }
+  | { type: 'regex'; pattern: RegExp }
   | { type: 'and' }
   | { type: 'or' }
   | { type: 'lparen' }
@@ -170,6 +172,31 @@ function tokenizeRule(rule: string): Token[] {
     if (rule[i] === ')') {
       tokens.push({ type: 'rparen' });
       i++;
+      continue;
+    }
+
+    // Regex term: /pattern/flags
+    if (rule[i] === '/') {
+      const start = i + 1;
+      i++;
+      while (i < rule.length && rule[i] !== '/') {
+        if (rule[i] === '\\') i++; // skip escaped chars
+        i++;
+      }
+      const pattern = rule.slice(start, i);
+      i++; // skip closing /
+      let flags = '';
+      while (i < rule.length && /[gimsuy]/.test(rule[i])) {
+        flags += rule[i];
+        i++;
+      }
+      if (!flags.includes('i')) flags += 'i';
+      try {
+        tokens.push({ type: 'regex', pattern: new RegExp(pattern, flags) });
+      } catch {
+        // Invalid regex — treat as literal term
+        tokens.push({ type: 'term', value: pattern.toLowerCase() });
+      }
       continue;
     }
 
@@ -246,6 +273,11 @@ function evaluateExpression(tokens: Token[], text: string): boolean {
     if (token.type === 'term') {
       pos++;
       return text.includes(token.value);
+    }
+
+    if (token.type === 'regex') {
+      pos++;
+      return token.pattern.test(text);
     }
 
     return false;

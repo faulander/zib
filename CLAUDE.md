@@ -15,7 +15,7 @@ A single-user RSS reader web application with the following features:
 - **Auto-Refresh** - Background job refreshes feeds every 15 minutes (smart scheduling for 500+ feeds)
 - **Mark Read/Unread** - Per article, per folder, or "older than X" bulk actions
 - **Instapaper Export** - Send articles to Instapaper
-- **Article Filters** - Hide articles matching keyword rules (OR/AND logic), counts respect filters
+- **Article Filters** - Hide articles matching keyword rules and regex patterns (OR/AND logic), counts respect filters
 - **Mobile Responsive** - Sidebar as slide-out drawer on mobile
 - **Delete Feeds** - Red X on hover to remove individual feeds
 - **Feed Testing** - Test feed URLs before adding or editing
