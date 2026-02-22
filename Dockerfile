@@ -21,7 +21,7 @@ FROM oven/bun:latest AS production
 WORKDIR /app
 
 # Create non-root user
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data && chown -R appuser:appgroup /app/data
