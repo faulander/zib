@@ -295,11 +295,9 @@ export function articleMatchesFilters(
 ): boolean {
   if (filters.length === 0) return false;
 
-  const searchText = [
-    article.title,
-    article.rss_content || '',
-    article.full_content || ''
-  ].join(' ');
+  const searchText = [article.title, article.rss_content || '', article.full_content || ''].join(
+    ' '
+  );
 
   for (const filter of filters) {
     if (filter.is_enabled && matchesRule(searchText, filter.rule)) {
@@ -315,9 +313,11 @@ export function articleMatchesFilters(
  */
 export function countMatchingArticles(rule: string): number {
   const db = getDb();
-  const articles = db
-    .prepare('SELECT title, rss_content, full_content FROM articles')
-    .all() as { title: string; rss_content: string | null; full_content: string | null }[];
+  const articles = db.prepare('SELECT title, rss_content, full_content FROM articles').all() as {
+    title: string;
+    rss_content: string | null;
+    full_content: string | null;
+  }[];
 
   let count = 0;
   for (const article of articles) {
@@ -330,4 +330,54 @@ export function countMatchingArticles(rule: string): number {
   }
 
   return count;
+}
+
+/**
+ * Get the most recent articles matching a given rule.
+ */
+export function getRecentMatchingArticles(
+  rule: string,
+  limit: number = 10
+): { id: number; title: string; feed_title: string; published_at: string | null }[] {
+  const db = getDb();
+  const articles = db
+    .prepare(
+      `
+    SELECT a.id, a.title, a.rss_content, a.full_content, a.published_at,
+           f.title as feed_title
+    FROM articles a
+    JOIN feeds f ON f.id = a.feed_id
+    ORDER BY a.published_at DESC, a.id DESC
+  `
+    )
+    .all() as {
+    id: number;
+    title: string;
+    rss_content: string | null;
+    full_content: string | null;
+    published_at: string | null;
+    feed_title: string;
+  }[];
+
+  const matches: { id: number; title: string; feed_title: string; published_at: string | null }[] =
+    [];
+
+  for (const article of articles) {
+    if (matches.length >= limit) break;
+
+    const searchText = [article.title, article.rss_content || '', article.full_content || ''].join(
+      ' '
+    );
+
+    if (matchesRule(searchText, rule)) {
+      matches.push({
+        id: article.id,
+        title: article.title,
+        feed_title: article.feed_title,
+        published_at: article.published_at
+      });
+    }
+  }
+
+  return matches;
 }

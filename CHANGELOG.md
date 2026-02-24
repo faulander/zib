@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-02-24
+
+### Added
+
+- Show last 10 matched articles per filter in settings
+  - Expandable section on each filter row with chevron toggle
+  - Displays article title, feed name, and publish date
+  - Matches loaded lazily on expand and cached until filter is edited
+  - New API endpoint `GET /api/filters/:id/matches`
+
 ## [0.6.0] - 2026-02-22
 
 ### Added
