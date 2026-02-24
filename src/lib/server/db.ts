@@ -149,6 +149,17 @@ function runMigrations(database: Database): void {
     database.run('ALTER TABLE articles ADD COLUMN image_url TEXT');
     console.log('[DB] Migration: Added image_url column to articles table');
   }
+
+  // Migration: Add title_only column to filters table (default 1 = title only)
+  const filtersColumns = database.prepare('PRAGMA table_info(filters)').all() as {
+    name: string;
+  }[];
+  const hasTitleOnly = filtersColumns.some((col) => col.name === 'title_only');
+
+  if (!hasTitleOnly) {
+    database.run('ALTER TABLE filters ADD COLUMN title_only INTEGER DEFAULT 1');
+    console.log('[DB] Migration: Added title_only column to filters table');
+  }
 }
 
 export function closeDb(): void {

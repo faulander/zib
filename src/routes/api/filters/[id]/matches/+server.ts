@@ -3,20 +3,20 @@ import type { RequestHandler } from './$types';
 import { getFilterById, getRecentMatchingArticles } from '$lib/server/filters';
 
 export const GET: RequestHandler = async ({ params, url }) => {
-	const id = parseInt(params.id);
+  const id = parseInt(params.id);
 
-	if (isNaN(id)) {
-		return json({ error: 'Invalid filter ID' }, { status: 400 });
-	}
+  if (isNaN(id)) {
+    return json({ error: 'Invalid filter ID' }, { status: 400 });
+  }
 
-	const filter = getFilterById(id);
+  const filter = getFilterById(id);
 
-	if (!filter) {
-		return json({ error: 'Filter not found' }, { status: 404 });
-	}
+  if (!filter) {
+    return json({ error: 'Filter not found' }, { status: 404 });
+  }
 
-	const limit = parseInt(url.searchParams.get('limit') || '10');
-	const matches = getRecentMatchingArticles(filter.rule, limit);
+  const limit = parseInt(url.searchParams.get('limit') || '10');
+  const matches = getRecentMatchingArticles(filter.rule, limit, filter.title_only);
 
-	return json(matches);
+  return json(matches);
 };

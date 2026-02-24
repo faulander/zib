@@ -1,6 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getFilterById, updateFilter, deleteFilter, countMatchingArticles } from '$lib/server/filters';
+import {
+  getFilterById,
+  updateFilter,
+  deleteFilter,
+  countMatchingArticles
+} from '$lib/server/filters';
 
 export const GET: RequestHandler = async ({ params }) => {
   const id = parseInt(params.id);
@@ -32,7 +37,8 @@ export const PUT: RequestHandler = async ({ params, request }) => {
   const filter = updateFilter(id, {
     name: data.name,
     rule: data.rule,
-    is_enabled: data.is_enabled
+    is_enabled: data.is_enabled,
+    title_only: data.title_only
   });
 
   if (!filter) {
@@ -40,7 +46,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
   }
 
   // Count matching articles for feedback
-  const matchCount = countMatchingArticles(filter.rule);
+  const matchCount = countMatchingArticles(filter.rule, filter.title_only);
 
   return json({ ...filter, match_count: matchCount });
 };

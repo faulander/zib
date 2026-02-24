@@ -20,6 +20,7 @@
   let name = $state('');
   let rule = $state('');
   let isEnabled = $state(true);
+  let titleOnly = $state(true);
   let matchCount = $state<number | null>(null);
   let isTesting = $state(false);
   let isSaving = $state(false);
@@ -31,10 +32,12 @@
         name = filter.name;
         rule = filter.rule;
         isEnabled = filter.is_enabled;
+        titleOnly = filter.title_only;
       } else {
         name = '';
         rule = '';
         isEnabled = true;
+        titleOnly = true;
       }
       matchCount = null;
     }
@@ -50,7 +53,7 @@
       const res = await fetch('/api/filters/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rule })
+        body: JSON.stringify({ rule, title_only: titleOnly })
       });
       const data = await res.json();
       matchCount = data.match_count;
@@ -72,7 +75,7 @@
         const res = await fetch(`/api/filters/${filter.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, rule, is_enabled: isEnabled })
+          body: JSON.stringify({ name, rule, is_enabled: isEnabled, title_only: titleOnly })
         });
         const savedFilter = await res.json();
         onSave(savedFilter);
@@ -81,7 +84,7 @@
         const res = await fetch('/api/filters', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, rule, is_enabled: isEnabled })
+          body: JSON.stringify({ name, rule, is_enabled: isEnabled, title_only: titleOnly })
         });
         const savedFilter = await res.json();
         onSave(savedFilter);
@@ -122,18 +125,30 @@
           rows={3}
         />
         <p class="text-xs text-muted-foreground">
-          Use quotes for phrases, /regex/ for patterns. Combine with OR (match any) or AND (match all).
+          Use quotes for phrases, /regex/ for patterns. Combine with OR (match any) or AND (match
+          all).
         </p>
       </div>
 
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <Switch id="enabled" bind:checked={isEnabled} />
-          <Label for="enabled">Enabled</Label>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <Switch id="enabled" bind:checked={isEnabled} />
+            <Label for="enabled">Enabled</Label>
+          </div>
+          <div class="flex items-center gap-2">
+            <Switch id="title-only" bind:checked={titleOnly} />
+            <Label for="title-only">Title only</Label>
+          </div>
         </div>
 
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" onclick={testRule} disabled={!rule.trim() || isTesting}>
+          <Button
+            variant="outline"
+            size="sm"
+            onclick={testRule}
+            disabled={!rule.trim() || isTesting}
+          >
             {#if isTesting}
               <Spinner class="h-4 w-4 mr-2" />
             {/if}

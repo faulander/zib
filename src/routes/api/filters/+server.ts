@@ -19,11 +19,12 @@ export const POST: RequestHandler = async ({ request }) => {
   const filter = createFilter({
     name: data.name,
     rule: data.rule,
-    is_enabled: data.is_enabled !== false
+    is_enabled: data.is_enabled !== false,
+    title_only: data.title_only !== false
   });
 
   // Count matching articles for feedback
-  const matchCount = countMatchingArticles(filter.rule);
+  const matchCount = countMatchingArticles(filter.rule, filter.title_only);
   console.log(`[API] Filter "${filter.name}" matches ${matchCount} articles`);
 
   return json({ ...filter, match_count: matchCount });

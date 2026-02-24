@@ -140,6 +140,7 @@ export interface Filter {
   name: string;
   rule: string;
   is_enabled: boolean;
+  title_only: boolean;
   created_at: string;
 }
 
@@ -147,12 +148,14 @@ export interface CreateFilter {
   name: string;
   rule: string;
   is_enabled?: boolean;
+  title_only?: boolean;
 }
 
 export interface UpdateFilter {
   name?: string;
   rule?: string;
   is_enabled?: boolean;
+  title_only?: boolean;
 }
 
 // API response types

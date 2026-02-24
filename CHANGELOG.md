@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-02-24
+
+### Changed
+
+- Filters now match against article title only by default (previously matched full content)
+  - Prevents false positives from timestamps, metadata, and HTML in article body
+  - New "Title only" toggle in filter editor to control per filter
+  - Existing filters automatically default to title-only matching
+  - Toggle off to match against full article content when needed
+
 ## [0.6.1] - 2026-02-24
 
 ### Added

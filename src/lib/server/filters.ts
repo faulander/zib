@@ -5,6 +5,7 @@ export interface FilterRow {
   name: string;
   rule: string;
   is_enabled: number;
+  title_only: number;
   created_at: string;
 }
 
@@ -13,6 +14,7 @@ export interface Filter {
   name: string;
   rule: string;
   is_enabled: boolean;
+  title_only: boolean;
   created_at: string;
 }
 
@@ -20,18 +22,21 @@ export interface CreateFilter {
   name: string;
   rule: string;
   is_enabled?: boolean;
+  title_only?: boolean;
 }
 
 export interface UpdateFilter {
   name?: string;
   rule?: string;
   is_enabled?: boolean;
+  title_only?: boolean;
 }
 
 function rowToFilter(row: FilterRow): Filter {
   return {
     ...row,
-    is_enabled: row.is_enabled === 1
+    is_enabled: row.is_enabled === 1,
+    title_only: row.title_only === 1
   };
 }
 
@@ -58,8 +63,13 @@ export function getFilterById(id: number): Filter | null {
 export function createFilter(data: CreateFilter): Filter {
   const db = getDb();
   const result = db
-    .prepare('INSERT INTO filters (name, rule, is_enabled) VALUES (?, ?, ?)')
-    .run(data.name, data.rule, data.is_enabled !== false ? 1 : 0);
+    .prepare('INSERT INTO filters (name, rule, is_enabled, title_only) VALUES (?, ?, ?, ?)')
+    .run(
+      data.name,
+      data.rule,
+      data.is_enabled !== false ? 1 : 0,
+      data.title_only !== false ? 1 : 0
+    );
 
   return getFilterById(result.lastInsertRowid as number)!;
 }
@@ -88,6 +98,11 @@ export function updateFilter(id: number, data: UpdateFilter): Filter | null {
   if (data.is_enabled !== undefined) {
     updates.push('is_enabled = ?');
     values.push(data.is_enabled ? 1 : 0);
+  }
+
+  if (data.title_only !== undefined) {
+    updates.push('title_only = ?');
+    values.push(data.title_only ? 1 : 0);
   }
 
   if (updates.length > 0) {
@@ -295,12 +310,14 @@ export function articleMatchesFilters(
 ): boolean {
   if (filters.length === 0) return false;
 
-  const searchText = [article.title, article.rss_content || '', article.full_content || ''].join(
-    ' '
-  );
-
   for (const filter of filters) {
-    if (filter.is_enabled && matchesRule(searchText, filter.rule)) {
+    if (!filter.is_enabled) continue;
+
+    const searchText = filter.title_only
+      ? article.title
+      : [article.title, article.rss_content || '', article.full_content || ''].join(' ');
+
+    if (matchesRule(searchText, filter.rule)) {
       return true;
     }
   }
@@ -311,7 +328,7 @@ export function articleMatchesFilters(
 /**
  * Count how many articles match a given rule.
  */
-export function countMatchingArticles(rule: string): number {
+export function countMatchingArticles(rule: string, titleOnly: boolean = true): number {
   const db = getDb();
   const articles = db.prepare('SELECT title, rss_content, full_content FROM articles').all() as {
     title: string;
@@ -321,9 +338,9 @@ export function countMatchingArticles(rule: string): number {
 
   let count = 0;
   for (const article of articles) {
-    const searchText = [article.title, article.rss_content || '', article.full_content || ''].join(
-      ' '
-    );
+    const searchText = titleOnly
+      ? article.title
+      : [article.title, article.rss_content || '', article.full_content || ''].join(' ');
     if (matchesRule(searchText, rule)) {
       count++;
     }
@@ -337,7 +354,8 @@ export function countMatchingArticles(rule: string): number {
  */
 export function getRecentMatchingArticles(
   rule: string,
-  limit: number = 10
+  limit: number = 10,
+  titleOnly: boolean = true
 ): { id: number; title: string; feed_title: string; published_at: string | null }[] {
   const db = getDb();
   const articles = db
@@ -365,9 +383,9 @@ export function getRecentMatchingArticles(
   for (const article of articles) {
     if (matches.length >= limit) break;
 
-    const searchText = [article.title, article.rss_content || '', article.full_content || ''].join(
-      ' '
-    );
+    const searchText = titleOnly
+      ? article.title
+      : [article.title, article.rss_content || '', article.full_content || ''].join(' ');
 
     if (matchesRule(searchText, rule)) {
       matches.push({

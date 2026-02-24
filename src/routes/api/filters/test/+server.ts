@@ -10,7 +10,8 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ error: 'Rule is required' }, { status: 400 });
   }
 
-  const matchCount = countMatchingArticles(data.rule);
+  const titleOnly = data.title_only !== false;
+  const matchCount = countMatchingArticles(data.rule, titleOnly);
 
   return json({ match_count: matchCount });
 };
