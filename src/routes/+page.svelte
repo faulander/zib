@@ -155,8 +155,10 @@
       appStore.setUnreadCounts(counts);
       appStore.initSettings(settings);
 
-      // Load articles
-      await loadArticles();
+      // Skip article reload while modal is open — replacing the list would blank it
+      if (!appStore.articleModalOpen) {
+        await loadArticles();
+      }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -256,6 +258,16 @@
     appStore.showSavedOnly;
 
     loadArticles();
+  });
+
+  // Reload articles when the article modal closes (background refreshes may have been skipped)
+  let wasModalOpen = false;
+  $effect(() => {
+    const isOpen = appStore.articleModalOpen;
+    if (wasModalOpen && !isOpen) {
+      loadArticles();
+    }
+    wasModalOpen = isOpen;
   });
 
   onMount(() => {
