@@ -175,7 +175,7 @@
       params.set('folder_id', String(appStore.selectedFolderId));
     }
 
-    if (appStore.showUnreadOnly || appStore.hideReadArticles) {
+    if ((appStore.showUnreadOnly || appStore.hideReadArticles) && !appStore.showSavedOnly) {
       params.set('is_read', 'false');
     }
 
