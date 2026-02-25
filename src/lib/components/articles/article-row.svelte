@@ -122,7 +122,7 @@
   class={cn(
     'w-full text-left px-4 transition-colors cursor-pointer article-row-hover hidden sm:flex items-center gap-3',
     appStore.compactListView ? 'py-1' : 'py-2',
-    article.is_read && 'text-muted-foreground',
+    article.is_read && !appStore.showSavedOnly && 'text-muted-foreground',
     focused && 'ring-2 ring-primary ring-inset bg-accent/50'
   )}
   role="button"
@@ -180,7 +180,7 @@
   class={cn(
     'w-full text-left px-4 transition-colors cursor-pointer article-row-hover flex sm:hidden flex-col gap-0.5',
     appStore.compactListView ? 'py-1.5' : 'py-2',
-    article.is_read && 'text-muted-foreground',
+    article.is_read && !appStore.showSavedOnly && 'text-muted-foreground',
     focused && 'ring-2 ring-primary ring-inset bg-accent/50'
   )}
   role="button"
