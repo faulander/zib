@@ -22,6 +22,13 @@
       document.documentElement.classList.remove('dark');
     }
   }
+
+    // Register service worker for PWA support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {
+        // SW registration failed, app works fine without it
+      });
+    }
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

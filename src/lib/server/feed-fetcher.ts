@@ -105,6 +105,83 @@ export async function fetchFeed(feedUrl: string): Promise<FetchedFeed> {
   };
 }
 
+export interface DiscoveredFeed {
+	url: string;
+	title: string;
+	type: 'rss' | 'atom' | 'unknown';
+}
+
+export async function discoverFeeds(websiteUrl: string): Promise<DiscoveredFeed[]> {
+	const response = await fetch(websiteUrl, {
+		headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RSSReader/1.0)' },
+		signal: AbortSignal.timeout(10000)
+	});
+
+	if (!response.ok) return [];
+
+	const contentType = response.headers.get('content-type') || '';
+	if (!contentType.includes('html') && !contentType.includes('text')) return [];
+
+	const html = await response.text();
+	const dom = new JSDOM(html, { url: websiteUrl });
+	const doc = dom.window.document;
+
+	const feeds: DiscoveredFeed[] = [];
+
+	// Look for <link rel="alternate"> with RSS/Atom types
+	const links = doc.querySelectorAll('link[rel="alternate"]');
+	for (const link of links) {
+		const type = link.getAttribute('type');
+		const href = link.getAttribute('href');
+		const title = link.getAttribute('title');
+
+		if (href && (type === 'application/rss+xml' || type === 'application/atom+xml')) {
+			const absoluteUrl = new URL(href, websiteUrl).toString();
+			feeds.push({
+				url: absoluteUrl,
+				title: title || absoluteUrl,
+				type: type.includes('atom') ? 'atom' : 'rss'
+			});
+		}
+	}
+
+	if (feeds.length > 0) return feeds;
+
+	// Fallback: try common feed paths
+	const commonPaths = ['/feed', '/rss', '/atom.xml', '/feed.xml', '/rss.xml', '/index.xml', '/feed/rss', '/feed/atom'];
+	const baseUrl = new URL(websiteUrl);
+
+	for (const path of commonPaths) {
+		try {
+			const feedUrl = new URL(path, baseUrl.origin).toString();
+			const feedRes = await fetch(feedUrl, {
+				headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RSSReader/1.0)' },
+				signal: AbortSignal.timeout(5000),
+				method: 'HEAD'
+			});
+			if (feedRes.ok) {
+				const ct = feedRes.headers.get('content-type') || '';
+				if (ct.includes('xml') || ct.includes('rss') || ct.includes('atom')) {
+					try {
+						const feed = await fetchFeed(feedUrl);
+						feeds.push({
+							url: feedUrl,
+							title: feed.title || feedUrl,
+							type: 'unknown'
+						});
+					} catch {
+						// Not a valid feed, skip
+					}
+				}
+			}
+		} catch {
+			// Network error for this path, continue
+		}
+	}
+
+	return feeds;
+}
+
 export async function extractFullContent(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, {

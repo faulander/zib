@@ -18,11 +18,13 @@
   let isSubmitting = $state(false);
   let isTesting = $state(false);
   let testResult = $state<{ success: boolean; title?: string; message: string } | null>(null);
+  let discoveredFeeds = $state<{ url: string; title: string; type: string }[]>([]);
 
   // Reset test result when URL changes
   $effect(() => {
     feedUrl;
     testResult = null;
+    discoveredFeeds = [];
   });
 
   async function testFeedUrl() {
@@ -43,13 +45,21 @@
 
       const data = await res.json();
 
-      if (data.success) {
+      if (data.discovered_feeds && data.discovered_feeds.length > 0) {
+        discoveredFeeds = data.discovered_feeds;
+        testResult = {
+          success: false,
+          message: data.message || `Found ${data.discovered_feeds.length} feed(s)`
+        };
+      } else if (data.success) {
+        discoveredFeeds = [];
         testResult = {
           success: true,
           title: data.title,
           message: `Found "${data.title}" with ${data.itemCount} items`
         };
       } else {
+        discoveredFeeds = [];
         testResult = {
           success: false,
           message: data.error || 'Failed to fetch feed'
@@ -104,6 +114,7 @@
       feedUrl = '';
       folderId = null;
       testResult = null;
+      discoveredFeeds = [];
       open = false;
 
       // Trigger data reload
@@ -164,6 +175,27 @@
             <XCircle class="h-4 w-4 mt-0.5 shrink-0" />
           {/if}
           <span>{testResult.message}</span>
+        </div>
+      {/if}
+
+      {#if discoveredFeeds.length > 0}
+        <div class="space-y-2">
+          <p class="text-sm font-medium">Discovered feeds:</p>
+          {#each discoveredFeeds as feed (feed.url)}
+            <button
+              type="button"
+              class="w-full text-left p-3 rounded-md border hover:bg-muted transition-colors"
+              onclick={() => {
+                feedUrl = feed.url;
+                discoveredFeeds = [];
+                testResult = null;
+                testFeedUrl();
+              }}
+            >
+              <div class="font-medium text-sm">{feed.title}</div>
+              <div class="text-xs text-muted-foreground truncate">{feed.url}</div>
+            </button>
+          {/each}
         </div>
       {/if}
 

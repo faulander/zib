@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-02-25
+
+### Added
+
+- **Feed Auto-Discovery** - Automatically detect feeds from website URLs
+  - Parses `<link rel="alternate">` tags for RSS/Atom feed URLs
+  - Falls back to probing common feed paths (`/feed`, `/rss`, `/atom.xml`, etc.)
+  - Discovered feeds shown as clickable options in the Add Feed dialog
+  - Resolves relative feed URLs to absolute
+- **Database Backup** - Create and download SQLite database backups
+  - Atomic backup via SQLite `VACUUM INTO` (safe with WAL mode)
+  - Download backup as `.db` file from Settings > Import / Export
+  - Backup list with file size and creation date
+  - Automatic cleanup of old backups (keeps last 5)
+- **PWA Support** - Progressive Web App for mobile installability
+  - Web app manifest with standalone display mode
+  - Service worker caching static assets (network-first for API calls)
+  - Apple mobile web app meta tags
+  - Installable from browser on mobile and desktop
+
 ## [0.7.0] - 2026-02-25
 
 ### Added
