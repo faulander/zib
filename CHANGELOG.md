@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-02-25
+
+### Added
+
+- **Full-Text Search** - Search articles by keyword across all feeds
+  - SQLite FTS5 virtual table indexed on title, content, and author
+  - Automatic index sync via INSERT/UPDATE/DELETE triggers
+  - Search input in the tools panel with 300ms debounce
+  - Prefix matching for single terms, phrase matching for multi-word queries
+  - Search results scoped to current feed/folder context
+  - Migration populates search index for existing articles
+- **Keyboard Navigation** - Vim-style keyboard shortcuts for the article list
+  - `j`/`k` or Arrow keys to navigate articles with visible focus indicator
+  - `Enter`/`o` to open the focused article
+  - `s` to toggle star, `m` to toggle read/unread on focused article
+  - `v` to open article URL in new tab, `r` to refresh current view
+  - `g a` to go to All Items, `g s` to go to Starred
+  - `?` to show keyboard shortcut help overlay
+  - Focus ring on article rows and cards
+  - Shortcuts disabled when typing in inputs or when article modal is open
+
 ## [0.6.2] - 2026-02-24
 
 ### Changed

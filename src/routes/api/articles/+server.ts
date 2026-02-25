@@ -19,6 +19,9 @@ export const GET: RequestHandler = async ({ url }) => {
   const isStarred = url.searchParams.get('is_starred');
   if (isStarred !== null) filters.is_starred = isStarred === 'true';
 
+  const isSaved = url.searchParams.get('is_saved');
+  if (isSaved !== null) filters.is_saved = isSaved === 'true';
+
   const limit = url.searchParams.get('limit');
   if (limit) filters.limit = parseInt(limit);
 
@@ -28,6 +31,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
   const beforeId = url.searchParams.get('before_id');
   if (beforeId) filters.before_id = parseInt(beforeId);
+
+  const search = url.searchParams.get('search');
+  if (search) filters.search = search;
 
   // Special endpoint for counts
   if (url.searchParams.get('counts') === 'true') {

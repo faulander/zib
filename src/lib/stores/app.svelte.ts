@@ -17,8 +17,10 @@ let selectedFeedId = $state<number | null>(null);
 let selectedArticleId = $state<number | null>(null);
 let showUnreadOnly = $state(false);
 let showStarredOnly = $state(false);
+let showSavedOnly = $state(false);
 let sidebarOpen = $state(false);
 let articleModalOpen = $state(false);
+let searchQuery = $state('');
 
 // Data
 let folders = $state<Folder[]>([]);
@@ -29,6 +31,8 @@ let isLoading = $state(false);
 let isRefreshing = $state(false);
 let isLoadingMore = $state(false);
 let hasMoreArticles = $state(true);
+let focusedArticleIndex = $state<number>(-1);
+let keyboardHelpOpen = $state(false);
 
 // Computed
 const selectedArticle = $derived(articles.find((a) => a.id === selectedArticleId) || null);
@@ -40,6 +44,7 @@ const filteredFeeds = $derived(() => {
 
 const currentFilter = $derived(() => {
   if (showStarredOnly) return 'starred';
+  if (showSavedOnly) return 'saved';
   if (selectedFeedId) return `feed:${selectedFeedId}`;
   if (selectedFolderId) return `folder:${selectedFolderId}`;
   return 'all';
@@ -54,6 +59,8 @@ function selectFolder(id: number | null) {
   selectedFolderId = id;
   selectedFeedId = null;
   showStarredOnly = false;
+  showSavedOnly = false;
+  focusedArticleIndex = -1;
   // Close sidebar on mobile
   if (typeof window !== 'undefined' && window.innerWidth < 768) {
     sidebarOpen = false;
@@ -63,6 +70,8 @@ function selectFolder(id: number | null) {
 function selectFeed(id: number | null) {
   selectedFeedId = id;
   showStarredOnly = false;
+  showSavedOnly = false;
+  focusedArticleIndex = -1;
   // Close sidebar on mobile
   if (typeof window !== 'undefined' && window.innerWidth < 768) {
     sidebarOpen = false;
@@ -94,9 +103,21 @@ function setShowUnreadOnly(value: boolean) {
 
 function setShowStarredOnly(value: boolean) {
   showStarredOnly = value;
+  focusedArticleIndex = -1;
   if (value) {
     selectedFolderId = null;
     selectedFeedId = null;
+    showSavedOnly = false;
+  }
+}
+
+function setShowSavedOnly(value: boolean) {
+  showSavedOnly = value;
+  focusedArticleIndex = -1;
+  if (value) {
+    selectedFolderId = null;
+    selectedFeedId = null;
+    showStarredOnly = false;
   }
 }
 
@@ -172,8 +193,20 @@ function setSimilarityThreshold(value: number) {
   similarityThreshold = value;
 }
 
+function setSearchQuery(value: string) {
+  searchQuery = value;
+}
+
 function setFontSizeOffset(value: number) {
   fontSizeOffset = value;
+}
+
+function setFocusedArticleIndex(index: number) {
+  focusedArticleIndex = index;
+}
+
+function setKeyboardHelpOpen(open: boolean) {
+  keyboardHelpOpen = open;
 }
 
 function initSettings(settings: {
@@ -241,6 +274,9 @@ export const appStore = {
   get showStarredOnly() {
     return showStarredOnly;
   },
+  get showSavedOnly() {
+    return showSavedOnly;
+  },
   get sidebarOpen() {
     return sidebarOpen;
   },
@@ -280,6 +316,15 @@ export const appStore = {
   get currentFilter() {
     return currentFilter;
   },
+  get focusedArticleIndex() {
+    return focusedArticleIndex;
+  },
+  get searchQuery() {
+    return searchQuery;
+  },
+  get keyboardHelpOpen() {
+    return keyboardHelpOpen;
+  },
 
   // Actions
   setViewMode,
@@ -291,6 +336,7 @@ export const appStore = {
   setSidebarOpen,
   setShowUnreadOnly,
   setShowStarredOnly,
+  setShowSavedOnly,
   setFolders,
   setFeeds,
   setArticles,
@@ -310,5 +356,8 @@ export const appStore = {
   setInstapaperEnabled,
   setSimilarityThreshold,
   setFontSizeOffset,
-  initSettings
+  setFocusedArticleIndex,
+  setKeyboardHelpOpen,
+  initSettings,
+  setSearchQuery
 };

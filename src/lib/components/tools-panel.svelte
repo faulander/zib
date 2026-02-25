@@ -3,7 +3,22 @@
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { toast } from 'svelte-sonner';
-  import { LayoutList, LayoutGrid, CheckCheck, RefreshCw, Filter, Clock } from '@lucide/svelte';
+  import { LayoutList, LayoutGrid, CheckCheck, RefreshCw, Filter, Clock, Search, X } from '@lucide/svelte';
+
+  let searchValue = $state('');
+
+  $effect(() => {
+    const value = searchValue;
+    const timeout = setTimeout(() => {
+      appStore.setSearchQuery(value);
+    }, 300);
+    return () => clearTimeout(timeout);
+  });
+
+  function clearSearch() {
+    searchValue = '';
+    appStore.setSearchQuery('');
+  }
 
   async function markReadOlderThan(period: 'day' | 'week' | 'month' | 'all') {
     const filters: Record<string, unknown> = { older_than: period };
@@ -86,6 +101,26 @@
         ({unreadCount} unread)
       {/if}
     </span>
+
+    <!-- Search input -->
+    <div class="relative flex items-center">
+      <Search class="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+      <input
+        type="text"
+        placeholder="Search articles..."
+        bind:value={searchValue}
+        class="h-8 w-40 sm:w-56 rounded-md border bg-background pl-7 pr-7 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+      {#if searchValue}
+        <button
+          type="button"
+          onclick={clearSearch}
+          class="absolute right-1.5 p-0.5 rounded hover:bg-muted"
+        >
+          <X class="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+      {/if}
+    </div>
   </div>
 
   <div class="flex items-center gap-1">

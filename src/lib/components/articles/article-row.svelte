@@ -2,7 +2,7 @@
   import type { Article } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
   import { cn } from '$lib/utils';
-  import { BookmarkPlus, Loader2, Layers } from '@lucide/svelte';
+  import { BookmarkPlus, Loader2, Layers, Bookmark } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
   import { Badge } from '$lib/components/ui/badge';
 
@@ -100,6 +100,19 @@
       isSaving = false;
     }
   }
+
+  async function toggleSaved(e?: MouseEvent) {
+    e?.stopPropagation();
+    const newValue = !article.is_saved;
+    await fetch(`/api/articles/${article.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_saved: newValue })
+    });
+    appStore.updateArticleInList(article.id, { is_saved: newValue });
+  }
+
+  const focused = $derived(appStore.articles[appStore.focusedArticleIndex]?.id === article.id);
 </script>
 
 <!-- Desktop layout: single row -->
@@ -109,7 +122,8 @@
   class={cn(
     'w-full text-left px-4 transition-colors cursor-pointer article-row-hover hidden sm:flex items-center gap-3',
     appStore.compactListView ? 'py-1' : 'py-2',
-    article.is_read && 'text-muted-foreground'
+    article.is_read && 'text-muted-foreground',
+    focused && 'ring-2 ring-primary ring-inset bg-accent/50'
   )}
   role="button"
   tabindex="0"
@@ -130,6 +144,15 @@
       +{article.similar_count}
     </Badge>
   {/if}
+
+  <button
+    type="button"
+    class="shrink-0 p-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100"
+    onclick={(e) => { e.stopPropagation(); toggleSaved(); }}
+    title={article.is_saved ? 'Remove from saved' : 'Save for later'}
+  >
+    <Bookmark class={cn('h-4 w-4', article.is_saved && 'fill-current')} />
+  </button>
 
   {#if appStore.instapaperEnabled}
     <button
@@ -157,7 +180,8 @@
   class={cn(
     'w-full text-left px-4 transition-colors cursor-pointer article-row-hover flex sm:hidden flex-col gap-0.5',
     appStore.compactListView ? 'py-1.5' : 'py-2',
-    article.is_read && 'text-muted-foreground'
+    article.is_read && 'text-muted-foreground',
+    focused && 'ring-2 ring-primary ring-inset bg-accent/50'
   )}
   role="button"
   tabindex="0"
@@ -169,6 +193,15 @@
       <span class="text-xs opacity-60 truncate flex-1">{article.feed_title}</span>
     {/if}
     <span class="text-xs opacity-60 shrink-0">{publishedDate}</span>
+    <button
+      type="button"
+      class="shrink-0 p-1 -m-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100"
+      onclick={(e) => { e.stopPropagation(); toggleSaved(); }}
+      title={article.is_saved ? 'Remove from saved' : 'Save for later'}
+    >
+      <Bookmark class={cn('h-4 w-4', article.is_saved && 'fill-current')} />
+    </button>
+
     {#if appStore.instapaperEnabled}
       <button
         type="button"

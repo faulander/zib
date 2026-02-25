@@ -120,6 +120,32 @@ CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at);
 CREATE INDEX IF NOT EXISTS idx_feeds_folder_id ON feeds(folder_id);
 CREATE INDEX IF NOT EXISTS idx_feeds_last_fetched ON feeds(last_fetched_at);
 CREATE INDEX IF NOT EXISTS idx_feed_statistics_calculated_at ON feed_statistics(last_calculated_at);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS article_search USING fts5(
+	title,
+	rss_content,
+	full_content,
+	author,
+	content=articles,
+	content_rowid=id
+);
+
+CREATE TRIGGER IF NOT EXISTS articles_ai AFTER INSERT ON articles BEGIN
+	INSERT INTO article_search(rowid, title, rss_content, full_content, author)
+	VALUES (new.id, new.title, new.rss_content, new.full_content, new.author);
+END;
+
+CREATE TRIGGER IF NOT EXISTS articles_ad AFTER DELETE ON articles BEGIN
+	INSERT INTO article_search(article_search, rowid, title, rss_content, full_content, author)
+	VALUES('delete', old.id, old.title, old.rss_content, old.full_content, old.author);
+END;
+
+CREATE TRIGGER IF NOT EXISTS articles_au AFTER UPDATE ON articles BEGIN
+	INSERT INTO article_search(article_search, rowid, title, rss_content, full_content, author)
+	VALUES('delete', old.id, old.title, old.rss_content, old.full_content, old.author);
+	INSERT INTO article_search(rowid, title, rss_content, full_content, author)
+	VALUES (new.id, new.title, new.rss_content, new.full_content, new.author);
+END;
 `;
 
 function initializeSchema(database: Database): void {
@@ -159,6 +185,27 @@ function runMigrations(database: Database): void {
   if (!hasTitleOnly) {
     database.run('ALTER TABLE filters ADD COLUMN title_only INTEGER DEFAULT 1');
     console.log('[DB] Migration: Added title_only column to filters table');
+  }
+
+  // Migration: Add is_saved column to articles table
+  const articlesCols = database.prepare('PRAGMA table_info(articles)').all() as { name: string }[];
+  const hasIsSaved = articlesCols.some((col) => col.name === 'is_saved');
+  if (!hasIsSaved) {
+  	database.run('ALTER TABLE articles ADD COLUMN is_saved INTEGER DEFAULT 0');
+  	database.run('CREATE INDEX IF NOT EXISTS idx_articles_is_saved ON articles(is_saved)');
+  	console.log('[DB] Migration: Added is_saved column to articles table');
+  }
+
+  // Migration: Populate FTS5 search index for existing articles
+  try {
+    const ftsCount = database.prepare('SELECT COUNT(*) as count FROM article_search').get() as { count: number };
+    const articlesCount = database.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number };
+    if (ftsCount.count === 0 && articlesCount.count > 0) {
+      database.run('INSERT INTO article_search(rowid, title, rss_content, full_content, author) SELECT id, title, rss_content, full_content, author FROM articles');
+      console.log('[DB] Migration: Populated FTS5 search index');
+    }
+  } catch {
+    // FTS table might not exist yet on first run, will be created by schema
   }
 }
 

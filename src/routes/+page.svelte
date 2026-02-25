@@ -9,6 +9,126 @@
   import ToolsPanel from '$lib/components/tools-panel.svelte';
   import ThemeToggle from '$lib/components/theme-toggle.svelte';
   import Seo from '$lib/components/seo.svelte';
+  import KeyboardHelp from '$lib/components/keyboard-help.svelte';
+
+  let awaitingG = $state(false);
+  let gTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  function handleGlobalKeydown(e: KeyboardEvent) {
+    if (appStore.articleModalOpen) return;
+
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    if (awaitingG) {
+      awaitingG = false;
+      clearTimeout(gTimeout);
+      if (e.key === 'a') {
+        e.preventDefault();
+        appStore.selectFolder(null);
+        appStore.selectFeed(null);
+        return;
+      }
+      if (e.key === 's') {
+        e.preventDefault();
+        appStore.setShowStarredOnly(true);
+        return;
+      }
+      return;
+    }
+
+    const articles = appStore.articles;
+    const idx = appStore.focusedArticleIndex;
+
+    switch (e.key) {
+      case 'j':
+      case 'ArrowDown':
+        e.preventDefault();
+        appStore.setFocusedArticleIndex(Math.min(idx + 1, articles.length - 1));
+        break;
+      case 'k':
+      case 'ArrowUp':
+        e.preventDefault();
+        appStore.setFocusedArticleIndex(Math.max(idx - 1, 0));
+        break;
+      case 'Enter':
+      case 'o': {
+        if (idx >= 0 && idx < articles.length) {
+          e.preventDefault();
+          const art = articles[idx];
+          if (!art.is_read) {
+            fetch(`/api/articles/${art.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_read: true })
+            });
+            appStore.updateArticleInList(art.id, { is_read: true });
+            window.dispatchEvent(new CustomEvent('reload-counts'));
+          }
+          appStore.selectArticle(art.id);
+        }
+        break;
+      }
+      case 's': {
+        if (idx >= 0 && idx < articles.length) {
+          e.preventDefault();
+          const art = articles[idx];
+          const starred = !art.is_starred;
+          fetch(`/api/articles/${art.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_starred: starred })
+          });
+          appStore.updateArticleInList(art.id, { is_starred: starred });
+          window.dispatchEvent(new CustomEvent('reload-counts'));
+        }
+        break;
+      }
+      case 'm': {
+        if (idx >= 0 && idx < articles.length) {
+          e.preventDefault();
+          const art = articles[idx];
+          const read = !art.is_read;
+          fetch(`/api/articles/${art.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_read: read })
+          });
+          appStore.updateArticleInList(art.id, { is_read: read });
+          window.dispatchEvent(new CustomEvent('reload-counts'));
+        }
+        break;
+      }
+      case 'v':
+        if (idx >= 0 && idx < articles.length) {
+          e.preventDefault();
+          const url = articles[idx].url;
+          if (url) window.open(url, '_blank');
+        }
+        break;
+      case 'r':
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('reload-data'));
+        break;
+      case 'g':
+        e.preventDefault();
+        awaitingG = true;
+        gTimeout = setTimeout(() => { awaitingG = false; }, 500);
+        break;
+      case '?':
+        e.preventDefault();
+        appStore.setKeyboardHelpOpen(!appStore.keyboardHelpOpen);
+        break;
+      case 'Escape':
+        e.preventDefault();
+        if (appStore.keyboardHelpOpen) {
+          appStore.setKeyboardHelpOpen(false);
+        } else {
+          appStore.setFocusedArticleIndex(-1);
+        }
+        break;
+    }
+  }
   import { Menu } from '@lucide/svelte';
 
   async function loadData() {
@@ -63,6 +183,10 @@
       params.set('is_starred', 'true');
     }
 
+    if (appStore.showSavedOnly) {
+      params.set('is_saved', 'true');
+    }
+
     params.set('limit', String(ARTICLES_PER_PAGE));
 
     // Cursor-based pagination
@@ -76,6 +200,8 @@
       params.set('group_similar', 'true');
       params.set('similarity_threshold', String(appStore.similarityThreshold));
     }
+
+    if (appStore.searchQuery) params.set('search', appStore.searchQuery);
 
     return params;
   }
@@ -126,6 +252,8 @@
     appStore.showStarredOnly;
     appStore.hideReadArticles;
     appStore.similarityThreshold;
+    appStore.searchQuery;
+    appStore.showSavedOnly;
 
     loadArticles();
   });
@@ -181,6 +309,8 @@
   });
 </script>
 
+<svelte:window onkeydown={handleGlobalKeydown} />
+
 <Seo title="ZiB" description="ZiB - a modern RSS reader" />
 
 <div class="h-screen flex flex-col">
@@ -224,3 +354,4 @@
 </div>
 
 <ArticleModal />
+<KeyboardHelp />

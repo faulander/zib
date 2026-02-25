@@ -37,6 +37,7 @@ export interface ArticleRow {
   image_url: string | null;
   is_read: number;
   is_starred: number;
+  is_saved: number;
   created_at: string;
 }
 
@@ -51,14 +52,17 @@ export interface Feed extends FeedRow {
   folder_name?: string | null;
 }
 
-export interface Article extends Omit<ArticleRow, 'is_read' | 'is_starred'> {
+export interface Article extends Omit<ArticleRow, 'is_read' | 'is_starred' | 'is_saved'> {
   is_read: boolean;
   is_starred: boolean;
+  is_saved: boolean;
   feed_title?: string | null;
   feed_favicon?: string | null;
   // Similarity grouping metadata (added when grouping is enabled)
   similar_count?: number;
   similar_ids?: number[];
+  // FTS5 search snippet (present when search is active)
+  search_snippet?: string;
 }
 
 // Similar articles grouping
@@ -98,6 +102,7 @@ export interface UpdateFeed {
 export interface UpdateArticle {
   is_read?: boolean;
   is_starred?: boolean;
+  is_saved?: boolean;
 }
 
 // Filter types for querying
@@ -106,10 +111,12 @@ export interface ArticleFilters {
   folder_id?: number;
   is_read?: boolean;
   is_starred?: boolean;
+  is_saved?: boolean;
   limit?: number;
   offset?: number; // deprecated, use cursor-based pagination
   before_date?: string; // cursor: fetch articles before this date
   before_id?: number; // cursor: for tie-breaking when dates are equal
+  search?: string;
 }
 
 export interface MarkReadFilters {

@@ -40,6 +40,8 @@
   function handleImageError() {
     imageError = true;
   }
+
+  const focused = $derived(appStore.articles[appStore.focusedArticleIndex]?.id === article.id);
 </script>
 
 <div
@@ -47,7 +49,8 @@
   data-is-read={article.is_read}
   class={cn(
     'bg-card text-card-foreground rounded-xl border shadow-sm cursor-pointer overflow-hidden h-[280px] flex flex-col transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:border-primary/50',
-    !article.is_read && 'border-l-4 border-l-primary'
+    !article.is_read && 'border-l-4 border-l-primary',
+    focused && 'ring-2 ring-primary bg-accent/50'
   )}
   onclick={handleClick}
   onkeydown={(e) => e.key === 'Enter' && handleClick()}

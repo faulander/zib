@@ -75,6 +75,17 @@
     resetMarkedIds();
     lastArticleCount = 0; // Reset count so we re-observe on filter change
   });
+
+  // Scroll focused article into view
+  $effect(() => {
+    const idx = appStore.focusedArticleIndex;
+    if (idx < 0 || idx >= appStore.articles.length) return;
+    const articleId = appStore.articles[idx].id;
+    const el = scrollContainer?.querySelector(`[data-article-id="${articleId}"]`);
+    if (el) {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  });
 </script>
 
 <div class="h-full overflow-y-auto" bind:this={scrollContainer} onscroll={handleScroll}>

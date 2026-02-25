@@ -9,13 +9,32 @@ import type {
 import { getEnabledFilters, articleMatchesFilters } from './filters';
 
 function rowToArticle(
-  row: ArticleRow & { feed_title?: string | null; feed_favicon?: string | null }
+  row: ArticleRow & { feed_title?: string | null; feed_favicon?: string | null; search_snippet?: string }
 ): Article {
-  return {
+  const article: Article = {
     ...row,
     is_read: row.is_read === 1,
-    is_starred: row.is_starred === 1
+    is_starred: row.is_starred === 1,
+    is_saved: row.is_saved === 1
   };
+  if (row.search_snippet) {
+    (article as Article & { search_snippet: string }).search_snippet = row.search_snippet;
+  }
+  return article;
+}
+
+/** Sanitize user input for FTS5 MATCH syntax. */
+function sanitizeSearchQuery(input: string): string {
+  // Strip characters that break FTS5 syntax
+  const cleaned = input.replace(/[\^{}\[\]]/g, '').trim();
+  if (!cleaned) return '';
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length === 1) {
+    // Single word: quote it and add prefix wildcard
+    return '"' + words[0].replace(/"/g, '') + '"*';
+  }
+  // Multiple words: wrap each in double quotes for phrase matching
+  return words.map(w => '"' + w.replace(/"/g, '') + '"').join(' ');
 }
 
 export function getArticles(filters: ArticleFilters = {}): Article[] {
@@ -23,6 +42,20 @@ export function getArticles(filters: ArticleFilters = {}): Article[] {
 
   const conditions: string[] = [];
   const values: (number | string)[] = [];
+  const isSearch = !!filters.search?.trim();
+
+  // FTS5 search join
+  let ftsJoin = '';
+  let selectExtra = '';
+  if (isSearch) {
+    const sanitized = sanitizeSearchQuery(filters.search!.trim());
+    if (sanitized) {
+      ftsJoin = 'JOIN article_search AS fts ON fts.rowid = a.id';
+      conditions.push('fts.article_search MATCH ?');
+      values.push(sanitized);
+      selectExtra = ", snippet(article_search, 0, '<mark>', '</mark>', '...', 32) as search_snippet";
+    }
+  }
 
   if (filters.feed_id !== undefined) {
     conditions.push('a.feed_id = ?');
@@ -44,6 +77,11 @@ export function getArticles(filters: ArticleFilters = {}): Article[] {
     values.push(filters.is_starred ? 1 : 0);
   }
 
+  if (filters.is_saved !== undefined) {
+    conditions.push('a.is_saved = ?');
+    values.push(filters.is_saved ? 1 : 0);
+  }
+
   // Cursor-based pagination: fetch articles older than the cursor
   if (filters.before_date) {
     conditions.push('(a.published_at < ? OR (a.published_at = ? AND a.id < ?))');
@@ -54,15 +92,16 @@ export function getArticles(filters: ArticleFilters = {}): Article[] {
 
   // Get more articles than requested to account for filtering
   const requestedLimit = filters.limit || 50;
-  // Fetch extra to account for filtered articles
-  const fetchLimit = requestedLimit * 3;
+  // When searching, results are already filtered by relevance — no multiplier needed
+  const fetchLimit = isSearch ? requestedLimit : requestedLimit * 3;
 
   const articles = db
     .prepare(
       `
-    SELECT a.*, f.title as feed_title, f.favicon_url as feed_favicon
+    SELECT a.*, f.title as feed_title, f.favicon_url as feed_favicon${selectExtra}
     FROM articles a
     JOIN feeds f ON f.id = a.feed_id
+    ${ftsJoin}
     ${whereClause}
     ORDER BY a.published_at DESC, a.id DESC
     LIMIT ?
@@ -71,6 +110,7 @@ export function getArticles(filters: ArticleFilters = {}): Article[] {
     .all(...values, fetchLimit) as (ArticleRow & {
     feed_title: string;
     feed_favicon: string | null;
+    search_snippet?: string;
   })[];
 
   // Apply hide filters
@@ -122,6 +162,11 @@ export function updateArticle(id: number, data: UpdateArticle): Article | null {
   if (data.is_starred !== undefined) {
     updates.push('is_starred = ?');
     values.push(data.is_starred ? 1 : 0);
+  }
+
+  if (data.is_saved !== undefined) {
+    updates.push('is_saved = ?');
+    values.push(data.is_saved ? 1 : 0);
   }
 
   if (updates.length > 0) {
@@ -326,6 +371,7 @@ export function deleteOldArticles(daysToKeep: number = 30): number {
       `
     DELETE FROM articles
     WHERE is_starred = 0
+      AND is_saved = 0
       AND is_read = 1
       AND datetime(created_at) < datetime('now', '-' || ? || ' days')
   `
