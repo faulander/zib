@@ -93,16 +93,13 @@ export function deleteFolder(id: number): boolean {
   return result.changes > 0;
 }
 
-export function reorderFolders(folderIds: number[]): void {
+export function reorderFolders(items: { id: number; position: number }[]): void {
   const db = getDb();
-
   const stmt = db.prepare('UPDATE folders SET position = ? WHERE id = ?');
-
-  const updateAll = db.transaction((ids: number[]) => {
-    ids.forEach((id, index) => {
-      stmt.run(index, id);
-    });
+  const tx = db.transaction(() => {
+    for (const item of items) {
+      stmt.run(item.position, item.id);
+    }
   });
-
-  updateAll(folderIds);
+  tx();
 }

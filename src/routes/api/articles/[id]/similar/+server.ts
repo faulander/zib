@@ -11,7 +11,8 @@ function rowToArticle(
   return {
     ...row,
     is_read: row.is_read === 1,
-    is_starred: row.is_starred === 1
+    is_starred: row.is_starred === 1,
+    is_saved: row.is_saved === 1
   };
 }
 

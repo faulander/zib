@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-02-25
+
+### Added
+
+- **Save for Later** - Bookmark articles for later reading, separate from starring
+  - New `is_saved` column with dedicated "Saved" view in sidebar
+  - Bookmark icon on article rows (list and card views) and in article modal
+  - `l` keyboard shortcut in article modal to toggle saved
+  - Saved articles excluded from automatic cleanup (same as starred)
+  - Independent from star — articles can be both saved and starred
+- **Drag-and-Drop Reordering** - Reorder feeds and folders by dragging in the sidebar
+  - Drag folders to reorder them
+  - Drag feeds between folders to move them
+  - Drag uncategorized feeds to reorder
+  - Drag feeds within a folder to reorder
+  - Visual drop indicator during drag
+  - Positions persist via batch update API endpoints
+  - Sidebar now sorted by position (previously insertion order)
+
 ## [0.8.0] - 2026-02-25
 
 ### Added

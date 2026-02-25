@@ -8,6 +8,7 @@
     Star,
     ExternalLink,
     BookmarkPlus,
+    Bookmark,
     X,
     ChevronLeft,
     ChevronRight,
@@ -254,6 +255,20 @@
     }
   }
 
+  async function toggleSaved() {
+    if (!displayArticle) return;
+    const newValue = !displayArticle.is_saved;
+    await fetch(`/api/articles/${displayArticle.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_saved: newValue })
+    });
+    appStore.updateArticleInList(displayArticle.id, { is_saved: newValue });
+    if (currentSimilarArticle && currentSimilarArticle.id === displayArticle.id) {
+      currentSimilarArticle = { ...currentSimilarArticle, is_saved: newValue };
+    }
+  }
+
   async function sendToInstapaper() {
     if (!displayArticle) return;
 
@@ -290,6 +305,9 @@
     } else if (e.key === 'm') {
       e.preventDefault();
       toggleRead();
+    } else if (e.key === 'l') {
+      e.preventDefault();
+      toggleSaved();
     }
   }
 </script>
@@ -336,6 +354,14 @@
             <Star
               class={cn('h-4 w-4', displayArticle.is_starred && 'fill-yellow-400 text-yellow-400')}
             />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onclick={toggleSaved}
+            title={displayArticle.is_saved ? 'Remove from saved' : 'Save for later'}
+          >
+            <Bookmark class={cn('h-4 w-4', displayArticle.is_saved && 'fill-current')} />
           </Button>
           <Button variant="ghost" size="icon" onclick={sendToInstapaper} title="Send to Instapaper">
             <BookmarkPlus class="h-4 w-4" />

@@ -253,3 +253,15 @@ export function getFeedsNeedingRefresh(limit?: number): FeedRow[] {
 
   return feeds;
 }
+
+
+export function reorderFeeds(items: { id: number; position: number; folder_id?: number | null }[]): void {
+  const db = getDb();
+  const stmt = db.prepare('UPDATE feeds SET position = ?, folder_id = COALESCE(?, folder_id) WHERE id = ?');
+  const tx = db.transaction(() => {
+    for (const item of items) {
+      stmt.run(item.position, item.folder_id ?? null, item.id);
+    }
+  });
+  tx();
+}

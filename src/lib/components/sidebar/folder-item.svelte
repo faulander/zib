@@ -22,6 +22,9 @@
   let isRefreshing = $state(false);
 
   const folderFeeds = $derived(appStore.feeds.filter((f) => f.folder_id === folder.id));
+  const sortedFolderFeeds = $derived(
+    [...folderFeeds].sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.id - b.id)
+  );
 
   const unreadCount = $derived(appStore.unreadCounts.by_folder[folder.id] || 0);
 
@@ -60,6 +63,34 @@
       body: JSON.stringify({ folder_id: folder.id })
     });
     window.dispatchEvent(new CustomEvent('reload-data'));
+  }
+
+  let dragOverFeedId = $state<number | null>(null);
+  let draggedFeedId = $state<number | null>(null);
+
+  function clearFeedDrag() {
+    dragOverFeedId = null;
+    draggedFeedId = null;
+  }
+
+  async function handleFeedDrop(targetFeedId: number) {
+    if (draggedFeedId === null) return;
+    const currentOrder = sortedFolderFeeds.map(f => f.id);
+    const fromIdx = currentOrder.indexOf(draggedFeedId);
+    const toIdx = currentOrder.indexOf(targetFeedId);
+    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) { clearFeedDrag(); return; }
+
+    currentOrder.splice(fromIdx, 1);
+    currentOrder.splice(toIdx, 0, draggedFeedId);
+
+    const items = currentOrder.map((id, i) => ({ id, position: i }));
+    await fetch('/api/feeds/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items })
+    });
+    window.dispatchEvent(new CustomEvent('reload-data'));
+    clearFeedDrag();
   }
 </script>
 
@@ -107,10 +138,31 @@
     </button>
   </Button>
 
-  {#if expanded && folderFeeds.length > 0}
+  {#if expanded && sortedFolderFeeds.length > 0}
     <div class="ml-4 border-l pl-2">
-      {#each folderFeeds as feed (feed.id)}
-        <FeedItem {feed} />
+      {#each sortedFolderFeeds as feed (feed.id)}
+        <div
+          role="listitem"
+          draggable="true"
+          ondragstart={(e) => {
+            draggedFeedId = feed.id;
+            e.dataTransfer?.setData('text/plain', '');
+          }}
+          ondragover={(e) => {
+            e.preventDefault();
+            dragOverFeedId = feed.id;
+          }}
+          ondragleave={() => { if (dragOverFeedId === feed.id) dragOverFeedId = null; }}
+          ondrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleFeedDrop(feed.id);
+          }}
+          ondragend={clearFeedDrag}
+          class={dragOverFeedId === feed.id ? 'border-t-2 border-primary' : ''}
+        >
+          <FeedItem {feed} />
+        </div>
       {/each}
     </div>
   {/if}
