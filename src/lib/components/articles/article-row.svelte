@@ -119,16 +119,15 @@
   );
 </script>
 
-<!-- Desktop layout: single row -->
 <div
   data-article-id={article.id}
   data-is-read={article.is_read}
   class={cn(
-    'w-full text-left px-4 transition-colors cursor-pointer article-row-hover hidden sm:flex items-center gap-3',
-    appStore.compactListView ? 'py-1' : 'py-2',
+    'w-full text-left px-4 transition-colors cursor-pointer article-row-hover flex items-center gap-3',
+    appStore.compactListView ? 'py-1 sm:py-1' : 'py-1.5 sm:py-2',
     article.is_read && !appStore.showSavedOnly && 'text-muted-foreground',
     focused && 'ring-2 ring-primary ring-inset bg-accent/50',
-    showTypographic && 'border-l-3 border-l-amber-400 dark:border-l-amber-600 bg-amber-50/50 dark:bg-amber-950/30'
+    showTypographic && 'feed-highlight-row'
   )}
   role="button"
   tabindex="0"
@@ -136,19 +135,30 @@
   onkeydown={(e) => e.key === 'Enter' && handleClick()}
 >
   {#if article.feed_title}
-    <span class={cn('text-xs opacity-60 truncate w-28 shrink-0', showTypographic && 'font-semibold opacity-80 text-amber-700 dark:text-amber-400')}>{article.feed_title}</span>
+    <span class={cn('text-xs opacity-60 truncate w-28 shrink-0 hidden sm:inline', showTypographic && 'feed-highlight-text')}>{article.feed_title}</span>
   {/if}
 
-  <h3 class={cn(fontSizeClass(), 'truncate flex-1 min-w-0', !article.is_read && 'font-semibold')}>
-    {article.title}
-  </h3>
+  <div class="flex-1 min-w-0">
+    <!-- Mobile: feed title + date row -->
+    <div class="flex items-center gap-2 sm:hidden">
+      {#if article.feed_title}
+        <span class={cn('text-xs opacity-60 truncate flex-1', showTypographic && 'feed-highlight-text')}>{article.feed_title}</span>
+      {/if}
+      <span class="text-xs opacity-60 shrink-0">{publishedDate}</span>
+    </div>
 
-  {#if article.similar_count && article.similar_count > 0}
-    <Badge variant="secondary" class="shrink-0 gap-1 text-xs">
-      <Layers class="h-3 w-3" />
-      +{article.similar_count}
-    </Badge>
-  {/if}
+    <div class="flex items-center gap-2">
+      <h3 class={cn(fontSizeClass(), 'truncate flex-1 min-w-0', !article.is_read && 'font-semibold')}>
+        {article.title}
+      </h3>
+      {#if article.similar_count && article.similar_count > 0}
+        <Badge variant="secondary" class="shrink-0 gap-1 text-xs">
+          <Layers class="h-3 w-3" />
+          +{article.similar_count}
+        </Badge>
+      {/if}
+    </div>
+  </div>
 
   <button
     type="button"
@@ -175,64 +185,5 @@
     </button>
   {/if}
 
-  <span class="text-xs opacity-60 shrink-0 w-16 text-right">{publishedDate}</span>
-</div>
-
-<!-- Mobile layout: stacked rows -->
-<div
-  data-article-id={article.id}
-  data-is-read={article.is_read}
-  class={cn(
-    'w-full text-left px-4 transition-colors cursor-pointer article-row-hover flex sm:hidden flex-col gap-0.5',
-    appStore.compactListView ? 'py-1.5' : 'py-2',
-    article.is_read && !appStore.showSavedOnly && 'text-muted-foreground',
-    focused && 'ring-2 ring-primary ring-inset bg-accent/50',
-    showTypographic && 'border-l-3 border-l-amber-400 dark:border-l-amber-600 bg-amber-50/50 dark:bg-amber-950/30'
-  )}
-  role="button"
-  tabindex="0"
-  onclick={handleClick}
-  onkeydown={(e) => e.key === 'Enter' && handleClick()}
->
-  <div class="flex items-center gap-2">
-    {#if article.feed_title}
-      <span class={cn('text-xs opacity-60 truncate flex-1', showTypographic && 'font-semibold opacity-80 text-amber-700 dark:text-amber-400')}>{article.feed_title}</span>
-    {/if}
-    <span class="text-xs opacity-60 shrink-0">{publishedDate}</span>
-    <button
-      type="button"
-      class="shrink-0 p-1 -m-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100"
-      onclick={(e) => { e.stopPropagation(); toggleSaved(); }}
-      title={article.is_saved ? 'Remove from saved' : 'Save for later'}
-    >
-      <Bookmark class={cn('h-4 w-4', article.is_saved && 'fill-current')} />
-    </button>
-
-    {#if appStore.instapaperEnabled}
-      <button
-        type="button"
-        class="shrink-0 p-1 -m-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100 disabled:opacity-40"
-        onclick={saveToInstapaper}
-        title="Save to Instapaper"
-        disabled={isSaving}
-      >
-        {#if isSaving}
-          <Loader2 class="h-4 w-4 animate-spin" />
-        {:else}
-          <BookmarkPlus class="h-4 w-4" />
-        {/if}
-      </button>
-    {/if}
-  </div>
-  <div class="flex items-center gap-2">
-    <h3 class={cn(fontSizeClass(), 'flex-1', !article.is_read && 'font-semibold')}>
-      {article.title}
-    </h3>
-    {#if article.similar_count && article.similar_count > 0}
-      <Badge variant="secondary" class="shrink-0 gap-1 text-xs">
-        <Layers class="h-3 w-3" />
-        +{article.similar_count}
-      </Badge>
-    {/if}
-  </div>
+  <span class="text-xs opacity-60 shrink-0 w-16 text-right hidden sm:inline">{publishedDate}</span>
 </div>

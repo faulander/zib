@@ -402,7 +402,7 @@
             </div>
           </header>
 
-          <div class="prose prose-neutral dark:prose-invert max-w-none">
+          <div class="prose prose-neutral dark:prose-invert max-w-none" style="font-family: 'Source Serif 4', Georgia, serif;">
             {#if isExtracting && !content}
               <div class="flex items-center justify-center py-8">
                 <Spinner />

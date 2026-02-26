@@ -145,6 +145,9 @@
       >
         <Bookmark class="h-4 w-4" />
         <span class="flex-1 text-left">Saved</span>
+        {#if (appStore.unreadCounts.saved_total ?? 0) > 0}
+          <span class="text-xs text-muted-foreground">{appStore.unreadCounts.saved_total}</span>
+        {/if}
       </Button>
 
       <Separator class="my-2" />

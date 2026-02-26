@@ -11,6 +11,25 @@
 
   const isEmpty = $derived(appStore.articles.length === 0 && !appStore.isLoading);
 
+  // Find the index where highlighted articles end (for separator)
+  const highlightSortActive = $derived(
+    appStore.highlightMode === 'sort-first' || appStore.highlightMode === 'both'
+  );
+  const highlightBoundary = $derived(() => {
+    if (!highlightSortActive) return -1;
+    const articles = appStore.articles;
+    let lastHighlighted = -1;
+    for (let i = 0; i < articles.length; i++) {
+      if (articles[i].is_feed_highlighted) lastHighlighted = i;
+      else if (lastHighlighted >= 0) break;
+    }
+    // Only show separator if there are both highlighted and non-highlighted articles
+    if (lastHighlighted >= 0 && lastHighlighted < articles.length - 1) {
+      return lastHighlighted;
+    }
+    return -1;
+  });
+
   let scrollContainer: HTMLDivElement;
   let observer: IntersectionObserver | null = null;
   let lastArticleCount = 0;
@@ -97,7 +116,9 @@
     <div class="flex flex-col items-center justify-center h-64 text-muted-foreground">
       <p class="text-lg">No articles</p>
       <p class="text-sm">
-        {#if appStore.showStarredOnly}
+        {#if appStore.showSavedOnly}
+          No saved articles yet
+        {:else if appStore.showStarredOnly}
           No starred articles yet
         {:else if appStore.selectedFeedId}
           This feed has no articles
@@ -114,11 +135,14 @@
         ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 p-4'
         : 'divide-y'}
     >
-      {#each appStore.articles as article (article.id)}
+      {#each appStore.articles as article, i (article.id)}
         {#if appStore.viewMode === 'cards'}
           <ArticleCard {article} />
         {:else}
           <ArticleRow {article} />
+          {#if i === highlightBoundary()}
+            <div class="highlight-separator"></div>
+          {/if}
         {/if}
       {/each}
     </div>

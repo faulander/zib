@@ -180,6 +180,7 @@ export interface UnreadCounts {
   total: number;
   by_folder: Record<number, number>;
   by_feed: Record<number, number>;
+  saved_total?: number;
 }
 
 // Feed statistics for adaptive refresh rates
