@@ -2,7 +2,7 @@
   import type { Feed } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
   import { Button } from '$lib/components/ui/button';
-  import { Rss, CheckCheck, X, AlertTriangle } from '@lucide/svelte';
+  import { Rss, CheckCheck, X, AlertTriangle, Sparkles } from '@lucide/svelte';
 
   interface Props {
     feed: Feed;
@@ -64,6 +64,9 @@
       <Rss class="h-4 w-4 text-muted-foreground" />
     {/if}
     <span class="flex-1 text-left truncate">{feed.title}</span>
+    {#if feed.is_highlighted}
+      <Sparkles class="h-3 w-3 text-amber-500 shrink-0" />
+    {/if}
     {#if unreadCount > 0}
       <span class="text-xs text-muted-foreground mr-1">{unreadCount}</span>
     {/if}

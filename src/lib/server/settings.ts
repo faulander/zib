@@ -15,6 +15,8 @@ export interface AppSettings {
   fontSizeOffset: number;
   // Skip age filter when refreshing feeds (allow old articles)
   skipAgeFilter: boolean;
+  // Highlight mode for prioritized feeds
+  highlightMode: 'sort-first' | 'typographic' | 'both';
 }
 
 const DEFAULTS: AppSettings = {
@@ -27,7 +29,8 @@ const DEFAULTS: AppSettings = {
   instapaperPassword: '',
   similarityThreshold: 0.65,
   fontSizeOffset: 0,
-  skipAgeFilter: false
+  skipAgeFilter: false,
+  highlightMode: 'typographic'
 };
 
 export function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] {
@@ -70,7 +73,8 @@ export function getAllSettings(): AppSettings {
     instapaperPassword: getSetting('instapaperPassword'),
     similarityThreshold: getSetting('similarityThreshold'),
     fontSizeOffset: getSetting('fontSizeOffset'),
-    skipAgeFilter: getSetting('skipAgeFilter')
+    skipAgeFilter: getSetting('skipAgeFilter'),
+    highlightMode: getSetting('highlightMode')
   };
 }
 

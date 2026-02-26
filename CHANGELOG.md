@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-02-26
+
+### Added
+
+- **Highlighted Feeds** - Mark important feeds so their articles stand out
+  - Per-feed "Highlight this feed" toggle in feed edit dialog
+  - Sparkle icon on highlighted feeds in the sidebar
+  - Three display modes configurable in Settings > General:
+    - **Visual emphasis** - Amber left border, subtle background tint, and bold feed name on articles from highlighted feeds
+    - **Sort first** - Articles from highlighted feeds appear at the top of the list
+    - **Both** - Combines visual emphasis and sort-first ordering
+  - Works in both list and card views
+  - Cursor-based pagination supports highlight-aware ordering
+
+### Fixed
+
+- Similar articles grouping no longer breaks highlight-based sort order
+  - Grouping previously re-sorted all articles by date, ignoring the highlight rank
+
 ## [0.9.2] - 2026-02-25
 
 ### Fixed

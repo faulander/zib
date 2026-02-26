@@ -196,6 +196,13 @@ function runMigrations(database: Database): void {
   	console.log('[DB] Migration: Added is_saved column to articles table');
   }
 
+  // Migration: Add is_highlighted column to feeds table
+  const hasIsHighlighted = feedsColumns.some((col) => col.name === 'is_highlighted');
+  if (!hasIsHighlighted) {
+    database.run('ALTER TABLE feeds ADD COLUMN is_highlighted INTEGER DEFAULT 0');
+    console.log('[DB] Migration: Added is_highlighted column to feeds table');
+  }
+
   // Migration: Populate FTS5 search index for existing articles
   try {
     const ftsCount = database.prepare('SELECT COUNT(*) as count FROM article_search').get() as { count: number };

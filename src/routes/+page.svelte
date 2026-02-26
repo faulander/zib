@@ -168,7 +168,7 @@
 
   const ARTICLES_PER_PAGE = 50;
 
-  function buildArticleParams(cursor?: { date: string; id: number }): URLSearchParams {
+  function buildArticleParams(cursor?: { date: string; id: number; highlightRank?: number }): URLSearchParams {
     const params = new URLSearchParams();
 
     if (appStore.selectedFeedId) {
@@ -195,6 +195,9 @@
     if (cursor) {
       params.set('before_date', cursor.date);
       params.set('before_id', String(cursor.id));
+      if (cursor.highlightRank !== undefined) {
+        params.set('before_highlight_rank', String(cursor.highlightRank));
+      }
     }
 
     // Similar articles grouping
@@ -227,7 +230,8 @@
     try {
       const cursor = {
         date: lastArticle.published_at || lastArticle.created_at,
-        id: lastArticle.id
+        id: lastArticle.id,
+        highlightRank: lastArticle.is_feed_highlighted ? 0 : 1
       };
       const params = buildArticleParams(cursor);
       const res = await fetch(`/api/articles?${params}`);
@@ -256,6 +260,7 @@
     appStore.similarityThreshold;
     appStore.searchQuery;
     appStore.showSavedOnly;
+    appStore.highlightMode;
 
     loadArticles();
   });

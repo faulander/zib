@@ -147,6 +147,11 @@ export function updateFeed(id: number, data: UpdateFeed): Feed | null {
     values.push(data.description);
   }
 
+  if (data.is_highlighted !== undefined) {
+    updates.push('is_highlighted = ?');
+    values.push(data.is_highlighted ? 1 : 0);
+  }
+
   if (data.position !== undefined) {
     updates.push('position = ?');
     values.push(data.position);

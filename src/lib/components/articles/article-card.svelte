@@ -42,6 +42,10 @@
   }
 
   const focused = $derived(appStore.articles[appStore.focusedArticleIndex]?.id === article.id);
+  const showTypographic = $derived(
+    article.is_feed_highlighted &&
+    (appStore.highlightMode === 'typographic' || appStore.highlightMode === 'both')
+  );
 </script>
 
 <div
@@ -50,7 +54,8 @@
   class={cn(
     'bg-card text-card-foreground rounded-xl border shadow-sm cursor-pointer overflow-hidden h-[280px] flex flex-col transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:border-primary/50',
     !article.is_read && 'border-l-4 border-l-primary',
-    focused && 'ring-2 ring-primary bg-accent/50'
+    focused && 'ring-2 ring-primary bg-accent/50',
+    showTypographic && 'ring-2 ring-amber-400/50 dark:ring-amber-600/50'
   )}
   onclick={handleClick}
   onkeydown={(e) => e.key === 'Enter' && handleClick()}
@@ -86,7 +91,7 @@
     <h3 class="text-sm font-semibold line-clamp-2">{article.title}</h3>
     <div class="text-xs text-muted-foreground mt-auto">
       {#if article.feed_title}
-        <div class="truncate">{article.feed_title}</div>
+        <div class={cn('truncate', showTypographic && 'font-semibold text-amber-700 dark:text-amber-400')}>{article.feed_title}</div>
       {/if}
       {#if publishedDate}
         <div>{publishedDate}</div>

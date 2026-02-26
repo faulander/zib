@@ -7,15 +7,17 @@ import type {
   UpdateArticle
 } from '$lib/types';
 import { getEnabledFilters, articleMatchesFilters } from './filters';
+import { getSetting } from './settings';
 
 function rowToArticle(
-  row: ArticleRow & { feed_title?: string | null; feed_favicon?: string | null; search_snippet?: string }
+  row: ArticleRow & { feed_title?: string | null; feed_favicon?: string | null; search_snippet?: string; is_feed_highlighted?: number }
 ): Article {
   const article: Article = {
     ...row,
     is_read: row.is_read === 1,
     is_starred: row.is_starred === 1,
-    is_saved: row.is_saved === 1
+    is_saved: row.is_saved === 1,
+    is_feed_highlighted: row.is_feed_highlighted === 1
   };
   if (row.search_snippet) {
     (article as Article & { search_snippet: string }).search_snippet = row.search_snippet;
@@ -82,10 +84,29 @@ export function getArticles(filters: ArticleFilters = {}): Article[] {
     values.push(filters.is_saved ? 1 : 0);
   }
 
+  // Determine if highlight-based sorting is active
+  const highlightMode = getSetting('highlightMode');
+  const useHighlightSort = highlightMode === 'sort-first' || highlightMode === 'both';
+  const hlRank = '(CASE WHEN f.is_highlighted = 1 THEN 0 ELSE 1 END)';
   // Cursor-based pagination: fetch articles older than the cursor
   if (filters.before_date) {
-    conditions.push('(a.published_at < ? OR (a.published_at = ? AND a.id < ?))');
-    values.push(filters.before_date, filters.before_date, filters.before_id || 0);
+    if (useHighlightSort && filters.before_highlight_rank !== undefined) {
+      // Three-part cursor: (highlight_rank, published_at, id)
+      conditions.push(
+        `(${hlRank} > ? OR (${hlRank} = ? AND a.published_at < ?) OR (${hlRank} = ? AND a.published_at = ? AND a.id < ?))`
+      );
+      values.push(
+        filters.before_highlight_rank,
+        filters.before_highlight_rank,
+        filters.before_date,
+        filters.before_highlight_rank,
+        filters.before_date,
+        filters.before_id || 0
+      );
+    } else {
+      conditions.push('(a.published_at < ? OR (a.published_at = ? AND a.id < ?))');
+      values.push(filters.before_date, filters.before_date, filters.before_id || 0);
+    }
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -95,21 +116,26 @@ export function getArticles(filters: ArticleFilters = {}): Article[] {
   // When searching, results are already filtered by relevance — no multiplier needed
   const fetchLimit = isSearch ? requestedLimit : requestedLimit * 3;
 
+  const orderBy = useHighlightSort
+    ? `ORDER BY ${hlRank}, a.published_at DESC, a.id DESC`
+    : 'ORDER BY a.published_at DESC, a.id DESC';
+
   const articles = db
     .prepare(
       `
-    SELECT a.*, f.title as feed_title, f.favicon_url as feed_favicon${selectExtra}
+    SELECT a.*, f.title as feed_title, f.favicon_url as feed_favicon, f.is_highlighted as is_feed_highlighted${selectExtra}
     FROM articles a
     JOIN feeds f ON f.id = a.feed_id
     ${ftsJoin}
     ${whereClause}
-    ORDER BY a.published_at DESC, a.id DESC
+    ${orderBy}
     LIMIT ?
   `
     )
     .all(...values, fetchLimit) as (ArticleRow & {
     feed_title: string;
     feed_favicon: string | null;
+    is_feed_highlighted?: number;
     search_snippet?: string;
   })[];
 
@@ -129,13 +155,13 @@ export function getArticleById(id: number): Article | null {
   const article = db
     .prepare(
       `
-    SELECT a.*, f.title as feed_title, f.favicon_url as feed_favicon
+    SELECT a.*, f.title as feed_title, f.favicon_url as feed_favicon, f.is_highlighted as is_feed_highlighted
     FROM articles a
     JOIN feeds f ON f.id = a.feed_id
     WHERE a.id = ?
   `
     )
-    .get(id) as (ArticleRow & { feed_title: string; feed_favicon: string | null }) | undefined;
+    .get(id) as (ArticleRow & { feed_title: string; feed_favicon: string | null; is_feed_highlighted?: number }) | undefined;
 
   return article ? rowToArticle(article) : null;
 }

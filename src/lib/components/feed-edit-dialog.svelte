@@ -7,7 +7,7 @@
   import { Switch } from '$lib/components/ui/switch';
   import { Separator } from '$lib/components/ui/separator';
   import { toast } from 'svelte-sonner';
-  import { CheckCircle, XCircle, Loader2, Clock } from '@lucide/svelte';
+  import { CheckCircle, XCircle, Loader2, Clock, Sparkles } from '@lucide/svelte';
 
   interface FeedStatistics {
     avg_articles_per_day: number;
@@ -42,6 +42,9 @@
   let isLoading = $state(false);
   let testResult = $state<{ success: boolean; message: string } | null>(null);
 
+  // Highlight state
+  let isHighlighted = $state(false);
+
   // TTL override state
   let useCustomTTL = $state(false);
   let customTTL = $state<number>(30);
@@ -52,6 +55,7 @@
     if (feed && open) {
       title = feed.title;
       feedUrl = feed.feed_url;
+      isHighlighted = feed.is_highlighted === 1;
       testResult = null;
       loadFeedWithStats(feed.id);
     }
@@ -133,7 +137,8 @@
     try {
       const payload: Record<string, unknown> = {
         title: title.trim(),
-        feed_url: feedUrl.trim()
+        feed_url: feedUrl.trim(),
+        is_highlighted: isHighlighted
       };
 
       // Include TTL override if custom is enabled
@@ -245,6 +250,23 @@
           <div>{feed.last_error}</div>
         </div>
       {/if}
+
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <Sparkles class="h-4 w-4 text-amber-500" />
+          <div>
+            <Label for="highlight-feed">Highlight this feed</Label>
+            <div class="text-xs text-muted-foreground">
+              Prioritize articles from this feed
+            </div>
+          </div>
+        </div>
+        <Switch
+          id="highlight-feed"
+          checked={isHighlighted}
+          onCheckedChange={(checked) => { isHighlighted = checked; }}
+        />
+      </div>
 
       <Separator />
 

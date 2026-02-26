@@ -32,6 +32,9 @@ export const GET: RequestHandler = async ({ url }) => {
   const beforeId = url.searchParams.get('before_id');
   if (beforeId) filters.before_id = parseInt(beforeId);
 
+  const beforeHighlightRank = url.searchParams.get('before_highlight_rank');
+  if (beforeHighlightRank !== null) filters.before_highlight_rank = parseInt(beforeHighlightRank);
+
   const search = url.searchParams.get('search');
   if (search) filters.search = search;
 

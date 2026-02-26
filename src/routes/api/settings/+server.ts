@@ -54,6 +54,10 @@ export const PATCH: RequestHandler = async ({ request }) => {
     setSetting('fontSizeOffset', updates.fontSizeOffset);
   }
 
+  if (updates.highlightMode !== undefined) {
+    setSetting('highlightMode', updates.highlightMode);
+  }
+
   const settings = getAllSettings();
   return json({
     ...settings,

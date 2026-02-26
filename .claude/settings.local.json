@@ -12,7 +12,9 @@
       "mcp__acp__Edit",
       "mcp__svelte__svelte-autofixer",
       "Bash(bun run:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

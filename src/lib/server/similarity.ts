@@ -28,22 +28,17 @@ export function groupSimilarArticles(
   const groups: ArticleGroup[] = [];
   const used = new Set<number>();
 
-  // Sort by date DESC (most recent first), with ID as tiebreaker for stable sort
-  const sorted = [...articles].sort((a, b) => {
-    const dateA = a.published_at ? new Date(a.published_at).getTime() : 0;
-    const dateB = b.published_at ? new Date(b.published_at).getTime() : 0;
-    if (dateB !== dateA) return dateB - dateA;
-    return b.id - a.id; // Higher ID first (more recent)
-  });
-
-  for (const article of sorted) {
+  // Iterate in the order provided by the caller (which is already sorted by
+  // the SQL query — e.g. highlight-rank then date). Re-sorting here would
+  // destroy any highlight-based ordering.
+  for (const article of articles) {
     if (used.has(article.id)) continue;
 
     const similar: Article[] = [];
     const articleDate = article.published_at ? new Date(article.published_at).getTime() : 0;
     const articleTitle = article.title.toLowerCase().trim();
 
-    for (const candidate of sorted) {
+    for (const candidate of articles) {
       if (candidate.id === article.id || used.has(candidate.id)) continue;
 
       // Check time window (48 hours)

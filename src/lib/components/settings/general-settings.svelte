@@ -16,6 +16,7 @@
     similarityThreshold: number;
     fontSizeOffset: number;
     skipAgeFilter: boolean;
+    highlightMode: 'sort-first' | 'typographic' | 'both';
   }
 
   let {
@@ -26,7 +27,8 @@
     highlightColorDark = $bindable(),
     similarityThreshold = $bindable(),
     fontSizeOffset = $bindable(),
-    skipAgeFilter = $bindable()
+    skipAgeFilter = $bindable(),
+    highlightMode = $bindable()
   }: Props = $props();
 
   // Slider value (single number for type="single")
@@ -51,7 +53,8 @@
       | 'highlightColorDark'
       | 'similarityThreshold'
       | 'fontSizeOffset'
-      | 'skipAgeFilter',
+      | 'skipAgeFilter'
+      | 'highlightMode',
     value: boolean | string | number
   ) {
     try {
@@ -76,6 +79,8 @@
           appStore.setSimilarityThreshold(value as number);
         } else if (key === 'fontSizeOffset') {
           appStore.setFontSizeOffset(value as number);
+        } else if (key === 'highlightMode') {
+          appStore.setHighlightMode(value as 'sort-first' | 'typographic' | 'both');
         }
       }
     } catch (err) {
@@ -194,6 +199,38 @@
           updateSetting('skipAgeFilter', checked);
         }}
       />
+    </div>
+
+    <div class="p-4 border rounded-lg space-y-3">
+      <div>
+        <div class="font-medium">Highlighted feeds</div>
+        <div class="text-sm text-muted-foreground">
+          How articles from highlighted feeds are displayed
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <Button
+          variant={highlightMode === 'typographic' ? 'default' : 'outline'}
+          size="sm"
+          onclick={() => { highlightMode = 'typographic'; updateSetting('highlightMode', 'typographic'); }}
+        >
+          Visual emphasis
+        </Button>
+        <Button
+          variant={highlightMode === 'sort-first' ? 'default' : 'outline'}
+          size="sm"
+          onclick={() => { highlightMode = 'sort-first'; updateSetting('highlightMode', 'sort-first'); }}
+        >
+          Sort first
+        </Button>
+        <Button
+          variant={highlightMode === 'both' ? 'default' : 'outline'}
+          size="sm"
+          onclick={() => { highlightMode = 'both'; updateSetting('highlightMode', 'both'); }}
+        >
+          Both
+        </Button>
+      </div>
     </div>
 
     <div class="p-4 border rounded-lg space-y-4">

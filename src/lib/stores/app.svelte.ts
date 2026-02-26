@@ -9,6 +9,7 @@ let highlightColorDark = $state('#422006');
 let instapaperEnabled = $state(false);
 let similarityThreshold = $state(0.65);
 let fontSizeOffset = $state(0);
+let highlightMode = $state<'sort-first' | 'typographic' | 'both'>('typographic');
 
 // View state
 let viewMode = $state<'list' | 'cards'>('list');
@@ -201,6 +202,10 @@ function setFontSizeOffset(value: number) {
   fontSizeOffset = value;
 }
 
+function setHighlightMode(value: 'sort-first' | 'typographic' | 'both') {
+  highlightMode = value;
+}
+
 function setFocusedArticleIndex(index: number) {
   focusedArticleIndex = index;
 }
@@ -218,6 +223,7 @@ function initSettings(settings: {
   instapaperEnabled?: boolean;
   similarityThreshold?: number;
   fontSizeOffset?: number;
+  highlightMode?: 'sort-first' | 'typographic' | 'both';
 }) {
   hideReadArticles = settings.hideReadArticles;
   compactListView = settings.compactListView;
@@ -227,6 +233,7 @@ function initSettings(settings: {
   instapaperEnabled = settings.instapaperEnabled ?? false;
   similarityThreshold = settings.similarityThreshold ?? 0.65;
   fontSizeOffset = settings.fontSizeOffset ?? 0;
+  highlightMode = settings.highlightMode ?? 'typographic';
 }
 
 // Export reactive getters and setters
@@ -255,6 +262,9 @@ export const appStore = {
   },
   get fontSizeOffset() {
     return fontSizeOffset;
+  },
+  get highlightMode() {
+    return highlightMode;
   },
   get viewMode() {
     return viewMode;
@@ -356,6 +366,7 @@ export const appStore = {
   setInstapaperEnabled,
   setSimilarityThreshold,
   setFontSizeOffset,
+  setHighlightMode,
   setFocusedArticleIndex,
   setKeyboardHelpOpen,
   initSettings,

@@ -83,6 +83,7 @@
   let similarityThreshold = $state(0.65);
   let fontSizeOffset = $state(0);
   let skipAgeFilter = $state(false);
+  let highlightMode = $state<'sort-first' | 'typographic' | 'both'>('typographic');
   let instapaperUsername = $state('');
   let instapaperPassword = $state('');
 
@@ -102,6 +103,7 @@
     similarityThreshold = data.settings.similarityThreshold;
     fontSizeOffset = data.settings.fontSizeOffset;
     skipAgeFilter = data.settings.skipAgeFilter;
+    highlightMode = data.settings.highlightMode;
     instapaperUsername = data.settings.instapaperUsername;
     instapaperPassword = data.settings.instapaperPassword;
   });
@@ -161,6 +163,7 @@
           bind:similarityThreshold
           bind:fontSizeOffset
           bind:skipAgeFilter
+          bind:highlightMode
         />
       {:else if activeSection === 'sharing'}
         <SharingSettings bind:instapaperUsername bind:instapaperPassword />

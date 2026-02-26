@@ -20,6 +20,7 @@ export interface FeedRow {
   error_count: number;
   fetch_priority: number;
   ttl_minutes: number | null;
+  is_highlighted: number;
   position: number;
   created_at: string;
 }
@@ -58,6 +59,8 @@ export interface Article extends Omit<ArticleRow, 'is_read' | 'is_starred' | 'is
   is_saved: boolean;
   feed_title?: string | null;
   feed_favicon?: string | null;
+  // Whether the article's feed is marked as highlighted
+  is_feed_highlighted?: boolean;
   // Similarity grouping metadata (added when grouping is enabled)
   similar_count?: number;
   similar_ids?: number[];
@@ -96,6 +99,7 @@ export interface UpdateFeed {
   feed_url?: string;
   site_url?: string;
   description?: string;
+  is_highlighted?: boolean;
   position?: number;
 }
 
@@ -116,6 +120,7 @@ export interface ArticleFilters {
   offset?: number; // deprecated, use cursor-based pagination
   before_date?: string; // cursor: fetch articles before this date
   before_id?: number; // cursor: for tie-breaking when dates are equal
+  before_highlight_rank?: number; // cursor: highlight sort rank (0=highlighted, 1=not)
   search?: string;
 }
 

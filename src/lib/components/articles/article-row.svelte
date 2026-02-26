@@ -113,6 +113,10 @@
   }
 
   const focused = $derived(appStore.articles[appStore.focusedArticleIndex]?.id === article.id);
+  const showTypographic = $derived(
+    article.is_feed_highlighted &&
+    (appStore.highlightMode === 'typographic' || appStore.highlightMode === 'both')
+  );
 </script>
 
 <!-- Desktop layout: single row -->
@@ -123,7 +127,8 @@
     'w-full text-left px-4 transition-colors cursor-pointer article-row-hover hidden sm:flex items-center gap-3',
     appStore.compactListView ? 'py-1' : 'py-2',
     article.is_read && !appStore.showSavedOnly && 'text-muted-foreground',
-    focused && 'ring-2 ring-primary ring-inset bg-accent/50'
+    focused && 'ring-2 ring-primary ring-inset bg-accent/50',
+    showTypographic && 'border-l-3 border-l-amber-400 dark:border-l-amber-600 bg-amber-50/50 dark:bg-amber-950/30'
   )}
   role="button"
   tabindex="0"
@@ -131,7 +136,7 @@
   onkeydown={(e) => e.key === 'Enter' && handleClick()}
 >
   {#if article.feed_title}
-    <span class="text-xs opacity-60 truncate w-28 shrink-0">{article.feed_title}</span>
+    <span class={cn('text-xs opacity-60 truncate w-28 shrink-0', showTypographic && 'font-semibold opacity-80 text-amber-700 dark:text-amber-400')}>{article.feed_title}</span>
   {/if}
 
   <h3 class={cn(fontSizeClass(), 'truncate flex-1 min-w-0', !article.is_read && 'font-semibold')}>
@@ -181,7 +186,8 @@
     'w-full text-left px-4 transition-colors cursor-pointer article-row-hover flex sm:hidden flex-col gap-0.5',
     appStore.compactListView ? 'py-1.5' : 'py-2',
     article.is_read && !appStore.showSavedOnly && 'text-muted-foreground',
-    focused && 'ring-2 ring-primary ring-inset bg-accent/50'
+    focused && 'ring-2 ring-primary ring-inset bg-accent/50',
+    showTypographic && 'border-l-3 border-l-amber-400 dark:border-l-amber-600 bg-amber-50/50 dark:bg-amber-950/30'
   )}
   role="button"
   tabindex="0"
@@ -190,7 +196,7 @@
 >
   <div class="flex items-center gap-2">
     {#if article.feed_title}
-      <span class="text-xs opacity-60 truncate flex-1">{article.feed_title}</span>
+      <span class={cn('text-xs opacity-60 truncate flex-1', showTypographic && 'font-semibold opacity-80 text-amber-700 dark:text-amber-400')}>{article.feed_title}</span>
     {/if}
     <span class="text-xs opacity-60 shrink-0">{publishedDate}</span>
     <button
