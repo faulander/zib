@@ -110,6 +110,7 @@
       body: JSON.stringify({ is_saved: newValue })
     });
     appStore.updateArticleInList(article.id, { is_saved: newValue });
+    appStore.adjustSavedTotal(newValue ? 1 : -1);
   }
 
   const focused = $derived(appStore.articles[appStore.focusedArticleIndex]?.id === article.id);

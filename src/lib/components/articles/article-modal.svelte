@@ -279,6 +279,7 @@
       body: JSON.stringify({ is_saved: newValue })
     });
     appStore.updateArticleInList(displayArticle.id, { is_saved: newValue });
+    appStore.adjustSavedTotal(newValue ? 1 : -1);
     if (currentSimilarArticle && currentSimilarArticle.id === displayArticle.id) {
       currentSimilarArticle = { ...currentSimilarArticle, is_saved: newValue };
     }

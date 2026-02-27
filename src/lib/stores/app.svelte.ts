@@ -162,6 +162,10 @@ function updateArticleInList(id: number, updates: Partial<Article>) {
   articles = articles.map((a) => (a.id === id ? { ...a, ...updates } : a));
 }
 
+function adjustSavedTotal(delta: number) {
+  unreadCounts = { ...unreadCounts, saved_total: (unreadCounts.saved_total ?? 0) + delta };
+}
+
 function removeArticleFromList(id: number) {
   articles = articles.filter((a) => a.id !== id);
 }
@@ -357,6 +361,7 @@ export const appStore = {
   setHasMoreArticles,
   appendArticles,
   updateArticleInList,
+  adjustSavedTotal,
   removeArticleFromList,
   setHideReadArticles,
   setCompactListView,

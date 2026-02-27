@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Engagement rate replaces read rate in adaptive TTL calculation, feed edit dialog, and settings feed list
   - TTL thresholds recalibrated for realistic engagement rates (20%/10%/3% instead of 80%/50%/20%)
 
+### Fixed
+
+- Saved articles count in sidebar and tools panel now updates immediately when saving/unsaving an article
+
 ### Improved
 
 - **Highlight theming** - Amber highlight colors now use CSS custom properties for consistent light/dark mode support
