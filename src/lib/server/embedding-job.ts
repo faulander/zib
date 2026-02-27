@@ -12,6 +12,13 @@ interface ArticleToEmbed {
 let isEmbedding = false;
 
 /**
+ * Check if an embedding job is currently running.
+ */
+export function isEmbeddingInProgress(): boolean {
+  return isEmbedding;
+}
+
+/**
  * Process new articles that don't have embeddings yet.
  * Called after feed refresh or on a schedule.
  */
@@ -36,54 +43,62 @@ export async function processNewEmbeddings(): Promise<{ processed: number; faile
     const isRateLimited = provider === 'openai' || provider === 'openai-compatible';
     const delayMs = isRateLimited ? Math.ceil(60000 / rateLimit) : 0;
 
-    // On first run (no embeddings yet), only embed unread articles
-    // to avoid processing thousands of old read articles.
-    // Subsequent runs embed everything new (articles arriving after setup).
-    const hasExistingEmbeddings = (db.prepare(
-      'SELECT COUNT(*) as count FROM article_embeddings'
-    ).get() as { count: number }).count > 0;
+    // Re-query until no new articles remain (articles may arrive from
+    // background feed refreshes while we're processing).
+    let pass = 0;
+    while (true) {
+      // On first run (no embeddings yet), only embed unread articles
+      // to avoid processing thousands of old read articles.
+      // Subsequent runs embed everything new (articles arriving after setup).
+      const hasExistingEmbeddings = (db.prepare(
+        'SELECT COUNT(*) as count FROM article_embeddings'
+      ).get() as { count: number }).count > 0;
 
-    const articles = db.prepare(`
-      SELECT a.id, a.title, a.rss_content
-      FROM articles a
-      WHERE a.id NOT IN (SELECT article_id FROM article_embeddings)
-      ${!hasExistingEmbeddings ? 'AND a.is_read = 0' : ''}
-      ORDER BY a.created_at DESC
-    `).all() as ArticleToEmbed[];
+      const articles = db.prepare(`
+        SELECT a.id, a.title, a.rss_content
+        FROM articles a
+        WHERE a.id NOT IN (SELECT article_id FROM article_embeddings)
+        ${!hasExistingEmbeddings ? 'AND a.is_read = 0' : ''}
+        ORDER BY a.created_at DESC
+      `).all() as ArticleToEmbed[];
 
-    if (articles.length === 0) {
-      isEmbedding = false;
-      return { processed: 0, failed: 0 };
-    }
+      if (articles.length === 0) break;
 
-    logger.info('embedding', `Processing ${articles.length} articles for embedding`);
+      if (pass === 0) {
+        logger.info('embedding', `Processing ${articles.length} articles for embedding`);
+      } else {
+        logger.info('embedding', `Processing ${articles.length} additional articles that arrived during embedding`);
+      }
 
-    for (const article of articles) {
-      try {
-        const text = prepareEmbeddingText(article.title, article.rss_content);
-        const result = await generateEmbedding(text);
+      for (const article of articles) {
+        try {
+          const text = prepareEmbeddingText(article.title, article.rss_content);
+          const result = await generateEmbedding(text);
 
-        if (result) {
-          const blob = embeddingToBlob(result.embedding);
-          db.prepare(`
-            INSERT OR REPLACE INTO article_embeddings (article_id, embedding, model, dimensions)
-            VALUES (?, ?, ?, ?)
-          `).run(article.id, blob, result.model, result.dimensions);
+          if (result) {
+            const blob = embeddingToBlob(result.embedding);
+            db.prepare(`
+              INSERT OR REPLACE INTO article_embeddings (article_id, embedding, model, dimensions)
+              VALUES (?, ?, ?, ?)
+            `).run(article.id, blob, result.model, result.dimensions);
 
-          processed++;
-        } else {
+            processed++;
+          } else {
+            failed++;
+          }
+
+          // Rate limiting for OpenAI
+          if (isRateLimited && delayMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.error('embedding', `Failed to embed article ${article.id}: ${msg}`);
           failed++;
         }
-
-        // Rate limiting for OpenAI
-        if (isRateLimited && delayMs > 0) {
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger.error('embedding', `Failed to embed article ${article.id}: ${msg}`);
-        failed++;
       }
+
+      pass++;
     }
 
     if (processed > 0) {
@@ -118,26 +133,26 @@ function prepareEmbeddingText(title: string, content: string | null): string {
 
 /**
  * Get the count of articles with and without embeddings.
+ * `pending` = articles that still need embedding in the current job scope.
  */
-export function getEmbeddingStats(): { total: number; embedded: number; model: string | null } {
+export function getEmbeddingStats(): { total: number; embedded: number; pending: number; model: string | null } {
   const db = getDb();
   const embedded = (db.prepare('SELECT COUNT(*) as count FROM article_embeddings').get() as { count: number }).count;
+  const total = (db.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number }).count;
   const modelRow = db.prepare('SELECT model FROM article_embeddings LIMIT 1').get() as { model: string } | undefined;
 
-  // First run only embeds unread articles. Show unread-based target
-  // until all unread have been embedded, then switch to total articles.
-  const unembeddedUnread = (db.prepare(`
+  // Count articles that would be processed on next run
+  const hasExistingEmbeddings = embedded > 0;
+  const pending = (db.prepare(`
     SELECT COUNT(*) as count FROM articles
-    WHERE is_read = 0 AND id NOT IN (SELECT article_id FROM article_embeddings)
+    WHERE id NOT IN (SELECT article_id FROM article_embeddings)
+    ${!hasExistingEmbeddings ? 'AND is_read = 0' : ''}
   `).get() as { count: number }).count;
-
-  const total = unembeddedUnread > 0
-    ? embedded + unembeddedUnread
-    : (db.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number }).count;
 
   return {
     total,
     embedded,
+    pending,
     model: modelRow?.model ?? null
   };
 }

@@ -25,9 +25,13 @@
   let isSaving = $state(false);
   let isTesting = $state(false);
   let testResult = $state<{ success: boolean; message: string } | null>(null);
-  let embeddingStats = $state<{ total: number; embedded: number; model: string | null } | null>(
-    null
-  );
+  let embeddingStats = $state<{
+    total: number;
+    embedded: number;
+    pending: number;
+    model: string | null;
+    isProcessing?: boolean;
+  } | null>(null);
 
   // Track the previous model to detect changes
   let previousModel = $state(embeddingModel);
@@ -79,7 +83,20 @@
     try {
       const res = await fetch('/api/embeddings');
       if (res.ok) {
-        embeddingStats = await res.json();
+        const data = await res.json();
+        embeddingStats = data;
+
+        // Sync local processing state with server
+        if (data.isProcessing && !isProcessing) {
+          // Server is processing (e.g. from background refresh) — show progress
+          isProcessing = true;
+          startPolling();
+        } else if (!data.isProcessing && isProcessing) {
+          // Server finished — stop polling and show result
+          stopPolling();
+          isProcessing = false;
+          toast.success('Embedding processing complete');
+        }
       }
     } catch {
       // Ignore
@@ -195,29 +212,33 @@
   let isProcessing = $state(false);
   let pollInterval: ReturnType<typeof setInterval> | null = null;
 
+  function startPolling() {
+    if (pollInterval) return;
+    pollInterval = setInterval(loadStats, 2000);
+  }
+
+  function stopPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  }
+
   async function triggerProcessing() {
     isProcessing = true;
-
-    // Poll stats every 2 seconds while processing
-    pollInterval = setInterval(loadStats, 2000);
+    startPolling();
 
     try {
-      const res = await fetch('/api/embeddings', {
+      await fetch('/api/embeddings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'process' })
       });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(`Processed ${data.processed} articles (${data.failed} failed)`);
-      }
+      // Response is immediate — polling will detect when server finishes
     } catch {
-      toast.error('Failed to process embeddings');
-    } finally {
-      if (pollInterval) clearInterval(pollInterval);
-      pollInterval = null;
+      toast.error('Failed to start embedding processing');
+      stopPolling();
       isProcessing = false;
-      await loadStats();
     }
   }
 
@@ -411,41 +432,57 @@
           </div>
         </div>
 
-        <div class="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <div class="text-sm space-y-1">
-            <div>
-              <span class="text-muted-foreground">Embedded:</span>
-              <span class="ml-1 font-medium tabular-nums">
-                {embeddingStats.embedded} / {embeddingStats.total}
-              </span>
-              {#if embeddingStats.total > 0}
-                <span class="ml-1 text-muted-foreground">
-                  ({Math.round((embeddingStats.embedded / embeddingStats.total) * 100)}%)
+        <div class="p-3 bg-muted/50 rounded-lg space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="text-sm space-y-1">
+              <div>
+                <span class="text-muted-foreground">Embedded:</span>
+                <span class="ml-1 font-medium tabular-nums">
+                  {embeddingStats.embedded} articles
                 </span>
+                {#if embeddingStats.pending > 0 && !isProcessing}
+                  <span class="ml-1 text-muted-foreground">
+                    ({embeddingStats.pending} pending)
+                  </span>
+                {/if}
+              </div>
+              {#if embeddingStats.model}
+                <div>
+                  <span class="text-muted-foreground">Model:</span>
+                  <span class="ml-1 font-mono text-xs">{embeddingStats.model}</span>
+                </div>
               {/if}
             </div>
-            {#if embeddingStats.model}
-              <div>
-                <span class="text-muted-foreground">Model:</span>
-                <span class="ml-1 font-mono text-xs">{embeddingStats.model}</span>
-              </div>
-            {/if}
-          </div>
-          <div class="flex gap-2">
-            <Button variant="outline" size="sm" onclick={triggerProcessing} disabled={isProcessing}>
-              {#if isProcessing}
-                <Loader2 class="h-4 w-4 mr-1 animate-spin" />
-                Processing...
-              {:else}
-                Process now
+            <div class="flex gap-2">
+              {#if !isProcessing}
+                {#if embeddingStats.pending > 0}
+                  <Button variant="outline" size="sm" onclick={triggerProcessing}>
+                    Process now
+                  </Button>
+                {/if}
+                {#if embeddingStats.embedded > 0}
+                  <Button variant="outline" size="sm" onclick={purgeEmbeddings}>
+                    Purge
+                  </Button>
+                {/if}
               {/if}
-            </Button>
-            {#if embeddingStats.embedded > 0 && !isProcessing}
-              <Button variant="outline" size="sm" onclick={purgeEmbeddings}>
-                Purge
-              </Button>
-            {/if}
+            </div>
           </div>
+          {#if isProcessing}
+            {@const target = embeddingStats.embedded + embeddingStats.pending}
+            <div class="space-y-1.5">
+              <div class="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-primary rounded-full transition-all duration-500"
+                  style="width: {target > 0 ? Math.round((embeddingStats.embedded / target) * 100) : 0}%"
+                ></div>
+              </div>
+              <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 class="h-3 w-3 animate-spin" />
+                <span>Embedding articles... {embeddingStats.pending} remaining</span>
+              </div>
+            </div>
+          {/if}
         </div>
       </div>
     {/if}

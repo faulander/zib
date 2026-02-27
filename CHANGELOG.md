@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2026-02-27
+
+### Fixed
+
+- **Embedding progress bar** - "Process now" button now shows a live progress bar with article count and spinner during embedding processing
+- **Server-synced processing state** - UI detects background embedding jobs (from feed refreshes) and shows progress automatically
+- **Embedding job drains queue** - Job re-queries after each pass to embed articles that arrived during processing, so no "pending" remain after completion
+- **Stable stats display** - Shows "X articles (Y pending)" instead of confusing X/total ratios that jumped when denominators changed
+
 ## [0.9.5] - 2026-02-27
 
 ### Added
