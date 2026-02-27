@@ -12,7 +12,9 @@ function rowToArticle(
     ...row,
     is_read: row.is_read === 1,
     is_starred: row.is_starred === 1,
-    is_saved: row.is_saved === 1
+    is_saved: row.is_saved === 1,
+    is_opened: row.is_opened === 1,
+    is_sent_to_instapaper: row.is_sent_to_instapaper === 1
   };
 }
 

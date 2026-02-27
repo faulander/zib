@@ -39,6 +39,8 @@ export interface ArticleRow {
   is_read: number;
   is_starred: number;
   is_saved: number;
+  is_opened: number;
+  is_sent_to_instapaper: number;
   created_at: string;
 }
 
@@ -53,10 +55,12 @@ export interface Feed extends FeedRow {
   folder_name?: string | null;
 }
 
-export interface Article extends Omit<ArticleRow, 'is_read' | 'is_starred' | 'is_saved'> {
+export interface Article extends Omit<ArticleRow, 'is_read' | 'is_starred' | 'is_saved' | 'is_opened' | 'is_sent_to_instapaper'> {
   is_read: boolean;
   is_starred: boolean;
   is_saved: boolean;
+  is_opened: boolean;
+  is_sent_to_instapaper: boolean;
   feed_title?: string | null;
   feed_favicon?: string | null;
   // Whether the article's feed is marked as highlighted
@@ -107,6 +111,8 @@ export interface UpdateArticle {
   is_read?: boolean;
   is_starred?: boolean;
   is_saved?: boolean;
+  is_opened?: boolean;
+  is_sent_to_instapaper?: boolean;
 }
 
 // Filter types for querying
@@ -192,7 +198,9 @@ export interface FeedStatistics {
   total_articles_fetched: number;
   total_articles_read: number;
   total_articles_starred: number;
+  total_articles_engaged: number;
   read_rate: number;
+  engagement_rate: number;
   calculated_ttl_minutes: number | null;
   ttl_override_minutes: number | null;
   ttl_calculation_reason: string | null;

@@ -10,7 +10,9 @@ export interface FeedStatsRow {
   total_articles_fetched: number;
   total_articles_read: number;
   total_articles_starred: number;
+  total_articles_engaged: number;
   read_rate: number;
+  engagement_rate: number;
   calculated_ttl_minutes: number | null;
   ttl_override_minutes: number | null;
   ttl_calculation_reason: string | null;
@@ -27,6 +29,7 @@ interface EngagementStats {
   total: number;
   read_count: number;
   starred_count: number;
+  engaged_count: number;
 }
 
 interface GapRow {
@@ -57,13 +60,18 @@ export function calculateFeedStatistics(feedId: number): Omit<FeedStatistics, 'c
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN is_read = 1 THEN 1 ELSE 0 END) as read_count,
-      SUM(CASE WHEN is_starred = 1 THEN 1 ELSE 0 END) as starred_count
+      SUM(CASE WHEN is_starred = 1 THEN 1 ELSE 0 END) as starred_count,
+      SUM(CASE WHEN is_opened = 1 OR is_saved = 1 OR is_sent_to_instapaper = 1 THEN 1 ELSE 0 END) as engaged_count
     FROM articles
     WHERE feed_id = ?
   `).get(feedId) as EngagementStats;
 
   const readRate = engagementStats.total > 0
     ? engagementStats.read_count / engagementStats.total
+    : 0;
+
+  const engagementRate = engagementStats.total > 0
+    ? engagementStats.engaged_count / engagementStats.total
     : 0;
 
   // Calculate average gap between articles (using window function)
@@ -98,7 +106,9 @@ export function calculateFeedStatistics(feedId: number): Omit<FeedStatistics, 'c
     total_articles_fetched: engagementStats.total,
     total_articles_read: engagementStats.read_count,
     total_articles_starred: engagementStats.starred_count,
+    total_articles_engaged: engagementStats.engaged_count,
     read_rate: readRate,
+    engagement_rate: engagementRate,
     last_calculated_at: new Date().toISOString()
   };
 }
@@ -121,9 +131,9 @@ export function saveFeedStatistics(stats: FeedStatistics): void {
     INSERT INTO feed_statistics (
       feed_id, avg_articles_per_day, articles_last_7_days, articles_last_30_days,
       avg_publish_gap_hours, total_articles_fetched, total_articles_read,
-      total_articles_starred, read_rate, calculated_ttl_minutes,
-      ttl_override_minutes, ttl_calculation_reason, last_calculated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      total_articles_starred, total_articles_engaged, read_rate, engagement_rate,
+      calculated_ttl_minutes, ttl_override_minutes, ttl_calculation_reason, last_calculated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(feed_id) DO UPDATE SET
       avg_articles_per_day = excluded.avg_articles_per_day,
       articles_last_7_days = excluded.articles_last_7_days,
@@ -132,7 +142,9 @@ export function saveFeedStatistics(stats: FeedStatistics): void {
       total_articles_fetched = excluded.total_articles_fetched,
       total_articles_read = excluded.total_articles_read,
       total_articles_starred = excluded.total_articles_starred,
+      total_articles_engaged = excluded.total_articles_engaged,
       read_rate = excluded.read_rate,
+      engagement_rate = excluded.engagement_rate,
       calculated_ttl_minutes = excluded.calculated_ttl_minutes,
       ttl_calculation_reason = excluded.ttl_calculation_reason,
       last_calculated_at = excluded.last_calculated_at
@@ -145,7 +157,9 @@ export function saveFeedStatistics(stats: FeedStatistics): void {
     stats.total_articles_fetched,
     stats.total_articles_read,
     stats.total_articles_starred,
+    stats.total_articles_engaged,
     stats.read_rate,
+    stats.engagement_rate,
     stats.calculated_ttl_minutes,
     stats.ttl_override_minutes,
     stats.ttl_calculation_reason,

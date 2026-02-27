@@ -24,6 +24,7 @@
     statistics: {
       avg_articles_per_day: number;
       read_rate: number;
+      engagement_rate: number;
       calculated_ttl_minutes: number | null;
       ttl_override_minutes: number | null;
       ttl_calculation_reason: string | null;
@@ -49,7 +50,7 @@
 
   const sortOptions: { value: SortField; label: string }[] = [
     { value: 'name', label: 'Name' },
-    { value: 'popularity', label: 'Popularity (read rate)' },
+    { value: 'popularity', label: 'Popularity (engagement)' },
     { value: 'frequency', label: 'Post frequency' },
     { value: 'articles', label: 'Total articles' }
   ];
@@ -63,9 +64,9 @@
           comparison = a.title.localeCompare(b.title);
           break;
         case 'popularity':
-          const readRateA = a.statistics?.read_rate ?? 0;
-          const readRateB = b.statistics?.read_rate ?? 0;
-          comparison = readRateA - readRateB;
+          const engagementA = a.statistics?.engagement_rate ?? 0;
+          const engagementB = b.statistics?.engagement_rate ?? 0;
+          comparison = engagementA - engagementB;
           break;
         case 'frequency':
           const freqA = a.statistics?.avg_articles_per_day ?? 0;
@@ -313,7 +314,7 @@
               </span>
               {#if feed.statistics}
                 <span>{feed.statistics.avg_articles_per_day.toFixed(1)}/day</span>
-                <span>{Math.round(feed.statistics.read_rate * 100)}% read</span>
+                <span>{Math.round(feed.statistics.engagement_rate * 100)}% engaged</span>
               {/if}
             </div>
           </div>

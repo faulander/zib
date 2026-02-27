@@ -63,22 +63,22 @@ export function calculateAdaptiveTTL(
   }
 
   // Factor 2: User Engagement (30% weight)
-  // Higher engagement = more frequent refresh
+  // Based on articles opened, saved, or sent to Instapaper (not scroll-based read marks)
   let engagementMultiplier: number;
   let engagementReason: string;
 
-  if (stats.read_rate >= 0.8) {
-    engagementMultiplier = 0.5;  // Halve TTL for highly-read feeds
-    engagementReason = 'high-read';
-  } else if (stats.read_rate >= 0.5) {
+  if (stats.engagement_rate >= 0.20) {
+    engagementMultiplier = 0.5;  // Halve TTL for highly-engaged feeds
+    engagementReason = 'high-engagement';
+  } else if (stats.engagement_rate >= 0.10) {
     engagementMultiplier = 0.75;
-    engagementReason = 'moderate-read';
-  } else if (stats.read_rate >= 0.2) {
+    engagementReason = 'moderate-engagement';
+  } else if (stats.engagement_rate >= 0.03) {
     engagementMultiplier = 1.0;
-    engagementReason = 'low-read';
+    engagementReason = 'low-engagement';
   } else {
-    engagementMultiplier = 1.5;  // 50% longer TTL for rarely-read feeds
-    engagementReason = 'minimal-read';
+    engagementMultiplier = 1.5;  // 50% longer TTL for rarely-engaged feeds
+    engagementReason = 'minimal-engagement';
   }
 
   // Factor 3: Feed Reliability (20% weight)

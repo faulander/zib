@@ -14,6 +14,7 @@
     articles_last_7_days: number;
     articles_last_30_days: number;
     read_rate: number;
+    engagement_rate: number;
     calculated_ttl_minutes: number | null;
     ttl_override_minutes: number | null;
     ttl_calculation_reason: string | null;
@@ -177,7 +178,7 @@
     open = false;
   }
 
-  function formatReadRate(rate: number): string {
+  function formatEngagementRate(rate: number): string {
     return `${Math.round(rate * 100)}%`;
   }
 </script>
@@ -295,8 +296,8 @@
                 <span>{feedStats.statistics.avg_articles_per_day.toFixed(1)}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-muted-foreground">Read rate:</span>
-                <span>{formatReadRate(feedStats.statistics.read_rate)}</span>
+                <span class="text-muted-foreground">Engagement rate:</span>
+                <span>{formatEngagementRate(feedStats.statistics.engagement_rate)}</span>
               </div>
               {#if feedStats.statistics.ttl_calculation_reason}
                 <div class="text-xs text-muted-foreground">

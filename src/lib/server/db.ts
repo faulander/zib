@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS articles (
   image_url TEXT,
   is_read INTEGER DEFAULT 0,
   is_starred INTEGER DEFAULT 0,
+  is_opened INTEGER DEFAULT 0,
+  is_sent_to_instapaper INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(feed_id, guid)
 );
@@ -104,7 +106,9 @@ CREATE TABLE IF NOT EXISTS feed_statistics (
   total_articles_fetched INTEGER DEFAULT 0,
   total_articles_read INTEGER DEFAULT 0,
   total_articles_starred INTEGER DEFAULT 0,
+  total_articles_engaged INTEGER DEFAULT 0,
   read_rate REAL DEFAULT 0,
+  engagement_rate REAL DEFAULT 0,
   calculated_ttl_minutes INTEGER,
   ttl_override_minutes INTEGER,
   ttl_calculation_reason TEXT,
@@ -194,6 +198,30 @@ function runMigrations(database: Database): void {
   	database.run('ALTER TABLE articles ADD COLUMN is_saved INTEGER DEFAULT 0');
   	database.run('CREATE INDEX IF NOT EXISTS idx_articles_is_saved ON articles(is_saved)');
   	console.log('[DB] Migration: Added is_saved column to articles table');
+  }
+
+  // Migration: Add is_opened column to articles table
+  const hasIsOpened = articlesCols.some((col) => col.name === 'is_opened');
+  if (!hasIsOpened) {
+    database.run('ALTER TABLE articles ADD COLUMN is_opened INTEGER DEFAULT 0');
+    database.run('CREATE INDEX IF NOT EXISTS idx_articles_is_opened ON articles(is_opened)');
+    console.log('[DB] Migration: Added is_opened column to articles table');
+  }
+
+  // Migration: Add is_sent_to_instapaper column to articles table
+  const hasIsSentToInstapaper = articlesCols.some((col) => col.name === 'is_sent_to_instapaper');
+  if (!hasIsSentToInstapaper) {
+    database.run('ALTER TABLE articles ADD COLUMN is_sent_to_instapaper INTEGER DEFAULT 0');
+    console.log('[DB] Migration: Added is_sent_to_instapaper column to articles table');
+  }
+
+  // Migration: Add engagement columns to feed_statistics
+  const feedStatsColumns = database.prepare('PRAGMA table_info(feed_statistics)').all() as { name: string }[];
+  const hasEngagementRate = feedStatsColumns.some((col) => col.name === 'engagement_rate');
+  if (!hasEngagementRate) {
+    database.run('ALTER TABLE feed_statistics ADD COLUMN total_articles_engaged INTEGER DEFAULT 0');
+    database.run('ALTER TABLE feed_statistics ADD COLUMN engagement_rate REAL DEFAULT 0');
+    console.log('[DB] Migration: Added engagement columns to feed_statistics table');
   }
 
   // Migration: Add is_highlighted column to feeds table

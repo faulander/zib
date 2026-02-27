@@ -30,6 +30,7 @@ export const load: PageServerLoad = async () => {
         ? {
             avg_articles_per_day: stats.avg_articles_per_day,
             read_rate: stats.read_rate,
+            engagement_rate: stats.engagement_rate,
             calculated_ttl_minutes: stats.calculated_ttl_minutes,
             ttl_override_minutes: stats.ttl_override_minutes,
             ttl_calculation_reason: stats.ttl_calculation_reason

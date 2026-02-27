@@ -69,6 +69,21 @@
     }
   });
 
+  // Mark article as opened for engagement tracking
+  $effect(() => {
+    const currentArticle = displayArticle;
+    const isOpen = appStore.articleModalOpen;
+
+    if (currentArticle && isOpen && !currentArticle.is_opened) {
+      fetch(`/api/articles/${currentArticle.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_opened: true })
+      });
+      appStore.updateArticleInList(currentArticle.id, { is_opened: true });
+    }
+  });
+
   // Load similar articles when modal opens
   $effect(() => {
     // Access reactive values to ensure effect tracks them

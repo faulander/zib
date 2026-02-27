@@ -17,6 +17,8 @@ function rowToArticle(
     is_read: row.is_read === 1,
     is_starred: row.is_starred === 1,
     is_saved: row.is_saved === 1,
+    is_opened: row.is_opened === 1,
+    is_sent_to_instapaper: row.is_sent_to_instapaper === 1,
     is_feed_highlighted: row.is_feed_highlighted === 1
   };
   if (row.search_snippet) {
@@ -193,6 +195,16 @@ export function updateArticle(id: number, data: UpdateArticle): Article | null {
   if (data.is_saved !== undefined) {
     updates.push('is_saved = ?');
     values.push(data.is_saved ? 1 : 0);
+  }
+
+  if (data.is_opened !== undefined) {
+    updates.push('is_opened = ?');
+    values.push(data.is_opened ? 1 : 0);
+  }
+
+  if (data.is_sent_to_instapaper !== undefined) {
+    updates.push('is_sent_to_instapaper = ?');
+    values.push(data.is_sent_to_instapaper ? 1 : 0);
   }
 
   if (updates.length > 0) {

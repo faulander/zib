@@ -53,6 +53,7 @@
     statistics: {
       avg_articles_per_day: number;
       read_rate: number;
+      engagement_rate: number;
       calculated_ttl_minutes: number | null;
       ttl_override_minutes: number | null;
       ttl_calculation_reason: string | null;

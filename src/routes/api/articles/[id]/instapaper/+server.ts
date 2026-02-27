@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getArticleById } from '$lib/server/articles';
+import { getArticleById, updateArticle } from '$lib/server/articles';
 import { getSetting } from '$lib/server/settings';
 import { logger } from '$lib/server/logger';
 
@@ -50,6 +50,7 @@ export const POST: RequestHandler = async ({ params }) => {
 
     if (response.status === 201) {
       logger.info('system', `Saved to Instapaper: ${article.title}`);
+      updateArticle(id, { is_sent_to_instapaper: true });
       return json({ success: true });
     } else if (response.status === 403) {
       logger.error('system', 'Instapaper authentication failed');
