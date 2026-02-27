@@ -10,7 +10,8 @@
     Rss,
     Filter as FilterIcon,
     FileText,
-    Folder as FolderIcon
+    Folder as FolderIcon,
+    Brain
   } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { cn } from '$lib/utils';
@@ -23,10 +24,12 @@
   import FeedsSettings from '$lib/components/settings/feeds-settings.svelte';
   import FiltersSettings from '$lib/components/settings/filters-settings.svelte';
   import LogsSettings from '$lib/components/settings/logs-settings.svelte';
+  import AiSettings from '$lib/components/settings/ai-settings.svelte';
 
   type SettingsSection =
     | 'general'
     | 'sharing'
+    | 'ai'
     | 'import-export'
     | 'folders'
     | 'feeds'
@@ -38,6 +41,7 @@
   const sections = [
     { id: 'general' as const, label: 'General', icon: Settings },
     { id: 'sharing' as const, label: 'Sharing', icon: Share2 },
+    { id: 'ai' as const, label: 'AI / Embeddings', icon: Brain },
     { id: 'import-export' as const, label: 'Import / Export', icon: FolderInput },
     { id: 'folders' as const, label: 'Folders', icon: FolderIcon },
     { id: 'feeds' as const, label: 'Feeds', icon: Rss },
@@ -82,11 +86,17 @@
   let highlightColorLight = $state('#fef3c7');
   let highlightColorDark = $state('#422006');
   let similarityThreshold = $state(0.65);
+  let similarityThresholdEmbedding = $state(0.92);
   let fontSizeOffset = $state(0);
   let skipAgeFilter = $state(false);
   let highlightMode = $state<'sort-first' | 'typographic' | 'both'>('typographic');
   let instapaperUsername = $state('');
   let instapaperPassword = $state('');
+  let embeddingProvider = $state<'none' | 'ollama' | 'openai' | 'openai-compatible'>('none');
+  let embeddingModel = $state('');
+  let embeddingApiUrl = $state('');
+  let embeddingApiKey = $state('');
+  let embeddingRateLimit = $state(60);
 
   // Initialize from server data
   $effect(() => {
@@ -102,11 +112,17 @@
     highlightColorLight = data.settings.highlightColorLight;
     highlightColorDark = data.settings.highlightColorDark;
     similarityThreshold = data.settings.similarityThreshold;
+    similarityThresholdEmbedding = data.settings.similarityThresholdEmbedding;
     fontSizeOffset = data.settings.fontSizeOffset;
     skipAgeFilter = data.settings.skipAgeFilter;
     highlightMode = data.settings.highlightMode;
     instapaperUsername = data.settings.instapaperUsername;
     instapaperPassword = data.settings.instapaperPassword;
+    embeddingProvider = data.settings.embeddingProvider;
+    embeddingModel = data.settings.embeddingModel;
+    embeddingApiUrl = data.settings.embeddingApiUrl;
+    embeddingApiKey = data.settings.embeddingApiKey;
+    embeddingRateLimit = data.settings.embeddingRateLimit;
   });
 </script>
 
@@ -162,12 +178,22 @@
           bind:highlightColorLight
           bind:highlightColorDark
           bind:similarityThreshold
+          bind:similarityThresholdEmbedding
           bind:fontSizeOffset
           bind:skipAgeFilter
           bind:highlightMode
+          {embeddingProvider}
         />
       {:else if activeSection === 'sharing'}
         <SharingSettings bind:instapaperUsername bind:instapaperPassword />
+      {:else if activeSection === 'ai'}
+        <AiSettings
+          bind:embeddingProvider
+          bind:embeddingModel
+          bind:embeddingApiUrl
+          bind:embeddingApiKey
+          bind:embeddingRateLimit
+        />
       {:else if activeSection === 'import-export'}
         <ImportExportSettings />
       {:else if activeSection === 'folders'}

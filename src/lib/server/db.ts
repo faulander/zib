@@ -116,6 +116,15 @@ CREATE TABLE IF NOT EXISTS feed_statistics (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Article embeddings for semantic similarity
+CREATE TABLE IF NOT EXISTS article_embeddings (
+  article_id INTEGER PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+  embedding BLOB NOT NULL,
+  model TEXT NOT NULL,
+  dimensions INTEGER NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_articles_feed_id ON articles(feed_id);
 CREATE INDEX IF NOT EXISTS idx_articles_is_read ON articles(is_read);

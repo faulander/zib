@@ -11,12 +11,19 @@ export interface AppSettings {
   instapaperPassword: string;
   // Similar articles grouping
   similarityThreshold: number;
+  similarityThresholdEmbedding: number;
   // Font size offset for list view (-2 to +2)
   fontSizeOffset: number;
   // Skip age filter when refreshing feeds (allow old articles)
   skipAgeFilter: boolean;
   // Highlight mode for prioritized feeds
   highlightMode: 'sort-first' | 'typographic' | 'both';
+  // Embedding provider for semantic similarity
+  embeddingProvider: 'none' | 'ollama' | 'openai' | 'openai-compatible';
+  embeddingModel: string;
+  embeddingApiUrl: string;
+  embeddingApiKey: string;
+  embeddingRateLimit: number;
 }
 
 const DEFAULTS: AppSettings = {
@@ -28,9 +35,15 @@ const DEFAULTS: AppSettings = {
   instapaperUsername: '',
   instapaperPassword: '',
   similarityThreshold: 0.65,
+  similarityThresholdEmbedding: 0.92,
   fontSizeOffset: 0,
   skipAgeFilter: false,
-  highlightMode: 'typographic'
+  highlightMode: 'typographic',
+  embeddingProvider: 'none',
+  embeddingModel: '',
+  embeddingApiUrl: '',
+  embeddingApiKey: '',
+  embeddingRateLimit: 60
 };
 
 export function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] {
@@ -72,9 +85,15 @@ export function getAllSettings(): AppSettings {
     instapaperUsername: getSetting('instapaperUsername'),
     instapaperPassword: getSetting('instapaperPassword'),
     similarityThreshold: getSetting('similarityThreshold'),
+    similarityThresholdEmbedding: getSetting('similarityThresholdEmbedding'),
     fontSizeOffset: getSetting('fontSizeOffset'),
     skipAgeFilter: getSetting('skipAgeFilter'),
-    highlightMode: getSetting('highlightMode')
+    highlightMode: getSetting('highlightMode'),
+    embeddingProvider: getSetting('embeddingProvider'),
+    embeddingModel: getSetting('embeddingModel'),
+    embeddingApiUrl: getSetting('embeddingApiUrl'),
+    embeddingApiKey: getSetting('embeddingApiKey'),
+    embeddingRateLimit: getSetting('embeddingRateLimit')
   };
 }
 
@@ -84,4 +103,12 @@ export function getAllSettings(): AppSettings {
 export function isInstapaperConfigured(): boolean {
   const username = getSetting('instapaperUsername');
   return username !== '';
+}
+
+/**
+ * Check if an embedding provider is configured
+ */
+export function isEmbeddingConfigured(): boolean {
+  const provider = getSetting('embeddingProvider');
+  return provider !== 'none';
 }

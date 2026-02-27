@@ -4,14 +4,19 @@ import {
   getAllSettings,
   setSetting,
   isInstapaperConfigured,
+  isEmbeddingConfigured,
   type AppSettings
 } from '$lib/server/settings';
+import { getEmbeddingStats } from '$lib/server/embedding-job';
 
 export const GET: RequestHandler = async () => {
   const settings = getAllSettings();
+  const embeddingStats = getEmbeddingStats();
   return json({
     ...settings,
-    instapaperEnabled: isInstapaperConfigured()
+    instapaperEnabled: isInstapaperConfigured(),
+    embeddingEnabled: isEmbeddingConfigured(),
+    embeddingStats
   });
 };
 
@@ -50,17 +55,48 @@ export const PATCH: RequestHandler = async ({ request }) => {
     setSetting('similarityThreshold', updates.similarityThreshold);
   }
 
+  if (updates.similarityThresholdEmbedding !== undefined) {
+    setSetting('similarityThresholdEmbedding', updates.similarityThresholdEmbedding);
+  }
+
   if (updates.fontSizeOffset !== undefined) {
     setSetting('fontSizeOffset', updates.fontSizeOffset);
+  }
+
+  if (updates.skipAgeFilter !== undefined) {
+    setSetting('skipAgeFilter', updates.skipAgeFilter);
   }
 
   if (updates.highlightMode !== undefined) {
     setSetting('highlightMode', updates.highlightMode);
   }
 
+  if (updates.embeddingProvider !== undefined) {
+    setSetting('embeddingProvider', updates.embeddingProvider);
+  }
+
+  if (updates.embeddingModel !== undefined) {
+    setSetting('embeddingModel', updates.embeddingModel);
+  }
+
+  if (updates.embeddingApiUrl !== undefined) {
+    setSetting('embeddingApiUrl', updates.embeddingApiUrl);
+  }
+
+  if (updates.embeddingApiKey !== undefined) {
+    setSetting('embeddingApiKey', updates.embeddingApiKey);
+  }
+
+  if (updates.embeddingRateLimit !== undefined) {
+    setSetting('embeddingRateLimit', updates.embeddingRateLimit);
+  }
+
   const settings = getAllSettings();
+  const embeddingStats = getEmbeddingStats();
   return json({
     ...settings,
-    instapaperEnabled: isInstapaperConfigured()
+    instapaperEnabled: isInstapaperConfigured(),
+    embeddingEnabled: isEmbeddingConfigured(),
+    embeddingStats
   });
 };

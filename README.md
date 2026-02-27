@@ -11,7 +11,10 @@ A modern, self-hosted RSS reader built with SvelteKit and Bun. Clean interface, 
 - **Dual View Modes** - Switch between compact list view and visual card view with images
 - **Adjustable Font Size** - Customize article list text size with +/- offset
 - **Highlighted Feeds** - Mark important feeds to sort their articles first or emphasize them visually (or both)
-- **Similar Articles Grouping** - Automatically groups articles with similar titles together, with configurable similarity threshold
+- **Similar Articles Grouping** - Automatically groups articles about the same topic together
+  - **Semantic Embeddings** - Optional AI-powered grouping via Ollama (local), OpenAI, or any OpenAI-compatible API
+  - **Title Matching** - Built-in Dice coefficient fallback for title-based similarity
+  - Separate configurable thresholds for each method
 - **Auto Mark as Read** - Automatically mark articles as read when scrolling past them
 - **Smart Refresh** - Adaptive per-feed refresh rates based on publication frequency and your reading habits
 - **Full Content Extraction** - Automatically fetches full article content using Mozilla Readability

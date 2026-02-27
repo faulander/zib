@@ -226,6 +226,8 @@ function initSettings(settings: {
   highlightColorDark: string;
   instapaperEnabled?: boolean;
   similarityThreshold?: number;
+  similarityThresholdEmbedding?: number;
+  embeddingProvider?: string;
   fontSizeOffset?: number;
   highlightMode?: 'sort-first' | 'typographic' | 'both';
 }) {
@@ -235,7 +237,12 @@ function initSettings(settings: {
   highlightColorLight = settings.highlightColorLight;
   highlightColorDark = settings.highlightColorDark;
   instapaperEnabled = settings.instapaperEnabled ?? false;
-  similarityThreshold = settings.similarityThreshold ?? 0.65;
+  // When embeddings are active, use the embedding threshold for the
+  // client-side grouping toggle (> 0 enables, 0 disables)
+  const embeddingsActive = settings.embeddingProvider && settings.embeddingProvider !== 'none';
+  similarityThreshold = embeddingsActive
+    ? (settings.similarityThresholdEmbedding ?? 0.92)
+    : (settings.similarityThreshold ?? 0.65);
   fontSizeOffset = settings.fontSizeOffset ?? 0;
   highlightMode = settings.highlightMode ?? 'typographic';
 }

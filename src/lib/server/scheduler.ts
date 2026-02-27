@@ -3,6 +3,7 @@ import { deleteOldArticles } from './articles';
 import { serverEvents, EVENTS } from './events';
 import { recalculateAllFeedTTLs } from './adaptive-ttl';
 import { logger, deleteOldLogs } from './logger';
+import { processNewEmbeddings } from './embedding-job';
 
 let refreshTimer: Timer | null = null;
 let cleanupTimer: Timer | null = null;
@@ -35,6 +36,13 @@ export function startScheduler() {
         if (result.total_added > 0) {
           serverEvents.emit(EVENTS.FEEDS_REFRESHED, { added: result.total_added });
         }
+
+        // Process embeddings for new articles (fire-and-forget)
+        processNewEmbeddings().catch((err) => {
+          logger.error('scheduler', 'Embedding processing failed', {
+            error: err instanceof Error ? err.message : String(err)
+          });
+        });
       } catch (err) {
         logger.error('scheduler', 'Feed refresh failed', {
           error: err instanceof Error ? err.message : String(err)
@@ -131,6 +139,13 @@ export async function initialRefresh() {
     // On startup, refresh feeds that need updating (no limit)
     const result = await refreshScheduledFeeds();
     logger.info('scheduler', `Initial refresh complete`, { added: result.total_added });
+
+    // Process embeddings for any articles missing them
+    processNewEmbeddings().catch((err) => {
+      logger.error('scheduler', 'Initial embedding processing failed', {
+        error: err instanceof Error ? err.message : String(err)
+      });
+    });
   } catch (err) {
     logger.error('scheduler', 'Initial refresh failed', {
       error: err instanceof Error ? err.message : String(err)

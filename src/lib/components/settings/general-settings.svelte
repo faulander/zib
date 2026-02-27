@@ -14,9 +14,11 @@
     highlightColorLight: string;
     highlightColorDark: string;
     similarityThreshold: number;
+    similarityThresholdEmbedding: number;
     fontSizeOffset: number;
     skipAgeFilter: boolean;
     highlightMode: 'sort-first' | 'typographic' | 'both';
+    embeddingProvider: string;
   }
 
   let {
@@ -26,22 +28,34 @@
     highlightColorLight = $bindable(),
     highlightColorDark = $bindable(),
     similarityThreshold = $bindable(),
+    similarityThresholdEmbedding = $bindable(),
     fontSizeOffset = $bindable(),
     skipAgeFilter = $bindable(),
-    highlightMode = $bindable()
+    highlightMode = $bindable(),
+    embeddingProvider = 'none'
   }: Props = $props();
 
-  // Slider value (single number for type="single")
-  let sliderValue = $state(similarityThreshold);
+  const embeddingsActive = $derived(embeddingProvider !== 'none' && embeddingProvider !== '');
 
-  // Sync slider value when prop changes
-  $effect(() => {
-    sliderValue = similarityThreshold;
-  });
+  // Two independent slider values
+  let diceSliderValue = $state(0);
+  let embeddingSliderValue = $state(0);
 
-  function handleSliderCommit(value: number) {
+  $effect(() => { diceSliderValue = similarityThreshold; });
+  $effect(() => { embeddingSliderValue = similarityThresholdEmbedding; });
+
+  function handleDiceSliderCommit(value: number) {
     similarityThreshold = value;
     updateSetting('similarityThreshold', value);
+    if (!embeddingsActive) {
+      appStore.setSimilarityThreshold(value);
+    }
+  }
+
+  function handleEmbeddingSliderCommit(value: number) {
+    similarityThresholdEmbedding = value;
+    updateSetting('similarityThresholdEmbedding', value);
+    appStore.setSimilarityThreshold(value);
   }
 
   async function updateSetting(
@@ -52,6 +66,7 @@
       | 'highlightColorLight'
       | 'highlightColorDark'
       | 'similarityThreshold'
+      | 'similarityThresholdEmbedding'
       | 'fontSizeOffset'
       | 'skipAgeFilter'
       | 'highlightMode',
@@ -237,22 +252,53 @@
       <div>
         <div class="font-medium">Similar articles grouping</div>
         <div class="text-sm text-muted-foreground">
-          Group articles with similar titles together. Set to 0 to disable.
+          Group articles about the same topic together. Set to 0 to disable.
         </div>
       </div>
 
+      {#if embeddingsActive}
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-sm">
+              Embedding threshold
+              <span class="text-xs text-muted-foreground ml-1">(cosine similarity)</span>
+            </span>
+            <span class="text-sm font-mono tabular-nums">{Math.round(embeddingSliderValue * 100)}%</span>
+          </div>
+          <Slider
+            type="single"
+            bind:value={embeddingSliderValue}
+            min={0.80}
+            max={0.98}
+            step={0.01}
+            onValueCommit={handleEmbeddingSliderCommit}
+          />
+          <div class="flex justify-between text-xs text-muted-foreground">
+            <span>Loose (80%)</span>
+            <span>Strict (98%)</span>
+          </div>
+        </div>
+      {/if}
+
       <div class="space-y-3">
         <div class="flex items-center justify-between">
-          <span class="text-sm">Similarity threshold</span>
-          <span class="text-sm font-mono tabular-nums">{Math.round(sliderValue * 100)}%</span>
+          <span class="text-sm">
+            Title threshold
+            <span class="text-xs text-muted-foreground ml-1">
+              (Dice coefficient{#if embeddingsActive}, fallback{/if})
+            </span>
+          </span>
+          <span class="text-sm font-mono tabular-nums">
+            {diceSliderValue === 0 ? 'Off' : `${Math.round(diceSliderValue * 100)}%`}
+          </span>
         </div>
         <Slider
           type="single"
-          bind:value={sliderValue}
+          bind:value={diceSliderValue}
           min={0}
           max={1}
           step={0.05}
-          onValueCommit={handleSliderCommit}
+          onValueCommit={handleDiceSliderCommit}
         />
         <div class="flex justify-between text-xs text-muted-foreground">
           <span>Off</span>

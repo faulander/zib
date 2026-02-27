@@ -3,6 +3,8 @@ import type { RequestHandler } from './$types';
 import { getArticleById } from '$lib/server/articles';
 import { getDb } from '$lib/server/db';
 import { compareTwoStrings } from '$lib/utils/similarity';
+import { findSimilarByEmbedding } from '$lib/server/similarity';
+import { getSetting } from '$lib/server/settings';
 import type { ArticleRow, Article } from '$lib/types';
 
 function rowToArticle(
@@ -31,7 +33,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
     return json({ error: 'Article not found' }, { status: 404 });
   }
 
-  const threshold = parseFloat(url.searchParams.get('threshold') || '0.65');
+  const provider = getSetting('embeddingProvider');
+  const useEmbeddings = provider !== 'none';
+  const defaultThreshold = useEmbeddings
+    ? getSetting('similarityThresholdEmbedding')
+    : getSetting('similarityThreshold');
+
+  const threshold = parseFloat(url.searchParams.get('threshold') || String(defaultThreshold));
   const timeWindowHours = parseInt(url.searchParams.get('time_window') || '48');
 
   const db = getDb();
@@ -60,6 +68,25 @@ export const GET: RequestHandler = async ({ params, url }) => {
     feed_favicon: string | null;
   })[];
 
+  // Build lookup map for candidate rows
+  const candidateMap = new Map(candidates.map((c) => [c.id, c]));
+
+  // Try embedding-based similarity first
+  if (useEmbeddings) {
+    const candidateIds = candidates.map((c) => c.id);
+    const embeddingResults = findSimilarByEmbedding(id, candidateIds, threshold);
+
+    if (embeddingResults.length > 0) {
+      const similar: Article[] = [];
+      for (const result of embeddingResults) {
+        const row = candidateMap.get(result.id);
+        if (row) similar.push(rowToArticle(row));
+      }
+      return json(similar);
+    }
+  }
+
+  // Fallback to Dice coefficient
   const articleTitle = article.title.toLowerCase().trim();
   const similar: Article[] = [];
 

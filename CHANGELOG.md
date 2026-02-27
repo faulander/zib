@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] - 2026-02-27
+
+### Added
+
+- **Semantic similarity via embeddings** - Articles can now be grouped by semantic meaning using LLM embedding models, not just title text matching
+  - New embedding provider system supporting Ollama (local), OpenAI API, and any OpenAI-compatible endpoint
+  - Background embedding job processes new articles automatically after each feed refresh and when adding new feeds
+  - Hybrid similarity: uses cosine similarity per article pair when both have embeddings, falls back to Dice coefficient on titles
+  - New `article_embeddings` SQLite table stores embeddings as compact Float32Array BLOBs
+  - New Settings > AI / Embeddings page with provider configuration, model selection, connection testing, and embedding status
+  - Two separate threshold sliders: embedding (cosine, 80-98%) and title (Dice, 0-100%) with independent controls
+  - Rate limiting support for OpenAI API (configurable requests/min)
+  - Embedding purge on model change with user confirmation
+  - `EMBEDDING_API_KEY` environment variable support
+  - Ollama reverse proxy auth support (Bearer token sent when API key is configured)
+
 ## [0.9.4] - 2026-02-26
 
 ### Changed

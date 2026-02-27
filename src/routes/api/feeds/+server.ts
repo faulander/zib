@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getAllFeeds, createFeed, getFeedByUrl } from '$lib/server/feeds';
 import { fetchFeed, refreshFeed } from '$lib/server/feed-fetcher';
+import { processNewEmbeddings } from '$lib/server/embedding-job';
 import type { CreateFeed } from '$lib/types';
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -47,9 +48,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
   // Immediately fetch articles for the new feed
   // Skip age filter for new feeds so users get historical articles on first import
-  refreshFeed(feed.id, false, { skipAgeFilter: true }).catch((err) => {
-    console.error(`[AddFeed] Failed to fetch articles for ${feed.title}:`, err);
-  });
+  refreshFeed(feed.id, false, { skipAgeFilter: true })
+    .then(() => processNewEmbeddings())
+    .catch((err) => {
+      console.error(`[AddFeed] Failed to fetch articles for ${feed.title}:`, err);
+    });
 
   return json(feed, { status: 201 });
 };

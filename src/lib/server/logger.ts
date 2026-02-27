@@ -1,7 +1,7 @@
 import { getDb } from './db';
 
 export type LogLevel = 'info' | 'warn' | 'error';
-export type LogCategory = 'scheduler' | 'feed' | 'import' | 'system' | 'ttl';
+export type LogCategory = 'scheduler' | 'feed' | 'import' | 'system' | 'ttl' | 'embedding';
 
 export interface LogEntry {
   id: number;
