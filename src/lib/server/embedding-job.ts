@@ -124,11 +124,16 @@ export function getEmbeddingStats(): { total: number; embedded: number; model: s
   const embedded = (db.prepare('SELECT COUNT(*) as count FROM article_embeddings').get() as { count: number }).count;
   const modelRow = db.prepare('SELECT model FROM article_embeddings LIMIT 1').get() as { model: string } | undefined;
 
-  // First run only embeds unread articles. Show unread count as target
+  // First run only embeds unread articles. Show unread-based target
   // until all unread have been embedded, then switch to total articles.
-  const unreadCount = (db.prepare('SELECT COUNT(*) as count FROM articles WHERE is_read = 0').get() as { count: number }).count;
-  const allCount = (db.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number }).count;
-  const total = embedded >= unreadCount ? allCount : unreadCount;
+  const unembeddedUnread = (db.prepare(`
+    SELECT COUNT(*) as count FROM articles
+    WHERE is_read = 0 AND id NOT IN (SELECT article_id FROM article_embeddings)
+  `).get() as { count: number }).count;
+
+  const total = unembeddedUnread > 0
+    ? embedded + unembeddedUnread
+    : (db.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number }).count;
 
   return {
     total,
