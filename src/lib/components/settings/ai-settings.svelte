@@ -192,7 +192,15 @@
     }
   }
 
+  let isProcessing = $state(false);
+  let pollInterval: ReturnType<typeof setInterval> | null = null;
+
   async function triggerProcessing() {
+    isProcessing = true;
+
+    // Poll stats every 2 seconds while processing
+    pollInterval = setInterval(loadStats, 2000);
+
     try {
       const res = await fetch('/api/embeddings', {
         method: 'POST',
@@ -202,10 +210,14 @@
       const data = await res.json();
       if (data.success) {
         toast.success(`Processed ${data.processed} articles (${data.failed} failed)`);
-        await loadStats();
       }
     } catch {
       toast.error('Failed to process embeddings');
+    } finally {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = null;
+      isProcessing = false;
+      await loadStats();
     }
   }
 
@@ -420,10 +432,15 @@
             {/if}
           </div>
           <div class="flex gap-2">
-            <Button variant="outline" size="sm" onclick={triggerProcessing}>
-              Process now
+            <Button variant="outline" size="sm" onclick={triggerProcessing} disabled={isProcessing}>
+              {#if isProcessing}
+                <Loader2 class="h-4 w-4 mr-1 animate-spin" />
+                Processing...
+              {:else}
+                Process now
+              {/if}
             </Button>
-            {#if embeddingStats.embedded > 0}
+            {#if embeddingStats.embedded > 0 && !isProcessing}
               <Button variant="outline" size="sm" onclick={purgeEmbeddings}>
                 Purge
               </Button>
