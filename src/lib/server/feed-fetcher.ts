@@ -83,7 +83,24 @@ export interface FetchedItem {
 }
 
 export async function fetchFeed(feedUrl: string): Promise<FetchedFeed> {
-  const feed = await parser.parseURL(feedUrl);
+  // Pre-fetch to detect non-XML responses with a clear error message
+  const response = await fetch(feedUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RSSReader/1.0)' },
+    signal: AbortSignal.timeout(10000)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch feed: HTTP ${response.status}`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  const body = await response.text();
+
+  if (contentType.includes('application/json') || body.trimStart().startsWith('{') || body.trimStart().startsWith('[')) {
+    throw new Error('URL returned JSON instead of an RSS/Atom feed. This site may not offer a standard RSS feed at this URL.');
+  }
+
+  const feed = await parser.parseString(body);
 
   return {
     title: feed.title || feedUrl,

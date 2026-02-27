@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Saved articles count in sidebar and tools panel now updates immediately when saving/unsaving an article
+- Feed fetcher now detects JSON responses and shows a clear error message instead of a cryptic XML parser error
 
 ### Improved
 
