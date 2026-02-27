@@ -43,24 +43,37 @@ export async function processNewEmbeddings(): Promise<{ processed: number; faile
     const isRateLimited = provider === 'openai' || provider === 'openai-compatible';
     const delayMs = isRateLimited ? Math.ceil(60000 / rateLimit) : 0;
 
+    // Only embed: unread articles + articles created after embeddings were first set up.
+    // This avoids processing thousands of old read articles from before the feature was enabled.
+    const oldestEmbeddedDate = db.prepare(`
+      SELECT MIN(a.created_at) as oldest FROM articles a
+      JOIN article_embeddings ae ON ae.article_id = a.id
+    `).get() as { oldest: string | null } | undefined;
+
     // Re-query until no new articles remain (articles may arrive from
     // background feed refreshes while we're processing).
     let pass = 0;
     while (true) {
-      // On first run (no embeddings yet), only embed unread articles
-      // to avoid processing thousands of old read articles.
-      // Subsequent runs embed everything new (articles arriving after setup).
-      const hasExistingEmbeddings = (db.prepare(
-        'SELECT COUNT(*) as count FROM article_embeddings'
-      ).get() as { count: number }).count > 0;
-
-      const articles = db.prepare(`
-        SELECT a.id, a.title, a.rss_content
-        FROM articles a
-        WHERE a.id NOT IN (SELECT article_id FROM article_embeddings)
-        ${!hasExistingEmbeddings ? 'AND a.is_read = 0' : ''}
-        ORDER BY a.created_at DESC
-      `).all() as ArticleToEmbed[];
+      let articles: ArticleToEmbed[];
+      if (!oldestEmbeddedDate?.oldest) {
+        // First run: only unread articles
+        articles = db.prepare(`
+          SELECT a.id, a.title, a.rss_content
+          FROM articles a
+          WHERE a.id NOT IN (SELECT article_id FROM article_embeddings)
+          AND a.is_read = 0
+          ORDER BY a.created_at DESC
+        `).all() as ArticleToEmbed[];
+      } else {
+        // Subsequent runs: unread + anything newer than when we started embedding
+        articles = db.prepare(`
+          SELECT a.id, a.title, a.rss_content
+          FROM articles a
+          WHERE a.id NOT IN (SELECT article_id FROM article_embeddings)
+          AND (a.is_read = 0 OR a.created_at >= ?)
+          ORDER BY a.created_at DESC
+        `).all(oldestEmbeddedDate.oldest) as ArticleToEmbed[];
+      }
 
       if (articles.length === 0) break;
 
@@ -141,13 +154,29 @@ export function getEmbeddingStats(): { total: number; embedded: number; pending:
   const total = (db.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number }).count;
   const modelRow = db.prepare('SELECT model FROM article_embeddings LIMIT 1').get() as { model: string } | undefined;
 
-  // Count articles that would be processed on next run
-  const hasExistingEmbeddings = embedded > 0;
-  const pending = (db.prepare(`
-    SELECT COUNT(*) as count FROM articles
-    WHERE id NOT IN (SELECT article_id FROM article_embeddings)
-    ${!hasExistingEmbeddings ? 'AND is_read = 0' : ''}
-  `).get() as { count: number }).count;
+  // Count articles that would be processed on next run:
+  // unread + articles created after embeddings were first set up
+  const oldestEmbeddedDate = db.prepare(`
+    SELECT MIN(a.created_at) as oldest FROM articles a
+    JOIN article_embeddings ae ON ae.article_id = a.id
+  `).get() as { oldest: string | null } | undefined;
+
+  let pending: number;
+  if (!oldestEmbeddedDate?.oldest) {
+    // No embeddings yet: only unread count as pending
+    pending = (db.prepare(`
+      SELECT COUNT(*) as count FROM articles
+      WHERE id NOT IN (SELECT article_id FROM article_embeddings)
+      AND is_read = 0
+    `).get() as { count: number }).count;
+  } else {
+    // Unread + newer than oldest embedded article
+    pending = (db.prepare(`
+      SELECT COUNT(*) as count FROM articles
+      WHERE id NOT IN (SELECT article_id FROM article_embeddings)
+      AND (is_read = 0 OR created_at >= ?)
+    `).get(oldestEmbeddedDate.oldest) as { count: number }).count;
+  }
 
   return {
     total,
