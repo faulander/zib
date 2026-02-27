@@ -37,6 +37,11 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+  --feed-highlight-border: #fbbf24;
+  --feed-highlight-bg: rgba(254, 243, 199, 0.5);
+  --feed-highlight-text: #b45309;
+  --feed-highlight-icon: #f59e0b;
+  --feed-highlight-ring: rgba(251, 191, 36, 0.5);
 }
 
 .dark {
@@ -71,6 +76,11 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+  --feed-highlight-border: #d97706;
+  --feed-highlight-bg: rgba(69, 26, 3, 0.3);
+  --feed-highlight-text: #fbbf24;
+  --feed-highlight-icon: #f59e0b;
+  --feed-highlight-ring: rgba(217, 119, 6, 0.5);
 }
 
 @theme inline {
@@ -118,6 +128,31 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Feed highlight styles using CSS variables */
+.feed-highlight-row {
+  border-left: 3px solid var(--feed-highlight-border);
+  background-color: var(--feed-highlight-bg);
+}
+
+.feed-highlight-text {
+  font-weight: 600;
+  opacity: 0.8;
+  color: var(--feed-highlight-text);
+}
+
+.feed-highlight-card {
+  outline: 2px solid var(--feed-highlight-ring);
+  outline-offset: -2px;
+}
+
+/* Separator between highlighted and normal articles */
+.highlight-separator {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--feed-highlight-border), transparent);
+  opacity: 0.4;
+  margin: 0;
 }
 
 /* Custom highlight colors - only on devices with hover capability */

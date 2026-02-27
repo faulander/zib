@@ -52,10 +52,11 @@
   data-article-id={article.id}
   data-is-read={article.is_read}
   class={cn(
-    'bg-card text-card-foreground rounded-xl border shadow-sm cursor-pointer overflow-hidden h-[280px] flex flex-col transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:border-primary/50',
+    'bg-card text-card-foreground rounded-xl border shadow-sm cursor-pointer overflow-hidden min-h-[280px] flex flex-col transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:border-primary/50',
     !article.is_read && 'border-l-4 border-l-primary',
-    focused && 'ring-2 ring-primary bg-accent/50',
-    showTypographic && 'ring-2 ring-amber-400/50 dark:ring-amber-600/50'
+    article.is_read && 'opacity-75',
+    focused && 'outline-2 outline-primary outline-offset-2',
+    showTypographic && 'feed-highlight-card'
   )}
   onclick={handleClick}
   onkeydown={(e) => e.key === 'Enter' && handleClick()}
@@ -88,10 +89,10 @@
 
   <!-- Content area -->
   <div class="flex flex-col flex-1 p-3">
-    <h3 class="text-sm font-semibold line-clamp-2">{article.title}</h3>
-    <div class="text-xs text-muted-foreground mt-auto">
+    <h3 class={cn('text-sm line-clamp-3', !article.is_read ? 'font-semibold' : 'font-normal text-muted-foreground')}>{article.title}</h3>
+    <div class="text-xs text-muted-foreground mt-auto pt-1">
       {#if article.feed_title}
-        <div class={cn('truncate', showTypographic && 'font-semibold text-amber-700 dark:text-amber-400')}>{article.feed_title}</div>
+        <div class={cn('truncate', showTypographic && 'feed-highlight-text')}>{article.feed_title}</div>
       {/if}
       {#if publishedDate}
         <div>{publishedDate}</div>

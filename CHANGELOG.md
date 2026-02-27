@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-02-26
+
+### Improved
+
+- **Highlight theming** - Amber highlight colors now use CSS custom properties for consistent light/dark mode support
+- **Article row DOM** - Deduplicated mobile/desktop article row markup into a single responsive layout
+- **Card view read state** - Read articles in card view now show reduced opacity and lighter title text
+- **Card focus vs highlight** - Focus ring and highlight ring no longer conflict on card views
+- **Card view height** - Cards use `min-h` instead of fixed `h` to prevent content clipping
+- **Highlight separator** - Subtle gradient divider between highlighted and normal articles in sort-first mode
+- **Saved view empty state** - Dedicated empty message for saved articles view
+- **Saved count in sidebar** - Sidebar "Saved" button now shows total saved article count
+- **Tools panel saved context** - Tools panel title and count reflect saved articles view
+- **Article reading font** - Article modal uses Source Serif 4 serif font for comfortable long-form reading
+
 ## [0.9.3] - 2026-02-26
 
 ### Changed

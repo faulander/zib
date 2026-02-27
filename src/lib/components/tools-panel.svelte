@@ -78,7 +78,9 @@
 <div class="flex items-center justify-between px-4 py-2 border-b bg-background">
   <div class="flex items-center gap-2">
     <h2 class="font-medium text-sm">
-      {#if appStore.showStarredOnly}
+      {#if appStore.showSavedOnly}
+        Saved
+      {:else if appStore.showStarredOnly}
         Starred
       {:else if appStore.selectedFeedId}
         {appStore.feeds.find((f) => f.id === appStore.selectedFeedId)?.title || 'Feed'}
@@ -90,7 +92,9 @@
     </h2>
 
     <span class="text-xs text-muted-foreground">
-      {#if appStore.showStarredOnly}
+      {#if appStore.showSavedOnly}
+        ({appStore.unreadCounts.saved_total ?? appStore.articles.length} articles)
+      {:else if appStore.showStarredOnly}
         ({appStore.articles.length} articles)
       {:else}
         {@const unreadCount = appStore.selectedFeedId

@@ -320,9 +320,14 @@ export function getUnreadCounts(): {
   total: number;
   by_folder: Record<number, number>;
   by_feed: Record<number, number>;
+  saved_total: number;
 } {
   const db = getDb();
   const enabledFilters = getEnabledFilters();
+
+  const savedTotal = db.prepare('SELECT COUNT(*) as count FROM articles WHERE is_saved = 1').get() as {
+    count: number;
+  };
 
   // If no filters, use fast SQL-only counting
   if (enabledFilters.length === 0) {
@@ -356,7 +361,8 @@ export function getUnreadCounts(): {
     return {
       total: total.count,
       by_folder: Object.fromEntries(byFolder.map((r) => [r.folder_id, r.count])),
-      by_feed: Object.fromEntries(byFeed.map((r) => [r.feed_id, r.count]))
+      by_feed: Object.fromEntries(byFeed.map((r) => [r.feed_id, r.count])),
+      saved_total: savedTotal.count
     };
   }
 
@@ -398,7 +404,7 @@ export function getUnreadCounts(): {
     byFeed[article.feed_id] = (byFeed[article.feed_id] || 0) + 1;
   }
 
-  return { total, by_folder: byFolder, by_feed: byFeed };
+  return { total, by_folder: byFolder, by_feed: byFeed, saved_total: savedTotal.count };
 }
 
 export function deleteOldArticles(daysToKeep: number = 30): number {
