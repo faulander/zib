@@ -36,10 +36,18 @@ export async function processNewEmbeddings(): Promise<{ processed: number; faile
     const isRateLimited = provider === 'openai' || provider === 'openai-compatible';
     const delayMs = isRateLimited ? Math.ceil(60000 / rateLimit) : 0;
 
+    // On first run (no embeddings yet), only embed unread articles
+    // to avoid processing thousands of old read articles.
+    // Subsequent runs embed everything new (articles arriving after setup).
+    const hasExistingEmbeddings = (db.prepare(
+      'SELECT COUNT(*) as count FROM article_embeddings'
+    ).get() as { count: number }).count > 0;
+
     const articles = db.prepare(`
       SELECT a.id, a.title, a.rss_content
       FROM articles a
       WHERE a.id NOT IN (SELECT article_id FROM article_embeddings)
+      ${!hasExistingEmbeddings ? 'AND a.is_read = 0' : ''}
       ORDER BY a.created_at DESC
     `).all() as ArticleToEmbed[];
 
@@ -113,9 +121,14 @@ function prepareEmbeddingText(title: string, content: string | null): string {
  */
 export function getEmbeddingStats(): { total: number; embedded: number; model: string | null } {
   const db = getDb();
-  const total = (db.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number }).count;
   const embedded = (db.prepare('SELECT COUNT(*) as count FROM article_embeddings').get() as { count: number }).count;
   const modelRow = db.prepare('SELECT model FROM article_embeddings LIMIT 1').get() as { model: string } | undefined;
+
+  // When no embeddings exist yet, show unread count as the target
+  // (first run only embeds unread articles to avoid processing old history)
+  const total = embedded > 0
+    ? (db.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number }).count
+    : (db.prepare('SELECT COUNT(*) as count FROM articles WHERE is_read = 0').get() as { count: number }).count;
 
   return {
     total,
