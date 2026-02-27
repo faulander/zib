@@ -208,6 +208,25 @@
       toast.error('Failed to process embeddings');
     }
   }
+
+  async function purgeEmbeddings() {
+    const confirmed = confirm(
+      `Delete all ${embeddingStats?.embedded ?? 0} embeddings? They will be regenerated on next process.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await fetch('/api/embeddings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'purge' })
+      });
+      toast.success('Embeddings purged');
+      await loadStats();
+    } catch {
+      toast.error('Failed to purge embeddings');
+    }
+  }
 </script>
 
 <section>
@@ -400,9 +419,16 @@
               </div>
             {/if}
           </div>
-          <Button variant="outline" size="sm" onclick={triggerProcessing}>
-            Process now
-          </Button>
+          <div class="flex gap-2">
+            <Button variant="outline" size="sm" onclick={triggerProcessing}>
+              Process now
+            </Button>
+            {#if embeddingStats.embedded > 0}
+              <Button variant="outline" size="sm" onclick={purgeEmbeddings}>
+                Purge
+              </Button>
+            {/if}
+          </div>
         </div>
       </div>
     {/if}
