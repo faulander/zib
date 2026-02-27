@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.4] - 2026-02-26
 
+### Changed
+
+- **Engagement-based feed statistics** - Feed engagement metric now tracks genuine user interaction (opened, saved, sent to Instapaper) instead of scroll-based read marks
+  - New `is_opened` flag set when an article is viewed in the reading modal
+  - New `is_sent_to_instapaper` flag set on successful Instapaper send
+  - Engagement rate replaces read rate in adaptive TTL calculation, feed edit dialog, and settings feed list
+  - TTL thresholds recalibrated for realistic engagement rates (20%/10%/3% instead of 80%/50%/20%)
+
 ### Improved
 
 - **Highlight theming** - Amber highlight colors now use CSS custom properties for consistent light/dark mode support
@@ -21,14 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Article reading font** - Article modal uses Source Serif 4 serif font for comfortable long-form reading
 
 ## [0.9.3] - 2026-02-26
-
-### Changed
-
-- **Engagement-based feed statistics** - Feed engagement metric now tracks genuine user interaction (opened, saved, sent to Instapaper) instead of scroll-based read marks
-  - New `is_opened` flag set when an article is viewed in the reading modal
-  - New `is_sent_to_instapaper` flag set on successful Instapaper send
-  - Engagement rate replaces read rate in adaptive TTL calculation, feed edit dialog, and settings feed list
-  - TTL thresholds recalibrated for realistic engagement rates (20%/10%/3% instead of 80%/50%/20%)
 
 ### Added
 
