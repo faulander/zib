@@ -63,6 +63,10 @@ export const PATCH: RequestHandler = async ({ request }) => {
     setSetting('fontSizeOffset', updates.fontSizeOffset);
   }
 
+  if (updates.fontSizeOffsetMobile !== undefined) {
+    setSetting('fontSizeOffsetMobile', updates.fontSizeOffsetMobile);
+  }
+
   if (updates.skipAgeFilter !== undefined) {
     setSetting('skipAgeFilter', updates.skipAgeFilter);
   }

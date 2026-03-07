@@ -47,7 +47,7 @@
 
   // Font size classes based on offset: -2, -1, 0, +1, +2
   const fontSizeClass = $derived(() => {
-    switch (appStore.fontSizeOffset) {
+    switch (appStore.effectiveFontSizeOffset) {
       case -2:
         return 'text-xs'; // 12px
       case -1:
@@ -163,7 +163,7 @@
 
   <button
     type="button"
-    class="shrink-0 p-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100"
+    class="shrink-0 p-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100 hidden sm:inline-flex"
     onclick={(e) => { e.stopPropagation(); toggleSaved(); }}
     title={article.is_saved ? 'Remove from saved' : 'Save for later'}
   >
@@ -173,7 +173,7 @@
   {#if appStore.instapaperEnabled}
     <button
       type="button"
-      class="shrink-0 p-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100 disabled:opacity-40"
+      class="shrink-0 p-1 rounded hover:bg-muted transition-colors opacity-60 hover:opacity-100 disabled:opacity-40 hidden sm:inline-flex"
       onclick={saveToInstapaper}
       title="Save to Instapaper"
       disabled={isSaving}

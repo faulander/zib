@@ -9,7 +9,17 @@ let highlightColorDark = $state('#422006');
 let instapaperEnabled = $state(false);
 let similarityThreshold = $state(0.65);
 let fontSizeOffset = $state(0);
+let fontSizeOffsetMobile = $state(0);
+let isDesktop = $state(typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true);
 let highlightMode = $state<'sort-first' | 'typographic' | 'both'>('typographic');
+
+// Listen for screen size changes
+if (typeof window !== 'undefined') {
+  const mql = window.matchMedia('(min-width: 768px)');
+  mql.addEventListener('change', (e) => {
+    isDesktop = e.matches;
+  });
+}
 
 // View state
 let viewMode = $state<'list' | 'cards'>('list');
@@ -206,6 +216,10 @@ function setFontSizeOffset(value: number) {
   fontSizeOffset = value;
 }
 
+function setFontSizeOffsetMobile(value: number) {
+  fontSizeOffsetMobile = value;
+}
+
 function setHighlightMode(value: 'sort-first' | 'typographic' | 'both') {
   highlightMode = value;
 }
@@ -229,6 +243,7 @@ function initSettings(settings: {
   similarityThresholdEmbedding?: number;
   embeddingProvider?: string;
   fontSizeOffset?: number;
+  fontSizeOffsetMobile?: number;
   highlightMode?: 'sort-first' | 'typographic' | 'both';
 }) {
   hideReadArticles = settings.hideReadArticles;
@@ -244,6 +259,7 @@ function initSettings(settings: {
     ? (settings.similarityThresholdEmbedding ?? 0.92)
     : (settings.similarityThreshold ?? 0.65);
   fontSizeOffset = settings.fontSizeOffset ?? 0;
+  fontSizeOffsetMobile = settings.fontSizeOffsetMobile ?? 0;
   highlightMode = settings.highlightMode ?? 'typographic';
 }
 
@@ -273,6 +289,12 @@ export const appStore = {
   },
   get fontSizeOffset() {
     return fontSizeOffset;
+  },
+  get fontSizeOffsetMobile() {
+    return fontSizeOffsetMobile;
+  },
+  get effectiveFontSizeOffset() {
+    return isDesktop ? fontSizeOffset : fontSizeOffsetMobile;
   },
   get highlightMode() {
     return highlightMode;
@@ -378,6 +400,7 @@ export const appStore = {
   setInstapaperEnabled,
   setSimilarityThreshold,
   setFontSizeOffset,
+  setFontSizeOffsetMobile,
   setHighlightMode,
   setFocusedArticleIndex,
   setKeyboardHelpOpen,

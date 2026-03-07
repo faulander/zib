@@ -88,6 +88,7 @@
   let similarityThreshold = $state(0.65);
   let similarityThresholdEmbedding = $state(0.92);
   let fontSizeOffset = $state(0);
+  let fontSizeOffsetMobile = $state(0);
   let skipAgeFilter = $state(false);
   let highlightMode = $state<'sort-first' | 'typographic' | 'both'>('typographic');
   let instapaperUsername = $state('');
@@ -114,6 +115,7 @@
     similarityThreshold = data.settings.similarityThreshold;
     similarityThresholdEmbedding = data.settings.similarityThresholdEmbedding;
     fontSizeOffset = data.settings.fontSizeOffset;
+    fontSizeOffsetMobile = data.settings.fontSizeOffsetMobile;
     skipAgeFilter = data.settings.skipAgeFilter;
     highlightMode = data.settings.highlightMode;
     instapaperUsername = data.settings.instapaperUsername;
@@ -180,6 +182,7 @@
           bind:similarityThreshold
           bind:similarityThresholdEmbedding
           bind:fontSizeOffset
+          bind:fontSizeOffsetMobile
           bind:skipAgeFilter
           bind:highlightMode
           {embeddingProvider}

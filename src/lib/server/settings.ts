@@ -14,6 +14,8 @@ export interface AppSettings {
   similarityThresholdEmbedding: number;
   // Font size offset for list view (-2 to +2)
   fontSizeOffset: number;
+  // Font size offset for mobile screens (-2 to +2)
+  fontSizeOffsetMobile: number;
   // Skip age filter when refreshing feeds (allow old articles)
   skipAgeFilter: boolean;
   // Highlight mode for prioritized feeds
@@ -37,6 +39,7 @@ const DEFAULTS: AppSettings = {
   similarityThreshold: 0.65,
   similarityThresholdEmbedding: 0.92,
   fontSizeOffset: 0,
+  fontSizeOffsetMobile: 0,
   skipAgeFilter: false,
   highlightMode: 'typographic',
   embeddingProvider: 'none',
@@ -87,6 +90,7 @@ export function getAllSettings(): AppSettings {
     similarityThreshold: getSetting('similarityThreshold'),
     similarityThresholdEmbedding: getSetting('similarityThresholdEmbedding'),
     fontSizeOffset: getSetting('fontSizeOffset'),
+    fontSizeOffsetMobile: getSetting('fontSizeOffsetMobile'),
     skipAgeFilter: getSetting('skipAgeFilter'),
     highlightMode: getSetting('highlightMode'),
     embeddingProvider: getSetting('embeddingProvider'),
