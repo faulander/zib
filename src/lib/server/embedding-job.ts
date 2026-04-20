@@ -6,7 +6,6 @@ import { logger } from './logger';
 interface ArticleToEmbed {
   id: number;
   title: string;
-  rss_content: string | null;
 }
 
 let isEmbedding = false;
@@ -58,7 +57,7 @@ export async function processNewEmbeddings(): Promise<{ processed: number; faile
       if (!oldestEmbeddedDate?.oldest) {
         // First run: only unread articles
         articles = db.prepare(`
-          SELECT a.id, a.title, a.rss_content
+          SELECT a.id, a.title
           FROM articles a
           WHERE a.id NOT IN (SELECT article_id FROM article_embeddings)
           AND a.is_read = 0
@@ -67,7 +66,7 @@ export async function processNewEmbeddings(): Promise<{ processed: number; faile
       } else {
         // Subsequent runs: unread + anything newer than when we started embedding
         articles = db.prepare(`
-          SELECT a.id, a.title, a.rss_content
+          SELECT a.id, a.title
           FROM articles a
           WHERE a.id NOT IN (SELECT article_id FROM article_embeddings)
           AND (a.is_read = 0 OR a.created_at >= ?)
@@ -85,8 +84,7 @@ export async function processNewEmbeddings(): Promise<{ processed: number; faile
 
       for (const article of articles) {
         try {
-          const text = prepareEmbeddingText(article.title, article.rss_content);
-          const result = await generateEmbedding(text);
+          const result = await generateEmbedding(article.title);
 
           if (result) {
             const blob = embeddingToBlob(result.embedding);
@@ -125,23 +123,6 @@ export async function processNewEmbeddings(): Promise<{ processed: number; faile
   }
 
   return { processed, failed };
-}
-
-/**
- * Prepare text for embedding: title + first 200 chars of content
- */
-function prepareEmbeddingText(title: string, content: string | null): string {
-  let text = title;
-
-  if (content) {
-    // Strip HTML tags for cleaner embedding input
-    const stripped = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (stripped.length > 0) {
-      text += ' ' + stripped.substring(0, 200);
-    }
-  }
-
-  return text;
 }
 
 /**

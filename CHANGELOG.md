@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] - 2026-04-20
+
+### Fixed
+
+- **Similar article grouping now respects both thresholds** - When embeddings were configured, the client was sending only the embedding threshold (e.g. 90%) and the server was using it as the Dice fallback threshold too, silently overriding the user's Dice slider (e.g. 45%). Server now reads both thresholds from settings independently so each slider applies to its own algorithm.
+
+### Changed
+
+- **Embeddings now use title only** - Previously embedded title + first 200 chars of body, which meant near-identical titles from different sources often scored below the cosine threshold because the body text diverged. Title-only embeddings group same-topic articles across sources much more reliably. Existing embeddings should be purged and regenerated via Settings.
+
 ## [0.9.6] - 2026-02-27
 
 ### Fixed

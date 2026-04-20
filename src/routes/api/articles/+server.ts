@@ -50,13 +50,10 @@ export const GET: RequestHandler = async ({ url }) => {
 
   // Group similar articles if requested
   const groupSimilar = url.searchParams.get('group_similar');
-  const threshold = url.searchParams.get('similarity_threshold');
 
   if (groupSimilar === 'true') {
-    const thresholdValue = threshold ? parseFloat(threshold) : 0.65;
-    const groups = groupSimilarArticles(articles, thresholdValue);
+    const groups = groupSimilarArticles(articles, 1);
     const flattenedArticles = flattenGroups(groups);
-    // Return with metadata so client knows if there are more articles
     return json({ articles: flattenedArticles, hasMore });
   }
 

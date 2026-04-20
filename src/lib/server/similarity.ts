@@ -40,29 +40,28 @@ function loadEmbeddings(articleIds: number[]): Map<number, number[]> {
  * Groups similar articles together using embeddings (cosine similarity) when available,
  * falling back to Dice coefficient on titles.
  *
- * @param articles - Array of articles to group
- * @param threshold - Similarity threshold (0.0 to 1.0)
- * @returns Array of article groups
+ * `enabled` only gates whether grouping runs (<=0 disables). Actual thresholds
+ * are read from settings so the embedding and Dice sliders apply independently.
  */
 export function groupSimilarArticles(
   articles: Article[],
-  threshold: number = 0.65
+  enabled: number = 1
 ): ArticleGroup[] {
-  if (threshold <= 0) {
+  if (enabled <= 0) {
     return articles.map((article) => ({ main: article, similar: [] }));
   }
 
-  // Try to load embeddings for articles
+  const embeddingThreshold = getSetting('similarityThresholdEmbedding');
+  const diceThreshold = getSetting('similarityThreshold');
+
   const articleIds = articles.map((a) => a.id);
   const embeddings = loadEmbeddings(articleIds);
 
-  // Use hybrid approach: embeddings where available, Dice as fallback per pair
   if (embeddings.size > 0) {
-    const embeddingThreshold = getSetting('similarityThresholdEmbedding');
-    return groupHybrid(articles, embeddings, embeddingThreshold, threshold);
+    return groupHybrid(articles, embeddings, embeddingThreshold, diceThreshold);
   }
 
-  return groupByDice(articles, threshold);
+  return groupByDice(articles, diceThreshold);
 }
 
 /**

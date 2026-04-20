@@ -200,10 +200,9 @@
       }
     }
 
-    // Similar articles grouping
+    // Similar articles grouping (thresholds are read server-side from settings)
     if (appStore.similarityThreshold > 0) {
       params.set('group_similar', 'true');
-      params.set('similarity_threshold', String(appStore.similarityThreshold));
     }
 
     if (appStore.searchQuery) params.set('search', appStore.searchQuery);
