@@ -141,7 +141,7 @@
   <div class="flex-1 overflow-y-auto">
     <div class="p-2">
       <!-- All Items -->
-      <div class="group flex items-center">
+      <div class="flex w-full items-center">
         <Button
           variant={isAllSelected ? 'secondary' : 'ghost'}
           class="min-w-0 flex-1 justify-start gap-2 {isAllSelected ? '' : 'sidebar-item-hover'}"
@@ -160,12 +160,12 @@
         </Button>
         <button
           type="button"
-          class="mr-1 rounded p-1 opacity-100 transition-opacity hover:bg-muted lg:opacity-0 lg:group-hover:opacity-100"
+          class="mr-2 shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onclick={markAllRead}
           title="Mark all as read"
           aria-label="Mark all items as read"
         >
-          <CheckCheck class="h-3 w-3" />
+          <CheckCheck class="h-4 w-4" />
         </button>
       </div>
 

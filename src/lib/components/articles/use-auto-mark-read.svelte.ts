@@ -57,9 +57,10 @@ export function queueMarkAsRead(articleId: number) {
   scheduleFlush();
 }
 
-export function markVisibleArticlesAsRead(scrollContainer: HTMLElement) {
+export function getVisibleUnreadArticleIds(scrollContainer: HTMLElement): number[] {
   const rootBounds = scrollContainer.getBoundingClientRect();
   const articleElements = scrollContainer.querySelectorAll<HTMLElement>('[data-article-id]');
+  const visibleIds: number[] = [];
 
   for (const articleEl of articleElements) {
     const articleId = parseInt(articleEl.dataset.articleId || '0', 10);
@@ -70,9 +71,11 @@ export function markVisibleArticlesAsRead(scrollContainer: HTMLElement) {
       articleBounds.bottom > rootBounds.top && articleBounds.top < rootBounds.bottom;
 
     if (isVisible) {
-      queueMarkAsRead(articleId);
+      visibleIds.push(articleId);
     }
   }
+
+  return visibleIds;
 }
 
 export function resetMarkedIds() {

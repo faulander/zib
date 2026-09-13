@@ -1,13 +1,15 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { appStore } from '$lib/stores/app.svelte';
   import ArticleRow from './article-row.svelte';
   import ArticleCard from './article-card.svelte';
   import Spinner from '$lib/components/spinner.svelte';
   import {
     createAutoMarkReadObserver,
-    markVisibleArticlesAsRead,
-    resetMarkedIds,
-    observeArticles
+    getVisibleUnreadArticleIds,
+    observeArticles,
+    queueMarkAsRead,
+    resetMarkedIds
   } from './use-auto-mark-read.svelte';
 
   const isEmpty = $derived(appStore.articles.length === 0 && !appStore.isLoading);
@@ -31,10 +33,38 @@
     return -1;
   });
 
+  const BOTTOM_DWELL_MS = 2000;
+
   let scrollContainer: HTMLDivElement;
   let observer: IntersectionObserver | null = null;
   let lastArticleCount = 0;
-  let reachedBottom = false;
+  let bottomMarkTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function clearBottomMarkTimeout() {
+    if (!bottomMarkTimeout) return;
+    clearTimeout(bottomMarkTimeout);
+    bottomMarkTimeout = null;
+  }
+
+  function scheduleBottomMark() {
+    clearBottomMarkTimeout();
+    const visibleArticleIds = getVisibleUnreadArticleIds(scrollContainer);
+    if (visibleArticleIds.length === 0) return;
+
+    bottomMarkTimeout = setTimeout(() => {
+      bottomMarkTimeout = null;
+      if (!appStore.autoMarkAsRead) return;
+
+      for (const articleId of visibleArticleIds) {
+        const articleEl = scrollContainer.querySelector<HTMLElement>(
+          `[data-article-id="${articleId}"]`
+        );
+        if (articleEl?.dataset.isRead === 'false') {
+          queueMarkAsRead(articleId);
+        }
+      }
+    }, BOTTOM_DWELL_MS);
+  }
 
   function handleScroll() {
     if (!scrollContainer) return;
@@ -43,22 +73,15 @@
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     const isAtBottom = distanceFromBottom <= 1;
 
-    if (isAtBottom) {
-      reachedBottom = true;
+    if (isAtBottom && appStore.autoMarkAsRead) {
+      scheduleBottomMark();
+    } else {
+      clearBottomMarkTimeout();
     }
 
     // Load more when within 200px of bottom
     if (distanceFromBottom < 200 && !appStore.isLoadingMore && appStore.hasMoreArticles) {
       window.dispatchEvent(new CustomEvent('load-more-articles'));
-    }
-
-    if (
-      isAtBottom &&
-      !appStore.hasMoreArticles &&
-      appStore.autoMarkAsRead &&
-      !appStore.isLoadingMore
-    ) {
-      markVisibleArticlesAsRead(scrollContainer);
     }
   }
 
@@ -106,40 +129,22 @@
     lastArticleCount = articleCount;
   });
 
-  // A final load can report that there are no more articles without causing another scroll event.
-  $effect(() => {
-    const _articleCount = appStore.articles.length;
-    const hasMoreArticles = appStore.hasMoreArticles;
-    const isLoadingMore = appStore.isLoadingMore;
-
-    if (
-      !reachedBottom ||
-      hasMoreArticles ||
-      isLoadingMore ||
-      !appStore.autoMarkAsRead ||
-      !scrollContainer
-    ) {
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      const distanceFromBottom =
-        scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight;
-
-      if (distanceFromBottom <= 1) {
-        markVisibleArticlesAsRead(scrollContainer);
-      }
-    });
-
-    return () => clearTimeout(timeout);
-  });
-
   // Reset marked IDs when filter changes
   $effect(() => {
-    const _filter = appStore.currentFilter;
+    const _filter = [
+      appStore.selectedFolderId,
+      appStore.selectedFeedId,
+      appStore.showUnreadOnly,
+      appStore.showStarredOnly,
+      appStore.showSavedOnly,
+      appStore.hideReadArticles,
+      appStore.searchQuery,
+      appStore.highlightMode,
+      appStore.similarityThreshold
+    ];
     resetMarkedIds();
+    clearBottomMarkTimeout();
     lastArticleCount = 0; // Reset count so we re-observe on filter change
-    reachedBottom = false;
   });
 
   // Scroll focused article into view
@@ -152,6 +157,8 @@
       el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   });
+
+  onDestroy(clearBottomMarkTimeout);
 </script>
 
 <div class="h-full overflow-y-auto" bind:this={scrollContainer} onscroll={handleScroll}>
