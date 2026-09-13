@@ -57,6 +57,24 @@ export function queueMarkAsRead(articleId: number) {
   scheduleFlush();
 }
 
+export function markVisibleArticlesAsRead(scrollContainer: HTMLElement) {
+  const rootBounds = scrollContainer.getBoundingClientRect();
+  const articleElements = scrollContainer.querySelectorAll<HTMLElement>('[data-article-id]');
+
+  for (const articleEl of articleElements) {
+    const articleId = parseInt(articleEl.dataset.articleId || '0', 10);
+    if (!articleId || articleEl.dataset.isRead === 'true') continue;
+
+    const articleBounds = articleEl.getBoundingClientRect();
+    const isVisible =
+      articleBounds.bottom > rootBounds.top && articleBounds.top < rootBounds.bottom;
+
+    if (isVisible) {
+      queueMarkAsRead(articleId);
+    }
+  }
+}
+
 export function resetMarkedIds() {
   markedIds.clear();
   seenIds.clear();

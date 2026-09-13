@@ -5,8 +5,9 @@
   import FolderItem from './folder-item.svelte';
   import FeedItem from './feed-item.svelte';
   import AddFeedDialog from '$lib/components/add-feed-dialog.svelte';
-  import { Inbox, FolderPlus, RefreshCw, Settings, Bookmark } from '@lucide/svelte';
+  import { Inbox, FolderPlus, RefreshCw, Settings, Bookmark, CheckCheck } from '@lucide/svelte';
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
 
   let addFeedOpen = $state(false);
 
@@ -24,7 +25,10 @@
   );
 
   const isAllSelected = $derived(
-    !appStore.selectedFolderId && !appStore.selectedFeedId && !appStore.showStarredOnly && !appStore.showSavedOnly
+    !appStore.selectedFolderId &&
+      !appStore.selectedFeedId &&
+      !appStore.showStarredOnly &&
+      !appStore.showSavedOnly
   );
 
   async function handleRefreshAll() {
@@ -38,6 +42,16 @@
     }
   }
 
+  async function markAllRead(e: MouseEvent) {
+    e.stopPropagation();
+    await fetch('/api/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    window.dispatchEvent(new CustomEvent('reload-data'));
+  }
+
   function clearDrag() {
     draggedItem = null;
     dragOverId = null;
@@ -48,10 +62,13 @@
     if (!draggedItem) return;
 
     if (draggedItem.type === 'folder' && targetType === 'folder') {
-      const currentOrder = sortedFolders.map(f => f.id);
+      const currentOrder = sortedFolders.map((f) => f.id);
       const fromIdx = currentOrder.indexOf(draggedItem.id);
       const toIdx = currentOrder.indexOf(targetId);
-      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) { clearDrag(); return; }
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) {
+        clearDrag();
+        return;
+      }
 
       currentOrder.splice(fromIdx, 1);
       currentOrder.splice(toIdx, 0, draggedItem.id);
@@ -71,10 +88,13 @@
       });
       window.dispatchEvent(new CustomEvent('reload-data'));
     } else if (draggedItem.type === 'feed' && targetType === 'feed') {
-      const currentOrder = sortedUncategorizedFeeds.map(f => f.id);
+      const currentOrder = sortedUncategorizedFeeds.map((f) => f.id);
       const fromIdx = currentOrder.indexOf(draggedItem.id);
       const toIdx = currentOrder.indexOf(targetId);
-      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) { clearDrag(); return; }
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) {
+        clearDrag();
+        return;
+      }
 
       currentOrder.splice(fromIdx, 1);
       currentOrder.splice(toIdx, 0, draggedItem.id);
@@ -105,7 +125,12 @@
       >
         <RefreshCw class="h-4 w-4 {appStore.isRefreshing ? 'animate-spin' : ''}" />
       </Button>
-      <Button variant="ghost" size="icon" onclick={() => goto('/settings')} title="Settings">
+      <Button
+        variant="ghost"
+        size="icon"
+        onclick={() => goto(resolve('/settings'))}
+        title="Settings"
+      >
         <Settings class="h-4 w-4" />
       </Button>
     </div>
@@ -116,23 +141,33 @@
   <div class="flex-1 overflow-y-auto">
     <div class="p-2">
       <!-- All Items -->
-      <Button
-        variant={isAllSelected ? 'secondary' : 'ghost'}
-        class="w-full justify-start gap-2 {isAllSelected ? '' : 'sidebar-item-hover'}"
-        onclick={() => {
-          appStore.selectFolder(null);
-          appStore.selectFeed(null);
-          appStore.setShowStarredOnly(false);
-          appStore.setSidebarOpen(false);
-        }}
-      >
-        <Inbox class="h-4 w-4" />
-        <span class="flex-1 text-left">All Items</span>
-        {#if appStore.unreadCounts.total > 0}
-          <span class="text-xs text-muted-foreground">{appStore.unreadCounts.total}</span>
-        {/if}
-      </Button>
-
+      <div class="group flex items-center">
+        <Button
+          variant={isAllSelected ? 'secondary' : 'ghost'}
+          class="min-w-0 flex-1 justify-start gap-2 {isAllSelected ? '' : 'sidebar-item-hover'}"
+          onclick={() => {
+            appStore.selectFolder(null);
+            appStore.selectFeed(null);
+            appStore.setShowStarredOnly(false);
+            appStore.setSidebarOpen(false);
+          }}
+        >
+          <Inbox class="h-4 w-4" />
+          <span class="flex-1 text-left">All Items</span>
+          {#if appStore.unreadCounts.total > 0}
+            <span class="text-xs text-muted-foreground">{appStore.unreadCounts.total}</span>
+          {/if}
+        </Button>
+        <button
+          type="button"
+          class="mr-1 rounded p-1 opacity-100 transition-opacity hover:bg-muted lg:opacity-0 lg:group-hover:opacity-100"
+          onclick={markAllRead}
+          title="Mark all as read"
+          aria-label="Mark all items as read"
+        >
+          <CheckCheck class="h-3 w-3" />
+        </button>
+      </div>
 
       <!-- Saved -->
       <Button
@@ -166,13 +201,17 @@
             dragOverId = folder.id;
             dragOverType = 'folder';
           }}
-          ondragleave={() => { if (dragOverId === folder.id) dragOverId = null; }}
+          ondragleave={() => {
+            if (dragOverId === folder.id) dragOverId = null;
+          }}
           ondrop={(e) => {
             e.preventDefault();
             handleDrop('folder', folder.id);
           }}
           ondragend={clearDrag}
-          class={dragOverId === folder.id && dragOverType === 'folder' ? 'border-t-2 border-primary' : ''}
+          class={dragOverId === folder.id && dragOverType === 'folder'
+            ? 'border-t-2 border-primary'
+            : ''}
         >
           <FolderItem {folder} />
         </div>
@@ -194,13 +233,17 @@
                 dragOverId = feed.id;
                 dragOverType = 'feed';
               }}
-              ondragleave={() => { if (dragOverId === feed.id) dragOverId = null; }}
+              ondragleave={() => {
+                if (dragOverId === feed.id) dragOverId = null;
+              }}
               ondrop={(e) => {
                 e.preventDefault();
                 handleDrop('feed', feed.id);
               }}
               ondragend={clearDrag}
-              class={dragOverId === feed.id && dragOverType === 'feed' ? 'border-t-2 border-primary' : ''}
+              class={dragOverId === feed.id && dragOverType === 'feed'
+                ? 'border-t-2 border-primary'
+                : ''}
             >
               <FeedItem {feed} />
             </div>

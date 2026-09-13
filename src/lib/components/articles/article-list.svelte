@@ -5,6 +5,7 @@
   import Spinner from '$lib/components/spinner.svelte';
   import {
     createAutoMarkReadObserver,
+    markVisibleArticlesAsRead,
     resetMarkedIds,
     observeArticles
   } from './use-auto-mark-read.svelte';
@@ -33,14 +34,31 @@
   let scrollContainer: HTMLDivElement;
   let observer: IntersectionObserver | null = null;
   let lastArticleCount = 0;
+  let reachedBottom = false;
 
   function handleScroll() {
-    if (!scrollContainer || appStore.isLoadingMore || !appStore.hasMoreArticles) return;
+    if (!scrollContainer) return;
 
     const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const isAtBottom = distanceFromBottom <= 1;
+
+    if (isAtBottom) {
+      reachedBottom = true;
+    }
+
     // Load more when within 200px of bottom
-    if (scrollHeight - scrollTop - clientHeight < 200) {
+    if (distanceFromBottom < 200 && !appStore.isLoadingMore && appStore.hasMoreArticles) {
       window.dispatchEvent(new CustomEvent('load-more-articles'));
+    }
+
+    if (
+      isAtBottom &&
+      !appStore.hasMoreArticles &&
+      appStore.autoMarkAsRead &&
+      !appStore.isLoadingMore
+    ) {
+      markVisibleArticlesAsRead(scrollContainer);
     }
   }
 
@@ -88,11 +106,40 @@
     lastArticleCount = articleCount;
   });
 
+  // A final load can report that there are no more articles without causing another scroll event.
+  $effect(() => {
+    const _articleCount = appStore.articles.length;
+    const hasMoreArticles = appStore.hasMoreArticles;
+    const isLoadingMore = appStore.isLoadingMore;
+
+    if (
+      !reachedBottom ||
+      hasMoreArticles ||
+      isLoadingMore ||
+      !appStore.autoMarkAsRead ||
+      !scrollContainer
+    ) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      const distanceFromBottom =
+        scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight;
+
+      if (distanceFromBottom <= 1) {
+        markVisibleArticlesAsRead(scrollContainer);
+      }
+    });
+
+    return () => clearTimeout(timeout);
+  });
+
   // Reset marked IDs when filter changes
   $effect(() => {
     const _filter = appStore.currentFilter;
     resetMarkedIds();
     lastArticleCount = 0; // Reset count so we re-observe on filter change
+    reachedBottom = false;
   });
 
   // Scroll focused article into view
