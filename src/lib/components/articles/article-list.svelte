@@ -53,7 +53,7 @@
 
     bottomMarkTimeout = setTimeout(() => {
       bottomMarkTimeout = null;
-      if (!appStore.autoMarkAsRead) return;
+      if (!appStore.autoMarkAsRead || appStore.hasMoreArticles) return;
 
       for (const articleId of visibleArticleIds) {
         const articleEl = scrollContainer.querySelector<HTMLElement>(
@@ -73,7 +73,9 @@
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     const isAtBottom = distanceFromBottom <= 1;
 
-    if (isAtBottom && appStore.autoMarkAsRead) {
+    const isAtEndOfList = isAtBottom && !appStore.hasMoreArticles;
+
+    if (isAtEndOfList && appStore.autoMarkAsRead) {
       scheduleBottomMark();
     } else {
       clearBottomMarkTimeout();
