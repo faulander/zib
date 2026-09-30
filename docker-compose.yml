@@ -3,10 +3,13 @@ services:
     build: .
     container_name: zib
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "3000:3000"
     volumes:
-      - zib-data:/app/data
+      - ./data:/app/data
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -18,6 +21,3 @@ services:
       timeout: 3s
       start_period: 10s
       retries: 3
-
-volumes:
-  zib-data:

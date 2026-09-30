@@ -52,7 +52,7 @@ docker-compose up -d
 
 # Or build and run manually
 docker build -t zib .
-docker run -p 3000:3000 -v zib-data:/app/data zib
+docker run -p 3000:3000 -v $(pwd)/data:/app/data zib
 ```
 
 The app will be available at `http://localhost:3000`.
