@@ -66,8 +66,8 @@
     }, BOTTOM_DWELL_MS);
   }
 
-  function handleScroll() {
-    if (!scrollContainer) return;
+  function checkBottomState() {
+    if (!scrollContainer) return 0;
 
     const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
@@ -81,11 +81,29 @@
       clearBottomMarkTimeout();
     }
 
+    return distanceFromBottom;
+  }
+
+  function handleScroll() {
+    const distanceFromBottom = checkBottomState();
+
     // Load more when within 200px of bottom
     if (distanceFromBottom < 200 && !appStore.isLoadingMore && appStore.hasMoreArticles) {
       window.dispatchEvent(new CustomEvent('load-more-articles'));
     }
   }
+
+  // Re-check bottom state whenever the rendered list can't produce a scroll
+  // event on its own (e.g. a folder with too few articles to overflow the
+  // container). Runs after DOM settles so scrollHeight/clientHeight are accurate.
+  $effect(() => {
+    const _deps = [appStore.articles.length, appStore.hasMoreArticles, appStore.autoMarkAsRead];
+
+    if (!scrollContainer || appStore.isLoading) return;
+
+    const timeout = setTimeout(checkBottomState, 150);
+    return () => clearTimeout(timeout);
+  });
 
   // Setup observer when autoMarkAsRead is enabled
   $effect(() => {

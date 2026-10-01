@@ -242,9 +242,13 @@
     }
   }
 
+  let countsRequestId = 0;
   async function loadCounts() {
+    const requestId = ++countsRequestId;
     const res = await fetch('/api/articles?counts=true');
     const counts = await res.json();
+    // Discard stale responses that resolve after a newer request
+    if (requestId !== countsRequestId) return;
     appStore.setUnreadCounts(counts);
   }
 
