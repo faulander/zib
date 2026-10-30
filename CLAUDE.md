@@ -21,7 +21,9 @@ A single-user RSS reader web application with the following features:
 - **Feed Testing** - Test feed URLs before adding or editing
 - **Feed Error Management** - Settings page shows feeds with errors, allows editing/retrying/deleting
 - **Infinite Scroll** - Article list loads more articles as you scroll
+- **Color Themes** - Slate (default), GitHub, Nord, Solarized, Gruvbox, Catppuccin, Dracula, Tokyo Night, Rosé Pine, One Dark, Sepia; each has light + dark variants (sun/moon toggle picks the variant). Palettes in `src/routes/layout.css`, registry in `src/lib/themes.ts`, stored as `theme` setting and SSR-injected into `<html data-theme>` by `hooks.server.ts`
 - **Settings**:
+  - Color theme
   - Hide read articles (global toggle)
   - Compact list view (reduced spacing)
   - OPML import

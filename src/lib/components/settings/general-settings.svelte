@@ -6,6 +6,8 @@
   import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
   import { Minus, Plus } from '@lucide/svelte';
+  import { THEMES, applyTheme, type ThemeId } from '$lib/themes';
+  import { cn } from '$lib/utils';
 
   interface Props {
     hideReadArticles: boolean;
@@ -19,6 +21,7 @@
     fontSizeOffsetMobile: number;
     skipAgeFilter: boolean;
     highlightMode: 'sort-first' | 'typographic' | 'both';
+    theme: ThemeId;
     embeddingProvider: string;
   }
 
@@ -34,6 +37,7 @@
     fontSizeOffsetMobile = $bindable(),
     skipAgeFilter = $bindable(),
     highlightMode = $bindable(),
+    theme = $bindable(),
     embeddingProvider = 'none'
   }: Props = $props();
 
@@ -72,7 +76,8 @@
       | 'fontSizeOffset'
       | 'fontSizeOffsetMobile'
       | 'skipAgeFilter'
-      | 'highlightMode',
+      | 'highlightMode'
+      | 'theme',
     value: boolean | string | number
   ) {
     try {
@@ -101,6 +106,8 @@
           appStore.setFontSizeOffsetMobile(value as number);
         } else if (key === 'highlightMode') {
           appStore.setHighlightMode(value as 'sort-first' | 'typographic' | 'both');
+        } else if (key === 'theme') {
+          applyTheme(value as ThemeId);
         }
       }
     } catch (err) {
@@ -145,6 +152,48 @@
   </div>
 
   <div class="space-y-3">
+    <div class="p-4 border rounded-lg space-y-3">
+      <div>
+        <div class="font-medium">Theme</div>
+        <div class="text-sm text-muted-foreground">
+          Color palette. Light or dark variant follows the light/dark toggle.
+        </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {#each THEMES as t (t.id)}
+          <button
+            type="button"
+            class={cn(
+              'rounded-lg border p-1.5 text-left transition-colors hover:bg-accent',
+              theme === t.id && 'ring-2 ring-primary'
+            )}
+            aria-pressed={theme === t.id}
+            onclick={() => {
+              theme = t.id;
+              updateSetting('theme', t.id);
+            }}
+          >
+            <div class="flex h-10 overflow-hidden rounded-md border">
+              {#each [false, true] as dark (dark)}
+                <div
+                  data-theme={t.id}
+                  class={cn('flex flex-1 flex-col justify-center gap-1 px-2', dark && 'dark')}
+                  style="background: var(--background)"
+                >
+                  <div class="h-1.5 w-3/4 rounded-full" style="background: var(--foreground)"></div>
+                  <div class="flex gap-1">
+                    <div class="h-1.5 w-4 rounded-full" style="background: var(--primary)"></div>
+                    <div class="h-1.5 w-4 rounded-full" style="background: var(--muted-foreground)"></div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+            <div class="mt-1.5 px-0.5 text-sm">{t.label}</div>
+          </button>
+        {/each}
+      </div>
+    </div>
+
     <div class="flex items-center justify-between p-4 border rounded-lg">
       <div>
         <div class="font-medium">Hide read articles</div>

@@ -30,6 +30,23 @@ self.addEventListener('fetch', (event) => {
 	// Network-first for API calls and SSE
 	if (url.pathname.startsWith('/api/')) return;
 
+	// Network-first for pages: SSR output (e.g. the color theme) must be fresh.
+	// Fall back to the cached copy when offline.
+	if (request.mode === 'navigate') {
+		event.respondWith(
+			fetch(request)
+				.then((response) => {
+					if (response.ok) {
+						const clone = response.clone();
+						caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+					}
+					return response;
+				})
+				.catch(() => caches.match(request).then((cached) => cached || Response.error()))
+		);
+		return;
+	}
+
 	// Cache-first for static assets, with network update
 	event.respondWith(
 		caches.match(request).then((cached) => {

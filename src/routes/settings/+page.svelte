@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import type { Filter, Feed, Folder } from '$lib/types';
+  import type { ThemeId } from '$lib/themes';
   import { Button } from '$lib/components/ui/button';
   import {
     ArrowLeft,
@@ -91,6 +92,7 @@
   let fontSizeOffsetMobile = $state(0);
   let skipAgeFilter = $state(false);
   let highlightMode = $state<'sort-first' | 'typographic' | 'both'>('typographic');
+  let theme = $state<ThemeId>('default');
   let instapaperUsername = $state('');
   let instapaperPassword = $state('');
   let embeddingProvider = $state<'none' | 'ollama' | 'openai' | 'openai-compatible'>('none');
@@ -118,6 +120,7 @@
     fontSizeOffsetMobile = data.settings.fontSizeOffsetMobile;
     skipAgeFilter = data.settings.skipAgeFilter;
     highlightMode = data.settings.highlightMode;
+    theme = data.settings.theme;
     instapaperUsername = data.settings.instapaperUsername;
     instapaperPassword = data.settings.instapaperPassword;
     embeddingProvider = data.settings.embeddingProvider;
@@ -185,6 +188,7 @@
           bind:fontSizeOffsetMobile
           bind:skipAgeFilter
           bind:highlightMode
+          bind:theme
           {embeddingProvider}
         />
       {:else if activeSection === 'sharing'}

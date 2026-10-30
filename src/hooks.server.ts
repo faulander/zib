@@ -1,5 +1,6 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { startScheduler, initialRefresh } from '$lib/server/scheduler';
+import { getSetting } from '$lib/server/settings';
 
 // Start the scheduler when the server starts
 let schedulerStarted = false;
@@ -22,7 +23,10 @@ export const handle: Handle = async ({ event, resolve }) => {
   //   event.locals.user = user;
   // }
 
-  const response = await resolve(event);
+  // Inject the color theme into <html data-theme> so the first paint is themed
+  const response = await resolve(event, {
+    transformPageChunk: ({ html }) => html.replace('%zib.theme%', getSetting('theme'))
+  });
 
   // Log request (disable in production if too verbose)
   const duration = (performance.now() - start).toFixed(2);

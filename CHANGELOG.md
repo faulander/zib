@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-10-30
+
+### Added
+
+- **Color themes** - New Theme setting (Settings → General) with Slate (default), GitHub, Nord, Solarized, Gruvbox, Catppuccin, Dracula, Tokyo Night, Rosé Pine, One Dark and Sepia. Each theme has light and dark variants; the existing light/dark toggle picks the variant. The theme is stored server-side and rendered into the page, so there is no flash on load.
+
+### Changed
+
+- **RSS favicon** - Replaced the Svelte logo with an orange RSS feed icon.
+
+### Fixed
+
+- **Stale pages from the service worker** - Page navigations are now network-first (cached copy only when offline), so server-rendered state such as the theme is never one load behind.
+
 ## [0.9.7] - 2026-04-20
 
 ### Fixed

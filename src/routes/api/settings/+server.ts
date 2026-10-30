@@ -8,6 +8,7 @@ import {
   type AppSettings
 } from '$lib/server/settings';
 import { getEmbeddingStats } from '$lib/server/embedding-job';
+import { isThemeId } from '$lib/themes';
 
 export const GET: RequestHandler = async () => {
   const settings = getAllSettings();
@@ -22,6 +23,11 @@ export const GET: RequestHandler = async () => {
 
 export const PATCH: RequestHandler = async ({ request }) => {
   const updates = (await request.json()) as Partial<AppSettings>;
+
+  // Validate before writing anything so a bad theme doesn't leave a partial update
+  if (updates.theme !== undefined && !isThemeId(updates.theme)) {
+    return json({ error: 'Unknown theme' }, { status: 400 });
+  }
 
   if (updates.hideReadArticles !== undefined) {
     setSetting('hideReadArticles', updates.hideReadArticles);
@@ -93,6 +99,10 @@ export const PATCH: RequestHandler = async ({ request }) => {
 
   if (updates.embeddingRateLimit !== undefined) {
     setSetting('embeddingRateLimit', updates.embeddingRateLimit);
+  }
+
+  if (updates.theme !== undefined) {
+    setSetting('theme', updates.theme);
   }
 
   const settings = getAllSettings();

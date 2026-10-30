@@ -1,3 +1,4 @@
+import type { ThemeId } from '$lib/themes';
 import { getDb } from './db';
 
 export interface AppSettings {
@@ -26,6 +27,8 @@ export interface AppSettings {
   embeddingApiUrl: string;
   embeddingApiKey: string;
   embeddingRateLimit: number;
+  // Color theme (palette); light/dark mode is a separate per-device toggle
+  theme: ThemeId;
 }
 
 const DEFAULTS: AppSettings = {
@@ -46,7 +49,8 @@ const DEFAULTS: AppSettings = {
   embeddingModel: '',
   embeddingApiUrl: '',
   embeddingApiKey: '',
-  embeddingRateLimit: 60
+  embeddingRateLimit: 60,
+  theme: 'default'
 };
 
 export function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] {
@@ -97,7 +101,8 @@ export function getAllSettings(): AppSettings {
     embeddingModel: getSetting('embeddingModel'),
     embeddingApiUrl: getSetting('embeddingApiUrl'),
     embeddingApiKey: getSetting('embeddingApiKey'),
-    embeddingRateLimit: getSetting('embeddingRateLimit')
+    embeddingRateLimit: getSetting('embeddingRateLimit'),
+    theme: getSetting('theme')
   };
 }
 
