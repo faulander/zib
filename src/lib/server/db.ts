@@ -240,11 +240,12 @@ function runMigrations(database: Database): void {
     console.log('[DB] Migration: Added is_highlighted column to feeds table');
   }
 
-  // Migration: Populate FTS5 search index for existing articles
+  // Migration: Populate FTS5 search index for existing articles. Only probe
+  // for a row here: COUNT(*) on a large production database blocks startup.
   try {
-    const ftsCount = database.prepare('SELECT COUNT(*) as count FROM article_search').get() as { count: number };
-    const articlesCount = database.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number };
-    if (ftsCount.count === 0 && articlesCount.count > 0) {
+    const ftsHasRows = database.prepare('SELECT 1 FROM article_search LIMIT 1').get();
+    const articlesHaveRows = database.prepare('SELECT 1 FROM articles LIMIT 1').get();
+    if (!ftsHasRows && articlesHaveRows) {
       database.run('INSERT INTO article_search(rowid, title, rss_content, full_content, author) SELECT id, title, rss_content, full_content, author FROM articles');
       console.log('[DB] Migration: Populated FTS5 search index');
     }
