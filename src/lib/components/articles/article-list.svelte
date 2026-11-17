@@ -39,6 +39,8 @@
   let observer: IntersectionObserver | null = null;
   let lastObservedArticles: typeof appStore.articles = [];
   let bottomMarkTimeout: ReturnType<typeof setTimeout> | null = null;
+  let hasScrolledDown = false;
+  let lastScrollTop = 0;
 
   function clearBottomMarkTimeout() {
     if (!bottomMarkTimeout) return;
@@ -55,7 +57,7 @@
 
     bottomMarkTimeout = setTimeout(() => {
       bottomMarkTimeout = null;
-      if (!appStore.autoMarkAsRead || appStore.hasMoreArticles) return;
+      if (!appStore.autoMarkAsRead || appStore.hasMoreArticles || !hasScrolledDown) return;
 
       for (const articleId of visibleArticleIds) {
         const articleEl = container.querySelector<HTMLElement>(
@@ -77,7 +79,7 @@
 
     const isAtEndOfList = isAtBottom && !appStore.hasMoreArticles;
 
-    if (isAtEndOfList && appStore.autoMarkAsRead) {
+    if (isAtEndOfList && appStore.autoMarkAsRead && hasScrolledDown) {
       scheduleBottomMark();
     } else {
       clearBottomMarkTimeout();
@@ -86,7 +88,12 @@
     return distanceFromBottom;
   }
 
-  function handleScroll() {
+  function handleScroll(event?: Event) {
+    if (event && scrollContainer) {
+      const scrollTop = scrollContainer.scrollTop;
+      if (scrollTop > lastScrollTop + 1) hasScrolledDown = true;
+      lastScrollTop = scrollTop;
+    }
     const distanceFromBottom = checkBottomState();
 
     // Load more when within 200px of bottom
@@ -165,6 +172,8 @@
     ];
     resetMarkedIds();
     clearBottomMarkTimeout();
+    hasScrolledDown = false;
+    lastScrollTop = scrollContainer?.scrollTop ?? 0;
     if (observer && scrollContainer) observeArticles(observer, scrollContainer);
   });
 

@@ -133,6 +133,8 @@
 
   async function loadData() {
     appStore.setIsLoading(true);
+    let loadingArticles = false;
+    const requestId = ++countsRequestId;
 
     try {
       // Load folders, feeds, and settings
@@ -152,22 +154,24 @@
 
       appStore.setFolders(folders);
       appStore.setFeeds(feeds);
-      appStore.setUnreadCounts(counts);
+      if (requestId === countsRequestId) appStore.setUnreadCounts(counts);
       appStore.initSettings(settings);
 
       // Skip article reload while modal is open — replacing the list would blank it
       if (!appStore.articleModalOpen) {
+        loadingArticles = true;
         await loadArticles();
       }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
-      appStore.setIsLoading(false);
+      if (!loadingArticles) appStore.setIsLoading(false);
     }
   }
 
   const ARTICLES_PER_PAGE = 50;
   let nextCursor: { date: string; id: number; highlightRank: number } | null = null;
+  let articlesRequestId = 0;
 
   function buildArticleParams(cursor?: { date: string; id: number; highlightRank?: number }): URLSearchParams {
     const params = new URLSearchParams();
@@ -212,32 +216,42 @@
   }
 
   async function loadArticles() {
-    const params = buildArticleParams();
-    const res = await fetch(`/api/articles?${params}`);
-    const data = await res.json();
-    appStore.setArticles(data.articles);
-    appStore.setHasMoreArticles(data.hasMore);
-    nextCursor = data.nextCursor;
+    const requestId = ++articlesRequestId;
+    appStore.setIsLoading(true);
+    appStore.setIsLoadingMore(false);
+    try {
+      const params = buildArticleParams();
+      const res = await fetch(`/api/articles?${params}`);
+      const data = await res.json();
+      if (requestId !== articlesRequestId) return;
+      appStore.setArticles(data.articles);
+      appStore.setHasMoreArticles(data.hasMore);
+      nextCursor = data.nextCursor;
+    } finally {
+      if (requestId === articlesRequestId) appStore.setIsLoading(false);
+    }
   }
 
   async function loadMoreArticles() {
-    if (appStore.isLoadingMore || !appStore.hasMoreArticles) return;
+    if (appStore.isLoading || appStore.isLoadingMore || !appStore.hasMoreArticles) return;
 
     // Grouping hides some results inside a displayed row. The server cursor
     // tracks the last raw result rather than the last visible representative.
     const cursor = nextCursor;
     if (!cursor) return;
 
+    const requestId = articlesRequestId;
     appStore.setIsLoadingMore(true);
     try {
       const params = buildArticleParams(cursor);
       const res = await fetch(`/api/articles?${params}`);
       const data = await res.json();
+      if (requestId !== articlesRequestId) return;
       appStore.appendArticles(data.articles);
       appStore.setHasMoreArticles(data.hasMore);
       nextCursor = data.nextCursor;
     } finally {
-      appStore.setIsLoadingMore(false);
+      if (requestId === articlesRequestId) appStore.setIsLoadingMore(false);
     }
   }
 

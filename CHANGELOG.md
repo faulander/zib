@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restored auto-mark-as-read after paginated loading: attach the observer when article rows render and record rows visible before scrolling.
 - Fixed the Docker health probe to use Bun (the image does not include `wget`), and stopped embedding jobs from retrying the same failed articles without end when the provider is unavailable.
 - Auto-mark-as-read sends one batch update for scrolled articles instead of sequential per-article requests, so counts and row states update together after a fast scroll.
+- Short folders now keep unread articles visible until the user scrolls down; stale article and count requests can no longer overwrite newer folder state.
 
 ## [0.10.0] - 2026-10-30
 
