@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Article } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
+  import { markReadOnOpen } from './mark-read-on-open';
   import { Rss, Layers } from '@lucide/svelte';
   import { cn } from '$lib/utils';
   import { Badge } from '$lib/components/ui/badge';
@@ -24,16 +25,7 @@
   const showImage = $derived(article.image_url && !imageError);
 
   function handleClick() {
-    if (!article.is_read) {
-      fetch(`/api/articles/${article.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_read: true })
-      });
-      appStore.updateArticleInList(article.id, { is_read: true });
-      window.dispatchEvent(new CustomEvent('reload-counts'));
-    }
-
+    markReadOnOpen(article);
     appStore.selectArticle(article.id);
   }
 

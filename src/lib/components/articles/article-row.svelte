@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Article } from '$lib/types';
   import { appStore } from '$lib/stores/app.svelte';
+  import { markReadOnOpen } from './mark-read-on-open';
   import { cn } from '$lib/utils';
   import { BookmarkPlus, Loader2, Layers, Bookmark } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
@@ -64,17 +65,7 @@
   });
 
   function handleClick() {
-    // Mark as read when opening
-    if (!article.is_read) {
-      fetch(`/api/articles/${article.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_read: true })
-      });
-      appStore.updateArticleInList(article.id, { is_read: true });
-      window.dispatchEvent(new CustomEvent('reload-counts'));
-    }
-
+    markReadOnOpen(article);
     appStore.selectArticle(article.id);
   }
 

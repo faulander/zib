@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
   import { Sheet, SheetContent } from '$lib/components/ui/sheet';
   import { Button } from '$lib/components/ui/button';
   import Sidebar from '$lib/components/sidebar/sidebar.svelte';
   import ArticleList from '$lib/components/articles/article-list.svelte';
+  import { markReadOnOpen } from '$lib/components/articles/mark-read-on-open';
   import ArticleModal from '$lib/components/articles/article-modal.svelte';
   import ToolsPanel from '$lib/components/tools-panel.svelte';
   import ThemeToggle from '$lib/components/theme-toggle.svelte';
@@ -13,6 +15,11 @@
 
   let awaitingG = $state(false);
   let gTimeout: ReturnType<typeof setTimeout> | undefined;
+  let settingsReady = $state(false);
+  let dataRequestId = 0;
+  let lastFilterKey = '';
+  let wasModalOpen = false;
+  let modalListDirty = false;
 
   function handleGlobalKeydown(e: KeyboardEvent) {
     if (appStore.articleModalOpen) return;
@@ -56,15 +63,7 @@
         if (idx >= 0 && idx < articles.length) {
           e.preventDefault();
           const art = articles[idx];
-          if (!art.is_read) {
-            fetch(`/api/articles/${art.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ is_read: true })
-            });
-            appStore.updateArticleInList(art.id, { is_read: true });
-            window.dispatchEvent(new CustomEvent('reload-counts'));
-          }
+          markReadOnOpen(art);
           appStore.selectArticle(art.id);
         }
         break;
@@ -132,18 +131,20 @@
   import { Menu } from '@lucide/svelte';
 
   async function loadData() {
-    appStore.setIsLoading(true);
-    let loadingArticles = false;
-    const requestId = ++countsRequestId;
+    const requestId = ++dataRequestId;
+    const countsId = ++countsRequestId;
+    if (!settingsReady) appStore.setIsLoading(true);
 
     try {
-      // Load folders, feeds, and settings
       const [foldersRes, feedsRes, countsRes, settingsRes] = await Promise.all([
         fetch('/api/folders'),
         fetch('/api/feeds'),
         fetch('/api/articles?counts=true'),
         fetch('/api/settings')
       ]);
+      if (![foldersRes, feedsRes, countsRes, settingsRes].every((res) => res.ok)) {
+        throw new Error('Failed to fetch reader data');
+      }
 
       const [folders, feeds, counts, settings] = await Promise.all([
         foldersRes.json(),
@@ -151,21 +152,29 @@
         countsRes.json(),
         settingsRes.json()
       ]);
+      if (requestId !== dataRequestId) return;
 
+      const previousFilterKey = currentFilterKey();
+      const wasReady = settingsReady;
       appStore.setFolders(folders);
       appStore.setFeeds(feeds);
-      if (requestId === countsRequestId) appStore.setUnreadCounts(counts);
+      if (countsId === countsRequestId) appStore.setUnreadCounts(counts);
       appStore.initSettings(settings);
+      settingsReady = true;
 
-      // Skip article reload while modal is open — replacing the list would blank it
-      if (!appStore.articleModalOpen) {
-        loadingArticles = true;
-        await loadArticles();
+      if (appStore.articleModalOpen) {
+        modalListDirty = true;
+      } else if (wasReady && previousFilterKey === currentFilterKey()) {
+        // No filter effect will run; refresh the rows without tearing them down.
+        void loadArticles(true);
       }
     } catch (err) {
-      console.error('Failed to load data:', err);
+      if (requestId === dataRequestId) {
+        console.error('Failed to load data:', err);
+        toast.error('Could not load reader data', { id: 'reader-load-error' });
+      }
     } finally {
-      if (!loadingArticles) appStore.setIsLoading(false);
+      if (requestId === dataRequestId && !settingsReady) appStore.setIsLoading(false);
     }
   }
 
@@ -215,18 +224,32 @@
     return params;
   }
 
-  async function loadArticles() {
+  function currentFilterKey(): string {
+    return `${buildArticleParams()}|${appStore.similarityThreshold}|${appStore.highlightMode}`;
+  }
+
+  async function loadArticles(keepList = false) {
     const requestId = ++articlesRequestId;
-    appStore.setIsLoading(true);
+    appStore.setIsLoading(!keepList || appStore.articles.length === 0);
     appStore.setIsLoadingMore(false);
     try {
       const params = buildArticleParams();
       const res = await fetch(`/api/articles?${params}`);
+      if (!res.ok) throw new Error(`Failed to load articles: ${res.status}`);
       const data = await res.json();
       if (requestId !== articlesRequestId) return;
+      if (appStore.articleModalOpen) {
+        modalListDirty = true;
+        return;
+      }
       appStore.setArticles(data.articles);
       appStore.setHasMoreArticles(data.hasMore);
       nextCursor = data.nextCursor;
+    } catch (err) {
+      if (requestId === articlesRequestId) {
+        console.error('Failed to load articles:', err);
+        toast.error('Could not load articles', { id: 'articles-load-error' });
+      }
     } finally {
       if (requestId === articlesRequestId) appStore.setIsLoading(false);
     }
@@ -265,30 +288,33 @@
     appStore.setUnreadCounts(counts);
   }
 
-  // React to filter changes
+  // Only the current filter or a modal close can start a list request.
+  // Keep background refreshes and open/close transitions from tearing down
+  // the rows (and the scroll observer) while an article is being read.
   $effect(() => {
-    // Access dependencies
-    appStore.selectedFeedId;
-    appStore.selectedFolderId;
-    appStore.showUnreadOnly;
-    appStore.showStarredOnly;
-    appStore.hideReadArticles;
-    appStore.similarityThreshold;
-    appStore.searchQuery;
-    appStore.showSavedOnly;
-    appStore.highlightMode;
-
-    loadArticles();
-  });
-
-  // Reload articles when the article modal closes (background refreshes may have been skipped)
-  let wasModalOpen = false;
-  $effect(() => {
+    if (!settingsReady) return;
+    const filterKey = currentFilterKey();
     const isOpen = appStore.articleModalOpen;
-    if (wasModalOpen && !isOpen) {
-      loadArticles();
+    if (isOpen) {
+      if (filterKey !== lastFilterKey) modalListDirty = true;
+      wasModalOpen = true;
+      return;
     }
-    wasModalOpen = isOpen;
+
+    const closing = wasModalOpen;
+    wasModalOpen = false;
+    const unchangedList = filterKey === lastFilterKey;
+    const needsUnreadRefresh = appStore.hideReadArticles || appStore.showUnreadOnly;
+    if (closing && unchangedList && !modalListDirty && !needsUnreadRefresh) return;
+
+    const keepList = unchangedList && closing;
+    lastFilterKey = filterKey;
+    modalListDirty = false;
+    // Fetching reads store state synchronously; don't make the effect depend
+    // on the current rows or loading flags as well as its explicit filter.
+    untrack(() => {
+      void loadArticles(keepList);
+    });
   });
 
   onMount(() => {

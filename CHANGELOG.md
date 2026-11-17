@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Folder and feed unread counts now scan unread entries rather than fetching every article body; read/star updates no longer rebuild the full-text index.
 - Replaced automatic end-of-list and short-list marking with an explicit "Mark all as read" button scoped to the current folder, feed, or filtered list.
 - Reader settings requests no longer compute unused full-library embedding statistics, which blocked the initial page load on large databases.
+- Background embedding scans and embedding statistics now page through bounded article batches and yield between batches, so neither startup processing nor Settings polling can block reader requests on large libraries.
+- Article lists stay visible during modal close and background refresh; stale responses cannot replace an open article, and initial loading no longer duplicates the list request.
+- Unread sidebar counts now refresh after an article-open mark-read request completes, rather than racing the database update.
 
 ## [0.10.0] - 2026-10-30
 

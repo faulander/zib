@@ -1,5 +1,6 @@
 <script lang="ts">
   import { appStore } from '$lib/stores/app.svelte';
+  import { markReadOnOpen } from './mark-read-on-open';
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import Spinner from '$lib/components/spinner.svelte';
@@ -160,17 +161,7 @@
   }
 
   function openSimilarArticle(similarArticle: Article) {
-    // Mark as read
-    if (!similarArticle.is_read) {
-      fetch(`/api/articles/${similarArticle.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_read: true })
-      });
-      appStore.updateArticleInList(similarArticle.id, { is_read: true });
-      window.dispatchEvent(new CustomEvent('reload-counts'));
-    }
-
+    markReadOnOpen(similarArticle);
     // Reset states for new article
     extractedContent = null;
     lastExtractedId = null;
@@ -202,16 +193,7 @@
       const prevArticle = appStore.articles[currentIndex - 1];
       appStore.selectArticle(prevArticle.id);
 
-      // Mark as read
-      if (!prevArticle.is_read) {
-        fetch(`/api/articles/${prevArticle.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ is_read: true })
-        });
-        appStore.updateArticleInList(prevArticle.id, { is_read: true });
-        window.dispatchEvent(new CustomEvent('reload-counts'));
-      }
+      markReadOnOpen(prevArticle);
     }
   }
 
@@ -220,16 +202,7 @@
       const nextArticle = appStore.articles[currentIndex + 1];
       appStore.selectArticle(nextArticle.id);
 
-      // Mark as read
-      if (!nextArticle.is_read) {
-        fetch(`/api/articles/${nextArticle.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ is_read: true })
-        });
-        appStore.updateArticleInList(nextArticle.id, { is_read: true });
-        window.dispatchEvent(new CustomEvent('reload-counts'));
-      }
+      markReadOnOpen(nextArticle);
     }
   }
 

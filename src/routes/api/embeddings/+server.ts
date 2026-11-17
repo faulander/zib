@@ -12,7 +12,7 @@ import {
  * GET /api/embeddings - Get embedding statistics
  */
 export const GET: RequestHandler = async () => {
-  const stats = getEmbeddingStats();
+  const stats = await getEmbeddingStats();
   return json({ ...stats, isProcessing: isEmbeddingInProgress() });
 };
 
