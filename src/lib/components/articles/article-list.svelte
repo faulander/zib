@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
   import ArticleRow from './article-row.svelte';
   import ArticleCard from './article-card.svelte';
   import Spinner from '$lib/components/spinner.svelte';
+  import { Button } from '$lib/components/ui/button';
+  import { CheckCheck } from '@lucide/svelte';
   import {
     createAutoMarkReadObserver,
-    getVisibleUnreadArticleIds,
     observeArticles,
-    queueMarkAsRead,
     resetMarkedIds
   } from './use-auto-mark-read.svelte';
 
@@ -33,71 +33,68 @@
     return -1;
   });
 
-  const BOTTOM_DWELL_MS = 2000;
+  let isMarkingAllRead = $state(false);
+
+  async function markAllListedRead() {
+    const ids = appStore.articles.filter((article) => !article.is_read).map((article) => article.id);
+    if (ids.length === 0 || isMarkingAllRead) return;
+
+    // In search/saved views, limit the action to the displayed articles.
+    // Otherwise match the toolbar's "Mark all as read" scope.
+    const restrictedView =
+      appStore.showSavedOnly || appStore.showStarredOnly || !!appStore.searchQuery.trim();
+    const requests: Record<string, unknown>[] = [];
+    if (restrictedView) {
+      for (let i = 0; i < ids.length; i += 1000) {
+        requests.push({ ids: ids.slice(i, i + 1000) });
+      }
+    } else {
+      requests.push({
+        older_than: 'all',
+        ...(appStore.selectedFeedId
+          ? { feed_id: appStore.selectedFeedId }
+          : appStore.selectedFolderId
+            ? { folder_id: appStore.selectedFolderId }
+            : {})
+      });
+    }
+
+    isMarkingAllRead = true;
+    try {
+      let markedCount = 0;
+      for (const body of requests) {
+        const response = await fetch('/api/mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error('Failed to mark articles as read');
+        const result = await response.json();
+        markedCount += result.marked_count;
+      }
+      toast.success(`Marked ${markedCount} articles as read`);
+      window.dispatchEvent(new CustomEvent('reload-data'));
+    } catch {
+      toast.error('Failed to mark articles as read');
+      window.dispatchEvent(new CustomEvent('reload-data'));
+    } finally {
+      isMarkingAllRead = false;
+    }
+  }
 
   let scrollContainer = $state<HTMLDivElement | null>(null);
   let observer: IntersectionObserver | null = null;
   let lastObservedArticles: typeof appStore.articles = [];
-  let bottomMarkTimeout: ReturnType<typeof setTimeout> | null = null;
-  let hasScrolledDown = false;
-  let lastScrollTop = 0;
 
-  function clearBottomMarkTimeout() {
-    if (!bottomMarkTimeout) return;
-    clearTimeout(bottomMarkTimeout);
-    bottomMarkTimeout = null;
-  }
-
-  function scheduleBottomMark() {
-    clearBottomMarkTimeout();
-    const container = scrollContainer;
-    if (!container) return;
-    const visibleArticleIds = getVisibleUnreadArticleIds(container);
-    if (visibleArticleIds.length === 0) return;
-
-    bottomMarkTimeout = setTimeout(() => {
-      bottomMarkTimeout = null;
-      if (!appStore.autoMarkAsRead || appStore.hasMoreArticles || !hasScrolledDown) return;
-
-      for (const articleId of visibleArticleIds) {
-        const articleEl = container.querySelector<HTMLElement>(
-          `[data-article-id="${articleId}"]`
-        );
-        if (articleEl?.dataset.isRead === 'false') {
-          queueMarkAsRead(articleId);
-        }
-      }
-    }, BOTTOM_DWELL_MS);
-  }
-
-  function checkBottomState() {
+  function distanceFromBottom() {
     if (!scrollContainer) return 0;
-
     const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    const isAtBottom = distanceFromBottom <= 1;
-
-    const isAtEndOfList = isAtBottom && !appStore.hasMoreArticles;
-
-    if (isAtEndOfList && appStore.autoMarkAsRead && hasScrolledDown) {
-      scheduleBottomMark();
-    } else {
-      clearBottomMarkTimeout();
-    }
-
-    return distanceFromBottom;
+    return scrollHeight - scrollTop - clientHeight;
   }
 
-  function handleScroll(event?: Event) {
-    if (event && scrollContainer) {
-      const scrollTop = scrollContainer.scrollTop;
-      if (scrollTop > lastScrollTop + 1) hasScrolledDown = true;
-      lastScrollTop = scrollTop;
-    }
-    const distanceFromBottom = checkBottomState();
-
+  function handleScroll() {
     // Load more when within 200px of bottom
-    if (distanceFromBottom < 200 && !appStore.isLoadingMore && appStore.hasMoreArticles) {
+    if (distanceFromBottom() < 200 && !appStore.isLoadingMore && appStore.hasMoreArticles) {
       window.dispatchEvent(new CustomEvent('load-more-articles'));
     }
   }
@@ -171,9 +168,6 @@
       appStore.similarityThreshold
     ];
     resetMarkedIds();
-    clearBottomMarkTimeout();
-    hasScrolledDown = false;
-    lastScrollTop = scrollContainer?.scrollTop ?? 0;
     if (observer && scrollContainer) observeArticles(observer, scrollContainer);
   });
 
@@ -188,7 +182,6 @@
     }
   });
 
-  onDestroy(clearBottomMarkTimeout);
 </script>
 
 <div class="h-full overflow-y-auto" bind:this={scrollContainer} onscroll={handleScroll}>
@@ -238,7 +231,18 @@
     {/if}
 
     {#if !appStore.hasMoreArticles && appStore.articles.length > 0}
-      <div class="text-center py-4 text-sm text-muted-foreground">No more articles</div>
+      <div class="flex flex-col items-center gap-2 py-4 text-sm text-muted-foreground">
+        <span>No more articles</span>
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={markAllListedRead}
+          disabled={isMarkingAllRead || !appStore.articles.some((article) => !article.is_read)}
+        >
+          <CheckCheck class="h-4 w-4" />
+          {isMarkingAllRead ? 'Marking as read…' : 'Mark all as read'}
+        </Button>
+      </div>
     {/if}
   {/if}
 </div>

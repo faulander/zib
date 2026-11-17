@@ -72,27 +72,6 @@ export function queueMarkAsRead(articleId: number) {
   for (const id of group?.similar_unread_ids ?? []) queueId(id);
 }
 
-export function getVisibleUnreadArticleIds(scrollContainer: HTMLElement): number[] {
-  const rootBounds = scrollContainer.getBoundingClientRect();
-  const articleElements = scrollContainer.querySelectorAll<HTMLElement>('[data-article-id]');
-  const visibleIds: number[] = [];
-
-  for (const articleEl of articleElements) {
-    const articleId = parseInt(articleEl.dataset.articleId || '0', 10);
-    if (!articleId || articleEl.dataset.isRead === 'true') continue;
-
-    const articleBounds = articleEl.getBoundingClientRect();
-    const isVisible =
-      articleBounds.bottom > rootBounds.top && articleBounds.top < rootBounds.bottom;
-
-    if (isVisible) {
-      visibleIds.push(articleId);
-    }
-  }
-
-  return visibleIds;
-}
-
 export function resetMarkedIds() {
   markedIds.clear();
   seenIds.clear();

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Auto-mark-as-read now loads short or grouped pages through the actual end of the list before marking visible articles there; grouped rows mark their unread members too, without skipping articles at page boundaries.
+- Short or grouped pages continue loading through the end of the list without skipping articles at page boundaries.
 - Restored auto-mark-as-read after paginated loading: attach the observer when article rows render and record rows visible before scrolling.
 - Fixed the Docker health probe to use Bun (the image does not include `wget`), and stopped embedding jobs from retrying the same failed articles without end when the provider is unavailable.
 - Auto-mark-as-read sends one batch update for scrolled articles instead of sequential per-article requests, so counts and row states update together after a fast scroll.
@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Avoid scanning the entire FTS and article tables during database startup, which could stall requests on large libraries.
 - Startup only calculates missing feed TTLs instead of synchronously recalculating every feed; daily recalculation yields between feeds to keep requests responsive.
 - Folder and feed unread counts now scan unread entries rather than fetching every article body; read/star updates no longer rebuild the full-text index.
+- Replaced automatic end-of-list and short-list marking with an explicit "Mark all as read" button scoped to the current folder, feed, or filtered list.
 
 ## [0.10.0] - 2026-10-30
 
