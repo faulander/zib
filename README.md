@@ -23,7 +23,7 @@ A modern, self-hosted RSS reader built with SvelteKit and Bun. Clean interface, 
 - **OPML Import/Export** - Easy migration from other RSS readers
 - **Dark Mode** - Full dark/light theme support
 - **Mobile Responsive** - Works great on desktop and mobile devices
-- **Real-time Updates** - Server-Sent Events push new articles to your browser instantly
+- **Real-time Updates** - Background refreshes stream new articles into the open reader without a manual reload
 
 ## Tech Stack
 
@@ -56,6 +56,12 @@ docker run -p 3000:3000 -v $(pwd)/data:/app/data zib
 ```
 
 The app will be available at `http://localhost:3000`.
+
+Background refresh runs on startup and every 15 minutes, selecting feeds due for a refresh.
+When it finds new articles, the open reader updates automatically. The SSE connection
+sends keepalives and reconnects automatically; on reconnection the reader reloads to
+recover any updates missed while disconnected. Manual Refresh still reloads the reader
+when the request finishes.
 
 ## Configuration
 

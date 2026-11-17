@@ -13,6 +13,30 @@ let isRefreshing = false;
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
+// Send the first additions promptly, then coalesce updates during long refresh runs.
+const NOTIFICATION_INTERVAL = 10 * 1000;
+
+async function refreshScheduledFeedsAndNotify() {
+  let pendingAdded = 0;
+  let lastNotifiedAt = 0;
+  const notify = () => {
+    if (pendingAdded === 0) return;
+    serverEvents.emit(EVENTS.FEEDS_REFRESHED, { added: pendingAdded });
+    pendingAdded = 0;
+    lastNotifiedAt = Date.now();
+  };
+
+  try {
+    return await refreshScheduledFeeds(undefined, (added) => {
+      pendingAdded += added;
+      if (Date.now() - lastNotifiedAt >= NOTIFICATION_INTERVAL) notify();
+    });
+  } finally {
+    // A short run (or a failed run) must still announce its last additions.
+    notify();
+  }
+}
+
 export function startScheduler() {
   // Refresh feeds every 15 minutes
   if (!refreshTimer) {
@@ -26,16 +50,11 @@ export function startScheduler() {
       logger.info('scheduler', 'Starting scheduled feed refresh');
       try {
         // Refresh all feeds that need updating (no limit)
-        const result = await refreshScheduledFeeds();
+        const result = await refreshScheduledFeedsAndNotify();
         logger.info('scheduler', `Feed refresh complete`, {
           added: result.total_added,
           feeds: Object.keys(result.feed_results).length
         });
-
-        // Notify connected clients if new articles were added
-        if (result.total_added > 0) {
-          serverEvents.emit(EVENTS.FEEDS_REFRESHED, { added: result.total_added });
-        }
 
         // Process embeddings for new articles (fire-and-forget)
         processNewEmbeddings().catch((err) => {
@@ -137,7 +156,7 @@ export async function initialRefresh() {
   logger.info('scheduler', 'Running initial feed refresh');
   try {
     // On startup, refresh feeds that need updating (no limit)
-    const result = await refreshScheduledFeeds();
+    const result = await refreshScheduledFeedsAndNotify();
     logger.info('scheduler', `Initial refresh complete`, { added: result.total_added });
 
     // Process embeddings for any articles missing them

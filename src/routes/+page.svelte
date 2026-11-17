@@ -329,41 +329,28 @@
     window.addEventListener('reload-counts', handleReloadCounts);
     window.addEventListener('load-more-articles', handleLoadMore);
 
-    // Connect to Server-Sent Events for real-time updates
-    let eventSource: EventSource | null = null;
+    // Native EventSource reconnects automatically; resync on every connection
+    // to recover updates missed while offline (including before the first connection).
+    const eventSource = new EventSource('/api/events');
+    let reloadTimeout: ReturnType<typeof setTimeout> | undefined;
+    const queueReload = () => {
+      clearTimeout(reloadTimeout);
+      reloadTimeout = setTimeout(() => {
+        reloadTimeout = undefined;
+        void loadData();
+      }, 1000);
+    };
 
-    function connectSSE() {
-      eventSource = new EventSource('/api/events');
-
-      eventSource.addEventListener('connected', () => {
-        console.log('[SSE] Connected to server events');
-      });
-
-      eventSource.addEventListener('feeds-refreshed', (event) => {
-        const data = JSON.parse(event.data);
-        console.log(`[SSE] Feeds refreshed, ${data.added} new articles`);
-        loadData();
-      });
-
-      eventSource.addEventListener('articles-updated', () => {
-        console.log('[SSE] Articles updated');
-        loadData();
-      });
-
-      eventSource.onerror = () => {
-        console.log('[SSE] Connection error, reconnecting in 5s...');
-        eventSource?.close();
-        setTimeout(connectSSE, 5000);
-      };
-    }
-
-    connectSSE();
+    eventSource.addEventListener('connected', queueReload);
+    eventSource.addEventListener('feeds-refreshed', queueReload);
+    eventSource.addEventListener('articles-updated', queueReload);
 
     return () => {
       window.removeEventListener('reload-data', handleReload);
       window.removeEventListener('reload-counts', handleReloadCounts);
       window.removeEventListener('load-more-articles', handleLoadMore);
-      eventSource?.close();
+      clearTimeout(reloadTimeout);
+      eventSource.close();
     };
   });
 </script>
