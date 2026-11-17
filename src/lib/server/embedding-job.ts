@@ -109,6 +109,9 @@ export async function processNewEmbeddings(): Promise<{ processed: number; faile
         }
       }
 
+      // Failed articles are still pending; re-querying them here would retry
+      // the same broken provider indefinitely. A later scheduled job can retry.
+      if (failed > 0) break;
       pass++;
     }
 

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Auto-mark-as-read now loads short or grouped pages through the actual end of the list before marking visible articles there; grouped rows mark their unread members too, without skipping articles at page boundaries.
+- Fixed the Docker health probe to use Bun (the image does not include `wget`), and stopped embedding jobs from retrying the same failed articles without end when the provider is unavailable.
 
 ## [0.10.0] - 2026-10-30
 
