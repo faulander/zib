@@ -125,7 +125,7 @@ export async function initialRefresh() {
   // First, calculate TTL for any feeds missing statistics
   logger.info('ttl', 'Calculating initial TTL values');
   try {
-    const ttlResult = await recalculateAllFeedTTLs();
+    const ttlResult = await recalculateAllFeedTTLs(true);
     logger.info('ttl', `Initial TTL calculation complete`, { updated: ttlResult.updated });
   } catch (err) {
     logger.error('ttl', 'Initial TTL calculation failed', {

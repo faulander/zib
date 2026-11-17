@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-mark-as-read sends one batch update for scrolled articles instead of sequential per-article requests, so counts and row states update together after a fast scroll.
 - Short folders now keep unread articles visible until the user scrolls down; stale article and count requests can no longer overwrite newer folder state.
 - Avoid scanning the entire FTS and article tables during database startup, which could stall requests on large libraries.
+- Startup only calculates missing feed TTLs instead of synchronously recalculating every feed; daily recalculation yields between feeds to keep requests responsive.
 
 ## [0.10.0] - 2026-10-30
 

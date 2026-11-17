@@ -156,11 +156,15 @@ export function recalculateFeedTTL(feedId: number): FeedStatistics {
 }
 
 /**
- * Recalculate statistics and TTL for all feeds
+ * Recalculate statistics and TTL for all feeds, or only uninitialized feeds at startup.
  */
-export async function recalculateAllFeedTTLs(): Promise<{ updated: number }> {
+export async function recalculateAllFeedTTLs(onlyMissing = false): Promise<{ updated: number }> {
   const db = getDb();
-  const feeds = db.prepare('SELECT id FROM feeds').all() as { id: number }[];
+  const feeds = db.prepare(onlyMissing
+    ? `SELECT f.id FROM feeds f
+       LEFT JOIN feed_statistics s ON s.feed_id = f.id
+       WHERE s.calculated_ttl_minutes IS NULL`
+    : 'SELECT id FROM feeds').all() as { id: number }[];
 
   let updated = 0;
 
@@ -171,6 +175,11 @@ export async function recalculateAllFeedTTLs(): Promise<{ updated: number }> {
     } catch (err) {
       console.error(`[AdaptiveTTL] Failed to recalculate TTL for feed ${feed.id}:`, err);
     }
+    // Statistics are synchronous SQLite work; yield so page requests and
+    // health checks can run between feeds.
+    const { promise, resolve } = Promise.withResolvers<void>();
+    setImmediate(resolve);
+    await promise;
   }
 
   return { updated };
