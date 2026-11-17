@@ -13,32 +13,39 @@ const observedElements = new WeakMap<IntersectionObserver, WeakSet<Element>>();
 // Batch API calls to avoid overwhelming the server
 let pendingMarkRead: number[] = [];
 let flushTimeout: ReturnType<typeof setTimeout> | null = null;
+const MAX_BATCH_SIZE = 1000;
 
 async function flushPendingMarkRead() {
   if (pendingMarkRead.length === 0) return;
 
-  const idsToMark = [...pendingMarkRead];
-  pendingMarkRead = [];
+  const idsToMark = pendingMarkRead.splice(0, MAX_BATCH_SIZE);
+  if (pendingMarkRead.length > 0) scheduleFlush();
 
-  // Mark each article as read
-  for (const id of idsToMark) {
-    try {
-      const response = await fetch(`/api/articles/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_read: true })
-      });
-      if (!response.ok) throw new Error(`Mark read failed: ${response.status}`);
-      appStore.updateArticleInList(id, { is_read: true });
-    } catch (err) {
-      console.error('Failed to mark article as read:', err);
-      markedIds.delete(id);
-    }
-  }
+  try {
+    const response = await fetch('/api/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: idsToMark })
+    });
+    if (!response.ok) throw new Error(`Mark read failed: ${response.status}`);
 
-  // Refresh counts once after batch
-  if (idsToMark.length > 0) {
+    const marked = new Set(idsToMark);
+    appStore.setArticles(appStore.articles.map((article) => {
+      const unreadSimilar = article.similar_unread_ids;
+      const groupChanged = unreadSimilar?.some((id) => marked.has(id));
+      const mainChanged = marked.has(article.id);
+      if (!mainChanged && !groupChanged) return article;
+      if (!groupChanged) return { ...article, is_read: true };
+      return {
+        ...article,
+        is_read: mainChanged || article.is_read,
+        similar_unread_ids: unreadSimilar!.filter((id) => !marked.has(id))
+      };
+    }));
     window.dispatchEvent(new CustomEvent('reload-counts'));
+  } catch (err) {
+    console.error('Failed to mark articles as read:', err);
+    for (const id of idsToMark) markedIds.delete(id);
   }
 }
 

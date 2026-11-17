@@ -215,6 +215,14 @@ export function updateArticle(id: number, data: UpdateArticle): Article | null {
   return getArticleById(id);
 }
 
+export function markArticleIdsRead(ids: number[]): number {
+  const db = getDb();
+  db.prepare('UPDATE articles SET is_read = 1 WHERE is_read = 0 AND id IN (SELECT value FROM json_each(?))')
+    .run(JSON.stringify(ids));
+  const row = db.query('SELECT changes() AS count').get() as { count: number };
+  return row.count;
+}
+
 export function markArticlesRead(filters: MarkReadFilters): number {
   const db = getDb();
 
