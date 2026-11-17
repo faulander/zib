@@ -68,6 +68,7 @@ export interface Article extends Omit<ArticleRow, 'is_read' | 'is_starred' | 'is
   // Similarity grouping metadata (added when grouping is enabled)
   similar_count?: number;
   similar_ids?: number[];
+  similar_unread_ids?: number[];
   // FTS5 search snippet (present when search is active)
   search_snippet?: string;
 }

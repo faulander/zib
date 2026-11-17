@@ -167,6 +167,7 @@
   }
 
   const ARTICLES_PER_PAGE = 50;
+  let nextCursor: { date: string; id: number; highlightRank: number } | null = null;
 
   function buildArticleParams(cursor?: { date: string; id: number; highlightRank?: number }): URLSearchParams {
     const params = new URLSearchParams();
@@ -216,27 +217,25 @@
     const data = await res.json();
     appStore.setArticles(data.articles);
     appStore.setHasMoreArticles(data.hasMore);
+    nextCursor = data.nextCursor;
   }
 
   async function loadMoreArticles() {
     if (appStore.isLoadingMore || !appStore.hasMoreArticles) return;
 
-    // Get the last article to use as cursor
-    const lastArticle = appStore.articles[appStore.articles.length - 1];
-    if (!lastArticle) return;
+    // Grouping hides some results inside a displayed row. The server cursor
+    // tracks the last raw result rather than the last visible representative.
+    const cursor = nextCursor;
+    if (!cursor) return;
 
     appStore.setIsLoadingMore(true);
     try {
-      const cursor = {
-        date: lastArticle.published_at || lastArticle.created_at,
-        id: lastArticle.id,
-        highlightRank: lastArticle.is_feed_highlighted ? 0 : 1
-      };
       const params = buildArticleParams(cursor);
       const res = await fetch(`/api/articles?${params}`);
       const data = await res.json();
       appStore.appendArticles(data.articles);
       appStore.setHasMoreArticles(data.hasMore);
+      nextCursor = data.nextCursor;
     } finally {
       appStore.setIsLoadingMore(false);
     }

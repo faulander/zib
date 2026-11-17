@@ -198,10 +198,17 @@ export function flattenGroups(
 
   for (const group of groups) {
     if (group.similar.length > 0) {
+      const similarIds: number[] = [];
+      const unreadIds: number[] = [];
+      for (const article of group.similar) {
+        similarIds.push(article.id);
+        if (!article.is_read) unreadIds.push(article.id);
+      }
       result.push({
         ...group.main,
         similar_count: group.similar.length,
-        similar_ids: group.similar.map((a) => a.id)
+        similar_ids: similarIds,
+        similar_unread_ids: unreadIds
       });
     } else {
       result.push(group.main);

@@ -47,6 +47,16 @@ export const GET: RequestHandler = async ({ url }) => {
   const articles = getArticles(filters);
   const requestedLimit = filters.limit || 50;
   const hasMore = articles.length >= requestedLimit;
+  // The cursor must refer to the last raw result, not the last displayed
+  // group representative (which may be the first article in the page).
+  const last = articles.at(-1);
+  const nextCursor = last
+    ? {
+        date: last.published_at || last.created_at,
+        id: last.id,
+        highlightRank: last.is_feed_highlighted ? 0 : 1
+      }
+    : null;
 
   // Group similar articles if requested
   const groupSimilar = url.searchParams.get('group_similar');
@@ -54,9 +64,9 @@ export const GET: RequestHandler = async ({ url }) => {
   if (groupSimilar === 'true') {
     const groups = groupSimilarArticles(articles, 1);
     const flattenedArticles = flattenGroups(groups);
-    return json({ articles: flattenedArticles, hasMore });
+    return json({ articles: flattenedArticles, hasMore, nextCursor });
   }
 
   // For backwards compatibility, also return with metadata structure
-  return json({ articles, hasMore });
+  return json({ articles, hasMore, nextCursor });
 };

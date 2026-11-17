@@ -93,15 +93,19 @@
     }
   }
 
-  // Re-check bottom state whenever the rendered list can't produce a scroll
-  // event on its own (e.g. a folder with too few articles to overflow the
-  // container). Runs after DOM settles so scrollHeight/clientHeight are accurate.
+  // Recheck after each page settles: grouped rows or a short page may not
+  // fill the viewport, so no scroll event will request the next page.
   $effect(() => {
-    const _deps = [appStore.articles.length, appStore.hasMoreArticles, appStore.autoMarkAsRead];
+    const _deps = [
+      appStore.articles.length,
+      appStore.hasMoreArticles,
+      appStore.autoMarkAsRead,
+      appStore.isLoadingMore
+    ];
 
-    if (!scrollContainer || appStore.isLoading) return;
+    if (!scrollContainer || appStore.isLoading || appStore.isLoadingMore) return;
 
-    const timeout = setTimeout(checkBottomState, 150);
+    const timeout = setTimeout(handleScroll, 150);
     return () => clearTimeout(timeout);
   });
 

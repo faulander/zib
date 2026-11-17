@@ -122,7 +122,7 @@
 
 <div
   data-article-id={article.id}
-  data-is-read={article.is_read}
+  data-is-read={article.is_read && !article.similar_unread_ids?.length}
   class={cn(
     'w-full text-left px-4 transition-colors cursor-pointer article-row-hover flex items-center gap-3',
     appStore.compactListView ? 'py-1 sm:py-1' : 'py-1.5 sm:py-2',

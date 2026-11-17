@@ -25,14 +25,16 @@ async function flushPendingMarkRead() {
   // Mark each article as read
   for (const id of idsToMark) {
     try {
-      await fetch(`/api/articles/${id}`, {
+      const response = await fetch(`/api/articles/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_read: true })
       });
+      if (!response.ok) throw new Error(`Mark read failed: ${response.status}`);
       appStore.updateArticleInList(id, { is_read: true });
     } catch (err) {
       console.error('Failed to mark article as read:', err);
+      markedIds.delete(id);
     }
   }
 
@@ -50,11 +52,19 @@ function scheduleFlush() {
   }, 500); // 500ms debounce
 }
 
-export function queueMarkAsRead(articleId: number) {
-  if (markedIds.has(articleId)) return;
-  markedIds.add(articleId);
-  pendingMarkRead.push(articleId);
+function queueId(id: number) {
+  if (markedIds.has(id)) return;
+  markedIds.add(id);
+  pendingMarkRead.push(id);
   scheduleFlush();
+}
+
+export function queueMarkAsRead(articleId: number) {
+  // A grouped row stands for all its hidden articles. They leave the viewport
+  // together, so mark unread group members with the visible representative.
+  const group = appStore.articles.find((article) => article.id === articleId);
+  if (!group?.is_read) queueId(articleId);
+  for (const id of group?.similar_unread_ids ?? []) queueId(id);
 }
 
 export function getVisibleUnreadArticleIds(scrollContainer: HTMLElement): number[] {

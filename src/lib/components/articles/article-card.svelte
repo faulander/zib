@@ -50,7 +50,7 @@
 
 <div
   data-article-id={article.id}
-  data-is-read={article.is_read}
+  data-is-read={article.is_read && !article.similar_unread_ids?.length}
   class={cn(
     'bg-card text-card-foreground rounded-xl border shadow-sm cursor-pointer overflow-hidden min-h-[280px] flex flex-col transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:border-primary/50',
     !article.is_read && 'border-l-4 border-l-primary',
