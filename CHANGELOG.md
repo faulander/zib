@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Short folders now keep unread articles visible until the user scrolls down; stale article and count requests can no longer overwrite newer folder state.
 - Avoid scanning the entire FTS and article tables during database startup, which could stall requests on large libraries.
 - Startup only calculates missing feed TTLs instead of synchronously recalculating every feed; daily recalculation yields between feeds to keep requests responsive.
+- Folder and feed unread counts now scan unread entries rather than fetching every article body; read/star updates no longer rebuild the full-text index.
 
 ## [0.10.0] - 2026-10-30
 

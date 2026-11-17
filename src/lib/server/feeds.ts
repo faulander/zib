@@ -9,11 +9,15 @@ export function getAllFeeds(): Feed[] {
       `
     SELECT f.*,
            fo.name as folder_name,
-           COALESCE(SUM(CASE WHEN a.is_read = 0 THEN 1 ELSE 0 END), 0) as unread_count
+           COALESCE(unread.unread_count, 0) as unread_count
     FROM feeds f
     LEFT JOIN folders fo ON fo.id = f.folder_id
-    LEFT JOIN articles a ON a.feed_id = f.id
-    GROUP BY f.id
+    LEFT JOIN (
+      SELECT feed_id, COUNT(*) as unread_count
+      FROM articles INDEXED BY idx_articles_is_read
+      WHERE is_read = 0
+      GROUP BY feed_id
+    ) unread ON unread.feed_id = f.id
     ORDER BY f.position, f.title
   `
     )
@@ -29,20 +33,28 @@ export function getFeedsByFolder(folderId: number | null): Feed[] {
     folderId === null
       ? `
       SELECT f.*,
-             COALESCE(SUM(CASE WHEN a.is_read = 0 THEN 1 ELSE 0 END), 0) as unread_count
+             COALESCE(unread.unread_count, 0) as unread_count
       FROM feeds f
-      LEFT JOIN articles a ON a.feed_id = f.id
+      LEFT JOIN (
+        SELECT feed_id, COUNT(*) as unread_count
+        FROM articles INDEXED BY idx_articles_is_read
+        WHERE is_read = 0
+        GROUP BY feed_id
+      ) unread ON unread.feed_id = f.id
       WHERE f.folder_id IS NULL
-      GROUP BY f.id
       ORDER BY f.position, f.title
     `
       : `
       SELECT f.*,
-             COALESCE(SUM(CASE WHEN a.is_read = 0 THEN 1 ELSE 0 END), 0) as unread_count
+             COALESCE(unread.unread_count, 0) as unread_count
       FROM feeds f
-      LEFT JOIN articles a ON a.feed_id = f.id
+      LEFT JOIN (
+        SELECT feed_id, COUNT(*) as unread_count
+        FROM articles INDEXED BY idx_articles_is_read
+        WHERE is_read = 0
+        GROUP BY feed_id
+      ) unread ON unread.feed_id = f.id
       WHERE f.folder_id = ?
-      GROUP BY f.id
       ORDER BY f.position, f.title
     `;
 
@@ -59,12 +71,16 @@ export function getFeedById(id: number): Feed | null {
       `
     SELECT f.*,
            fo.name as folder_name,
-           COALESCE(SUM(CASE WHEN a.is_read = 0 THEN 1 ELSE 0 END), 0) as unread_count
+           COALESCE(unread.unread_count, 0) as unread_count
     FROM feeds f
     LEFT JOIN folders fo ON fo.id = f.folder_id
-    LEFT JOIN articles a ON a.feed_id = f.id
+    LEFT JOIN (
+      SELECT feed_id, COUNT(*) as unread_count
+      FROM articles INDEXED BY idx_articles_is_read
+      WHERE is_read = 0
+      GROUP BY feed_id
+    ) unread ON unread.feed_id = f.id
     WHERE f.id = ?
-    GROUP BY f.id
   `
     )
     .get(id) as (FeedRow & { folder_name: string | null; unread_count: number }) | undefined;

@@ -8,10 +8,15 @@ export function getAllFolders(): Folder[] {
     .prepare(
       `
     SELECT f.*,
-           COALESCE(SUM(CASE WHEN a.is_read = 0 THEN 1 ELSE 0 END), 0) as unread_count
+           COALESCE(SUM(unread.unread_count), 0) as unread_count
     FROM folders f
     LEFT JOIN feeds fe ON fe.folder_id = f.id
-    LEFT JOIN articles a ON a.feed_id = fe.id
+    LEFT JOIN (
+      SELECT feed_id, COUNT(*) as unread_count
+      FROM articles INDEXED BY idx_articles_is_read
+      WHERE is_read = 0
+      GROUP BY feed_id
+    ) unread ON unread.feed_id = fe.id
     GROUP BY f.id
     ORDER BY f.position, f.name
   `
@@ -28,10 +33,15 @@ export function getFolderById(id: number): Folder | null {
     .prepare(
       `
     SELECT f.*,
-           COALESCE(SUM(CASE WHEN a.is_read = 0 THEN 1 ELSE 0 END), 0) as unread_count
+           COALESCE(SUM(unread.unread_count), 0) as unread_count
     FROM folders f
     LEFT JOIN feeds fe ON fe.folder_id = f.id
-    LEFT JOIN articles a ON a.feed_id = fe.id
+    LEFT JOIN (
+      SELECT feed_id, COUNT(*) as unread_count
+      FROM articles INDEXED BY idx_articles_is_read
+      WHERE is_read = 0
+      GROUP BY feed_id
+    ) unread ON unread.feed_id = fe.id
     WHERE f.id = ?
     GROUP BY f.id
   `

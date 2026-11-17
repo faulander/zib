@@ -153,7 +153,7 @@ CREATE TRIGGER IF NOT EXISTS articles_ad AFTER DELETE ON articles BEGIN
 	VALUES('delete', old.id, old.title, old.rss_content, old.full_content, old.author);
 END;
 
-CREATE TRIGGER IF NOT EXISTS articles_au AFTER UPDATE ON articles BEGIN
+CREATE TRIGGER IF NOT EXISTS articles_au AFTER UPDATE OF title, rss_content, full_content, author ON articles BEGIN
 	INSERT INTO article_search(article_search, rowid, title, rss_content, full_content, author)
 	VALUES('delete', old.id, old.title, old.rss_content, old.full_content, old.author);
 	INSERT INTO article_search(rowid, title, rss_content, full_content, author)
@@ -238,6 +238,22 @@ function runMigrations(database: Database): void {
   if (!hasIsHighlighted) {
     database.run('ALTER TABLE feeds ADD COLUMN is_highlighted INTEGER DEFAULT 0');
     console.log('[DB] Migration: Added is_highlighted column to feeds table');
+  }
+
+  // Older databases reindex full-text content on every read/star update.
+  const updateTrigger = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'articles_au'")
+    .get() as { sql: string } | undefined;
+  if (updateTrigger && !updateTrigger.sql.includes('UPDATE OF title, rss_content, full_content, author')) {
+    database.run('DROP TRIGGER articles_au');
+    database.run(`
+      CREATE TRIGGER articles_au AFTER UPDATE OF title, rss_content, full_content, author ON articles BEGIN
+        INSERT INTO article_search(article_search, rowid, title, rss_content, full_content, author)
+        VALUES('delete', old.id, old.title, old.rss_content, old.full_content, old.author);
+        INSERT INTO article_search(rowid, title, rss_content, full_content, author)
+        VALUES (new.id, new.title, new.rss_content, new.full_content, new.author);
+      END
+    `);
   }
 
   // Migration: Populate FTS5 search index for existing articles. Only probe
