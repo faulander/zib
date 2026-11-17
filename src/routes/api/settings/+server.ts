@@ -7,17 +7,14 @@ import {
   isEmbeddingConfigured,
   type AppSettings
 } from '$lib/server/settings';
-import { getEmbeddingStats } from '$lib/server/embedding-job';
 import { isThemeId } from '$lib/themes';
 
 export const GET: RequestHandler = async () => {
   const settings = getAllSettings();
-  const embeddingStats = getEmbeddingStats();
   return json({
     ...settings,
     instapaperEnabled: isInstapaperConfigured(),
-    embeddingEnabled: isEmbeddingConfigured(),
-    embeddingStats
+    embeddingEnabled: isEmbeddingConfigured()
   });
 };
 
@@ -106,11 +103,9 @@ export const PATCH: RequestHandler = async ({ request }) => {
   }
 
   const settings = getAllSettings();
-  const embeddingStats = getEmbeddingStats();
   return json({
     ...settings,
     instapaperEnabled: isInstapaperConfigured(),
-    embeddingEnabled: isEmbeddingConfigured(),
-    embeddingStats
+    embeddingEnabled: isEmbeddingConfigured()
   });
 };

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Startup only calculates missing feed TTLs instead of synchronously recalculating every feed; daily recalculation yields between feeds to keep requests responsive.
 - Folder and feed unread counts now scan unread entries rather than fetching every article body; read/star updates no longer rebuild the full-text index.
 - Replaced automatic end-of-list and short-list marking with an explicit "Mark all as read" button scoped to the current folder, feed, or filtered list.
+- Reader settings requests no longer compute unused full-library embedding statistics, which blocked the initial page load on large databases.
 
 ## [0.10.0] - 2026-10-30
 
