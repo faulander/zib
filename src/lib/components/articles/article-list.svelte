@@ -35,9 +35,9 @@
 
   const BOTTOM_DWELL_MS = 2000;
 
-  let scrollContainer: HTMLDivElement;
+  let scrollContainer = $state<HTMLDivElement | null>(null);
   let observer: IntersectionObserver | null = null;
-  let lastArticleCount = 0;
+  let lastObservedArticles: typeof appStore.articles = [];
   let bottomMarkTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function clearBottomMarkTimeout() {
@@ -48,7 +48,9 @@
 
   function scheduleBottomMark() {
     clearBottomMarkTimeout();
-    const visibleArticleIds = getVisibleUnreadArticleIds(scrollContainer);
+    const container = scrollContainer;
+    if (!container) return;
+    const visibleArticleIds = getVisibleUnreadArticleIds(container);
     if (visibleArticleIds.length === 0) return;
 
     bottomMarkTimeout = setTimeout(() => {
@@ -56,7 +58,7 @@
       if (!appStore.autoMarkAsRead || appStore.hasMoreArticles) return;
 
       for (const articleId of visibleArticleIds) {
-        const articleEl = scrollContainer.querySelector<HTMLElement>(
+        const articleEl = container.querySelector<HTMLElement>(
           `[data-article-id="${articleId}"]`
         );
         if (articleEl?.dataset.isRead === 'false') {
@@ -121,15 +123,9 @@
       return;
     }
 
-    // Create observer only if we don't have one
     if (!observer) {
       observer = createAutoMarkReadObserver(scrollContainer);
-      // Initial observation after DOM has settled
-      setTimeout(() => {
-        if (observer && scrollContainer) {
-          observeArticles(observer, scrollContainer);
-        }
-      }, 150);
+      observeArticles(observer, scrollContainer);
     }
 
     return () => {
@@ -138,19 +134,20 @@
     };
   });
 
-  // Observe new articles when more are loaded (not when read status changes)
+  // Synchronously register rendered rows before the user can scroll past them.
+  // Replacement pages can have the same number of rows as the previous page.
   $effect(() => {
-    const articleCount = appStore.articles.length;
-
-    // Only re-observe if new articles were added (count increased)
-    if (observer && scrollContainer && articleCount > lastArticleCount) {
-      setTimeout(() => {
-        if (observer && scrollContainer) {
-          observeArticles(observer, scrollContainer);
-        }
-      }, 50);
+    const articles = appStore.articles;
+    if (appStore.isLoading) return;
+    if (
+      observer &&
+      scrollContainer &&
+      (articles.length !== lastObservedArticles.length ||
+        articles.some((article, i) => article.id !== lastObservedArticles[i].id))
+    ) {
+      observeArticles(observer, scrollContainer);
     }
-    lastArticleCount = articleCount;
+    lastObservedArticles = articles;
   });
 
   // Reset marked IDs when filter changes
@@ -168,7 +165,7 @@
     ];
     resetMarkedIds();
     clearBottomMarkTimeout();
-    lastArticleCount = 0; // Reset count so we re-observe on filter change
+    if (observer && scrollContainer) observeArticles(observer, scrollContainer);
   });
 
   // Scroll focused article into view

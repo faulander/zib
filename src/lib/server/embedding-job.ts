@@ -86,26 +86,30 @@ export async function processNewEmbeddings(): Promise<{ processed: number; faile
         try {
           const result = await generateEmbedding(article.title);
 
-          if (result) {
-            const blob = embeddingToBlob(result.embedding);
-            db.prepare(`
-              INSERT OR REPLACE INTO article_embeddings (article_id, embedding, model, dimensions)
-              VALUES (?, ?, ?, ?)
-            `).run(article.id, blob, result.model, result.dimensions);
-
-            processed++;
-          } else {
+          if (!result) {
             failed++;
+            break; // A broken provider cannot process the rest of this batch.
           }
+
+          const blob = embeddingToBlob(result.embedding);
+          db.prepare(`
+            INSERT OR REPLACE INTO article_embeddings (article_id, embedding, model, dimensions)
+            VALUES (?, ?, ?, ?)
+          `).run(article.id, blob, result.model, result.dimensions);
+
+          processed++;
 
           // Rate limiting for OpenAI
           if (isRateLimited && delayMs > 0) {
-            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            const { promise, resolve } = Promise.withResolvers<void>();
+            setTimeout(resolve, delayMs);
+            await promise;
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           logger.error('embedding', `Failed to embed article ${article.id}: ${msg}`);
           failed++;
+          break;
         }
       }
 

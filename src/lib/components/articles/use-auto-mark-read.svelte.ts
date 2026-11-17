@@ -6,15 +6,13 @@ const markedIds = new Set<number>();
 // Track articles that have been seen (were visible in viewport)
 const seenIds = new Set<number>();
 
-// Track which elements are currently being observed to avoid duplicate observations
-const observedElements = new WeakSet<Element>();
+// Observations belong to an observer. A replacement observer must re-observe
+// surviving row elements after a filter change or auto-mark toggle.
+const observedElements = new WeakMap<IntersectionObserver, WeakSet<Element>>();
 
 // Batch API calls to avoid overwhelming the server
 let pendingMarkRead: number[] = [];
 let flushTimeout: ReturnType<typeof setTimeout> | null = null;
-
-// Flag to ignore initial intersection events after observing
-let ignoreEventsUntil = 0;
 
 async function flushPendingMarkRead() {
   if (pendingMarkRead.length === 0) return;
@@ -91,12 +89,16 @@ export function getVisibleUnreadArticleIds(scrollContainer: HTMLElement): number
 export function resetMarkedIds() {
   markedIds.clear();
   seenIds.clear();
-  // WeakSet doesn't need clearing - elements will be garbage collected
 }
 
 export function observeArticles(observer: IntersectionObserver, scrollContainer: HTMLElement) {
   const articleElements = scrollContainer.querySelectorAll('[data-article-id]');
-  let newObservations = 0;
+  const rootBounds = scrollContainer.getBoundingClientRect();
+  let elements = observedElements.get(observer);
+  if (!elements) {
+    elements = new WeakSet<Element>();
+    observedElements.set(observer, elements);
+  }
 
   articleElements.forEach((el) => {
     const htmlEl = el as HTMLElement;
@@ -106,37 +108,23 @@ export function observeArticles(observer: IntersectionObserver, scrollContainer:
     // Skip hidden elements (e.g., desktop layout when on mobile, or vice versa)
     // Check if element has actual dimensions
     if (htmlEl.offsetWidth === 0 && htmlEl.offsetHeight === 0) return;
+    const bounds = htmlEl.getBoundingClientRect();
+    if (bounds.bottom > rootBounds.top && bounds.top < rootBounds.bottom) {
+      seenIds.add(articleId);
+    }
 
     // Skip elements already being observed
-    if (observedElements.has(el)) return;
+    if (elements.has(el)) return;
 
-    observedElements.add(el);
+    elements.add(el);
     observer.observe(el);
-    newObservations++;
   });
-
-  // If we added new observations, ignore events briefly to skip initial callbacks
-  if (newObservations > 0) {
-    ignoreEventsUntil = Date.now() + 100;
-  }
 }
 
 export function createAutoMarkReadObserver(scrollContainer: HTMLElement): IntersectionObserver {
   return new IntersectionObserver(
     (entries) => {
       if (!appStore.autoMarkAsRead) return;
-
-      // Skip initial intersection events right after observing
-      if (Date.now() < ignoreEventsUntil) {
-        // But still mark visible articles as "seen"
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const articleId = parseInt((entry.target as HTMLElement).dataset.articleId || '0', 10);
-            if (articleId) seenIds.add(articleId);
-          }
-        }
-        return;
-      }
 
       for (const entry of entries) {
         const articleEl = entry.target as HTMLElement;
