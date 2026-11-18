@@ -108,7 +108,7 @@ export function observeArticles(observer: IntersectionObserver, scrollContainer:
 }
 
 export function createAutoMarkReadObserver(scrollContainer: HTMLElement): IntersectionObserver {
-  return new IntersectionObserver(
+  const observer: IntersectionObserver = new IntersectionObserver(
     (entries) => {
       if (!appStore.autoMarkAsRead) return;
 
@@ -116,6 +116,15 @@ export function createAutoMarkReadObserver(scrollContainer: HTMLElement): Inters
         const articleEl = entry.target as HTMLElement;
         const articleId = parseInt(articleEl.dataset.articleId || '0', 10);
         if (!articleId) continue;
+
+        // Entries for rows removed from the DOM (list replacement, loading
+        // spinner, hide-read filtering) report non-intersecting with an all-zero
+        // rect. They were never scrolled past: forget them, never mark them.
+        if (!articleEl.isConnected) {
+          observer.unobserve(articleEl);
+          seenIds.delete(articleId);
+          continue;
+        }
 
         if (entry.isIntersecting) {
           // Article entered viewport - mark it as seen
@@ -129,7 +138,11 @@ export function createAutoMarkReadObserver(scrollContainer: HTMLElement): Inters
           // Check that we have valid bounds and article left from TOP
           if (!rootBounds || rootBounds.height === 0) continue;
 
-          const leftFromTop = entry.boundingClientRect.bottom <= rootBounds.top;
+          // Zero geometry means a hidden/detached element, not a scroll exit.
+          const rect = entry.boundingClientRect;
+          if (rect.width === 0 && rect.height === 0) continue;
+
+          const leftFromTop = rect.bottom <= rootBounds.top;
 
           // Only mark if:
           // 1. Article was previously visible (seen)
@@ -147,4 +160,5 @@ export function createAutoMarkReadObserver(scrollContainer: HTMLElement): Inters
       threshold: 0
     }
   );
+  return observer;
 }
