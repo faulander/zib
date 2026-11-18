@@ -42,6 +42,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 ENV DATABASE_PATH=/app/data/rss.db
+ENV IDLE_TIMEOUT=60
 
 # Fix volume permissions at runtime, then drop to non-root user
 CMD ["sh", "-c", "chown -R appuser:appgroup /app/data && exec su -s /bin/sh appuser -c 'bun build/index.js'"]
