@@ -130,7 +130,10 @@
   }
   import { Menu } from '@lucide/svelte';
 
+  let lastLoadAt = 0;
+
   async function loadData() {
+    lastLoadAt = Date.now();
     const requestId = ++dataRequestId;
     const countsId = ++countsRequestId;
     if (!settingsReady) appStore.setIsLoading(true);
@@ -317,6 +320,27 @@
     });
   });
 
+  const POLL_INTERVAL = 60 * 1000;
+  const RECENT_LOAD_MS = 5 * 1000;
+
+  // Cheap poll independent of SSE: only reload when the server reports more
+  // unread articles than we show (new arrivals). Mark-read never raises counts.
+  async function pollForNewArticles() {
+    if (!settingsReady || document.visibilityState !== 'visible') return;
+    try {
+      const res = await fetch('/api/articles?counts=true');
+      if (!res.ok) return;
+      const counts = await res.json();
+      const local = appStore.unreadCounts;
+      const grew =
+        counts.total > local.total ||
+        Object.entries(counts.by_feed ?? {}).some(([id, n]) => (n as number) > (local.by_feed?.[Number(id)] ?? 0));
+      if (grew) void loadData();
+    } catch {
+      // Network hiccup; try again next tick.
+    }
+  }
+
   onMount(() => {
     loadData();
 
@@ -341,15 +365,37 @@
       }, 1000);
     };
 
-    eventSource.addEventListener('connected', queueReload);
+    // A (re)connect only resyncs when nothing loaded recently; real events always reload.
+    eventSource.addEventListener('connected', () => {
+      if (Date.now() - lastLoadAt > RECENT_LOAD_MS) queueReload();
+    });
     eventSource.addEventListener('feeds-refreshed', queueReload);
     eventSource.addEventListener('articles-updated', queueReload);
+
+    const pollTimer = setInterval(() => void pollForNewArticles(), POLL_INTERVAL);
+    let hiddenAt = 0;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+      } else if (hiddenAt && Date.now() - lastLoadAt > RECENT_LOAD_MS) {
+        hiddenAt = 0;
+        queueReload();
+      }
+    };
+    const handleFocus = () => {
+      if (Date.now() - lastLoadAt > POLL_INTERVAL) queueReload();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       window.removeEventListener('reload-data', handleReload);
       window.removeEventListener('reload-counts', handleReloadCounts);
       window.removeEventListener('load-more-articles', handleLoadMore);
       clearTimeout(reloadTimeout);
+      clearInterval(pollTimer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
       eventSource.close();
     };
   });

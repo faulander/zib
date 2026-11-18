@@ -4,7 +4,7 @@ import { serverEvents, EVENTS } from '$lib/server/events';
 const encoder = new TextEncoder();
 const heartbeatMessage = encoder.encode(': heartbeat\n\n');
 const connectedMessage = encoder.encode('event: connected\ndata: {}\n\n');
-const HEARTBEAT_INTERVAL = 25 * 1000;
+const HEARTBEAT_INTERVAL = 5 * 1000;
 type Client = { controller: ReadableStreamDefaultController<Uint8Array>; disconnect: () => void };
 const clients = new Set<Client>();
 
@@ -28,7 +28,10 @@ serverEvents.on(EVENTS.ARTICLES_UPDATED, (data) => {
   notifyClients('articles-updated', data);
 });
 
-export const GET: RequestHandler = ({ request }) => {
+export const GET: RequestHandler = ({ request, platform }) => {
+  // Bun closes connections idle for 10 s by default; the stream must outlive that.
+  (platform as { server?: { timeout?: (req: Request, seconds: number) => void } } | undefined)
+    ?.server?.timeout?.(request, 0);
   let client: Client;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
