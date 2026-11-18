@@ -323,19 +323,24 @@
   const POLL_INTERVAL = 60 * 1000;
   const RECENT_LOAD_MS = 5 * 1000;
 
-  // Cheap poll independent of SSE: only reload when the server reports more
-  // unread articles than we show (new arrivals). Mark-read never raises counts.
+  // Cheap poll independent of SSE and the counts store: fetch the head of the
+  // list for the current filters and reload only when it holds an article the
+  // list doesn't show (new arrivals, or an empty/stale list). Never marks
+  // anything read and keeps deep pages when nothing new exists.
   async function pollForNewArticles() {
     if (!settingsReady || document.visibilityState !== 'visible') return;
+    if (appStore.articleModalOpen || appStore.isLoading || appStore.isLoadingMore) return;
     try {
-      const res = await fetch('/api/articles?counts=true');
+      const requestId = articlesRequestId;
+      const params = buildArticleParams();
+      params.set('limit', '1');
+      const res = await fetch(`/api/articles?${params}`);
       if (!res.ok) return;
-      const counts = await res.json();
-      const local = appStore.unreadCounts;
-      const grew =
-        counts.total > local.total ||
-        Object.entries(counts.by_feed ?? {}).some(([id, n]) => (n as number) > (local.by_feed?.[Number(id)] ?? 0));
-      if (grew) void loadData();
+      const data = await res.json();
+      // A list load started meanwhile (filters changed etc.); it is fresher.
+      if (requestId !== articlesRequestId || appStore.articleModalOpen) return;
+      const head = data.articles?.[0];
+      if (head && !appStore.articles.some((a) => a.id === head.id)) void loadData();
     } catch {
       // Network hiccup; try again next tick.
     }
