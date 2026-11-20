@@ -1,6 +1,7 @@
 <script lang="ts">
   import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
+  import { READ_WRITE_HEADERS } from '$lib/client-version';
   import ArticleRow from './article-row.svelte';
   import ArticleCard from './article-card.svelte';
   import Spinner from '$lib/components/spinner.svelte';
@@ -65,7 +66,7 @@
       for (const body of requests) {
         const response = await fetch('/api/mark-read', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: READ_WRITE_HEADERS,
           body: JSON.stringify(body)
         });
         if (!response.ok) throw new Error('Failed to mark articles as read');

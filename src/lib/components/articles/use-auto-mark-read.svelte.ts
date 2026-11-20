@@ -1,4 +1,5 @@
 import { appStore } from '$lib/stores/app.svelte';
+import { READ_WRITE_HEADERS } from '$lib/client-version';
 
 // Track articles that have been marked as read in this session
 const markedIds = new Set<number>();
@@ -24,7 +25,7 @@ async function flushPendingMarkRead() {
   try {
     const response = await fetch('/api/mark-read', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: READ_WRITE_HEADERS,
       body: JSON.stringify({ ids: idsToMark })
     });
     if (!response.ok) throw new Error(`Mark read failed: ${response.status}`);

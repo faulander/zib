@@ -13,6 +13,10 @@ const config = {
     // and runs behind a reverse proxy which may change the Origin header
     csrf: {
       trustedOrigins: ['*']
+    },
+    // Poll /_app/version.json so open tabs learn about new deployments
+    version: {
+      pollInterval: 60_000
     }
   }
 };

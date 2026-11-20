@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import { toast } from 'svelte-sonner';
   import { appStore } from '$lib/stores/app.svelte';
+  import { READ_WRITE_HEADERS } from '$lib/client-version';
   import { Sheet, SheetContent } from '$lib/components/ui/sheet';
   import { Button } from '$lib/components/ui/button';
   import Sidebar from '$lib/components/sidebar/sidebar.svelte';
@@ -90,7 +91,7 @@
           const read = !art.is_read;
           fetch(`/api/articles/${art.id}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: READ_WRITE_HEADERS,
             body: JSON.stringify({ is_read: read })
           });
           appStore.updateArticleInList(art.id, { is_read: read });

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zib-v1';
+const CACHE_NAME = 'zib-v2';
 const STATIC_ASSETS = [
 	'/',
 	'/manifest.json'
@@ -13,11 +13,19 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
 	event.waitUntil(
-		caches.keys().then((keys) =>
-			Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
-		)
+		(async () => {
+			const keys = await caches.keys();
+			const stale = keys.filter((key) => key !== CACHE_NAME);
+			await Promise.all(stale.map((key) => caches.delete(key)));
+			await self.clients.claim();
+
+			// A previous worker/cache existed, so open tabs may run an outdated bundle
+			// (cached or already loaded). Reload them once onto the fresh build.
+			if (stale.length === 0) return;
+			const windows = await self.clients.matchAll({ type: 'window' });
+			await Promise.all(windows.map((client) => client.navigate(client.url).catch(() => {})));
+		})()
 	);
-	self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {

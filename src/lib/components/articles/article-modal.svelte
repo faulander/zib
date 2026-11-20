@@ -1,5 +1,6 @@
 <script lang="ts">
   import { appStore } from '$lib/stores/app.svelte';
+  import { READ_WRITE_HEADERS } from '$lib/client-version';
   import { markReadOnOpen } from './mark-read-on-open';
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
@@ -230,7 +231,7 @@
 
     await fetch(`/api/articles/${displayArticle.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: READ_WRITE_HEADERS,
       body: JSON.stringify({ is_read: newValue })
     });
 

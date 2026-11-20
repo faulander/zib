@@ -4,6 +4,7 @@
   import { Toaster } from '$lib/components/ui/sonner';
   import { appStore } from '$lib/stores/app.svelte';
   import { browser } from '$app/environment';
+  import { updated } from '$app/state';
 
   let { children } = $props();
 
@@ -23,12 +24,19 @@
     }
   }
 
-    // Register service worker for PWA support
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {
-        // SW registration failed, app works fine without it
-      });
-    }
+  // Register service worker for PWA support. updateViaCache 'none' makes the
+  // browser always revalidate sw.js, so new deployments reach open tabs.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {
+      // SW registration failed, app works fine without it
+    });
+  }
+
+  // A new deployment exists: reload so this tab never keeps running a stale bundle
+  // (skipped while reading an article so the modal isn't yanked away).
+  $effect(() => {
+    if (updated.current && !appStore.articleModalOpen) location.reload();
+  });
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
